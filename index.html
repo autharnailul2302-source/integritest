@@ -160,6 +160,7 @@
                 
                 listenForSettings(); 
                 listenForQuestions();
+                setTimeout(() => { if(window.ensureAdminCredentials) window.ensureAdminCredentials(); }, 1500);
                 // Load ruang ujian & sesi aktif untuk dropdown siswa (deferred ke setelah LOGIC SCRIPT dimuat)
                 setTimeout(() => { 
                     if (window.listenForRuang) window.listenForRuang();
@@ -1965,7 +1966,7 @@
             <!-- PANEL 2: MANAJEMEN SOAL (BANK SOAL) -->
             <!-- PANEL 2: BANK SOAL (REDESIGNED) -->
             <!-- PANEL 2: MANAJEMEN SOAL (REDESIGNED - PAKET FIRST) -->
-            <div id="panel-soal" class="hidden-section">
+            <div id="panel-soal" class="hidden-section admin-only-panel">
 
                 <!-- ══ STEP 1: DAFTAR PAKET SOAL ══ -->
                 <div id="view-paket-list">
@@ -2309,7 +2310,7 @@
 
 
                         <!-- PANEL 4: MANAJEMEN KELAS -->
-            <div id="panel-kelas" class="hidden-section">
+            <div id="panel-kelas" class="hidden-section admin-only-panel">
                 <div class="bg-white rounded-xl shadow-sm border p-6">
                     <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
                         <div>
@@ -2886,6 +2887,97 @@
 
                 </div>
 
+                <!-- KARTU: Keamanan Akun Admin -->
+                <div class="mt-6 bg-white rounded-xl shadow-sm border border-red-100 p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
+                        <i data-lucide="shield-check" class="w-5 h-5 text-red-500"></i> Keamanan Akun Admin
+                    </h2>
+                    <p class="text-sm text-gray-400 mb-5">Ubah username dan password login admin. Wajib isi <span class="font-semibold text-gray-600">Password Lama</span> untuk konfirmasi identitas. Password baru bersifat opsional (kosongkan jika tidak ingin ganti).</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <!-- Kolom Kiri: Username & Display Name -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Username Login <span class="text-red-400">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i data-lucide="at-sign" class="w-4 h-4"></i></span>
+                                    <input type="text" id="setting-admin-user" autocomplete="off"
+                                        class="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-red-400 outline-none font-mono font-semibold text-gray-800"
+                                        placeholder="Username untuk login admin">
+                                </div>
+                                <p class="text-[11px] text-gray-400 mt-1">Minimal 4 karakter. Digunakan saat login admin.</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Nama Tampil (Display Name)
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i data-lucide="user" class="w-4 h-4"></i></span>
+                                    <input type="text" id="setting-admin-display" autocomplete="off"
+                                        class="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-red-400 outline-none text-gray-800"
+                                        placeholder="Contoh: Admin Utama / Bu Sari">
+                                </div>
+                                <p class="text-[11px] text-gray-400 mt-1">Muncul di header dashboard setelah login.</p>
+                            </div>
+                        </div>
+
+                        <!-- Kolom Kanan: Password -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Password Lama <span class="text-red-400">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i data-lucide="lock" class="w-4 h-4"></i></span>
+                                    <input type="password" id="setting-admin-old-pass" autocomplete="current-password"
+                                        class="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-red-400 outline-none"
+                                        placeholder="Password yang sekarang dipakai">
+                                </div>
+                                <p class="text-[11px] text-gray-400 mt-1">Wajib diisi untuk memverifikasi identitas.</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Password Baru <span class="text-gray-400 font-normal">(opsional)</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i data-lucide="key-round" class="w-4 h-4"></i></span>
+                                    <input type="password" id="setting-admin-new-pass" autocomplete="new-password"
+                                        class="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-red-400 outline-none"
+                                        placeholder="Kosongkan jika tidak ingin ganti">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Konfirmasi Password Baru
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i data-lucide="key-round" class="w-4 h-4"></i></span>
+                                    <input type="password" id="setting-admin-conf-pass" autocomplete="new-password"
+                                        class="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-red-400 outline-none"
+                                        placeholder="Ulangi password baru">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Peringatan keamanan -->
+                    <div class="mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                        <i data-lucide="triangle-alert" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
+                        <p class="text-xs text-amber-700 leading-relaxed">
+                            <span class="font-bold">Perhatian:</span> Simpan username dan password baru di tempat yang aman. Jika lupa password, data hanya bisa dipulihkan langsung melalui Firebase Console.
+                        </p>
+                    </div>
+
+                    <div class="mt-4 flex justify-end">
+                        <button onclick="window.saveAdminCredentials()"
+                            class="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm transition active:scale-95">
+                            <i data-lucide="shield-check" class="w-4 h-4"></i> Perbarui Kredensial Admin
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Tombol simpan -->
                 <div class="mt-6 flex items-center justify-between gap-4">
                     <!-- Info Perf Mode -->
@@ -3259,8 +3351,8 @@
             setVal('setting-motivasi',    s.motivasi);
             setVal('setting-logo-url',    s.logoUrl);
             setVal('setting-nomor-id-mode', s.nomorIdMode || 'nisn');
-            // update preview
             window.updateTampilanPreview();
+            if (window.loadAdminCredentialFields) window.loadAdminCredentialFields();
         };
 
         // Live preview saat mengetik
@@ -3428,7 +3520,84 @@
         };
         // ==================== END MANAJEMEN SESI ====================
 
-        window.listenForRuang = function() {
+        // ═══════════════════════════════════════════════════════
+        // ADMIN CREDENTIALS MANAGEMENT (Firebase-based)
+        // ═══════════════════════════════════════════════════════
+
+        // Seed credentials default ke Firebase (pertama kali)
+        window.ensureAdminCredentials = async function() {
+            if (!window.isFirebaseReady || !window.db) return;
+            try {
+                const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials'));
+                if (snap.empty) {
+                    await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials', 'main_admin'), {
+                        username: 'authar', password: 'Sedayu@123',
+                        displayName: 'Admin Utama', createdAt: Date.now()
+                    });
+                }
+            } catch(e) { console.warn('ensureAdminCredentials:', e); }
+        };
+
+        // Simpan perubahan username & password admin
+        window.saveAdminCredentials = async function() {
+            if (!window.isFirebaseReady || !window.db) {
+                alert('Fitur ini memerlukan koneksi internet (Firebase).');
+                return;
+            }
+            const newUser    = (document.getElementById('setting-admin-user')?.value || '').trim();
+            const newDisplay = (document.getElementById('setting-admin-display')?.value || '').trim();
+            const oldPass    = document.getElementById('setting-admin-old-pass')?.value || '';
+            const newPass    = document.getElementById('setting-admin-new-pass')?.value || '';
+            const confPass   = document.getElementById('setting-admin-conf-pass')?.value || '';
+
+            if (!newUser || newUser.length < 4) { alert('Username minimal 4 karakter!'); return; }
+            if (!oldPass) { alert('Masukkan password lama untuk konfirmasi identitas!'); return; }
+
+            // Verifikasi password lama
+            let docId = null;
+            try {
+                const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials'));
+                snap.forEach(ds => { if (ds.data().password === oldPass) docId = ds.id; });
+            } catch(e) { alert('Gagal memverifikasi: ' + e.message); return; }
+
+            if (!docId) { alert('\u274C Password lama salah! Perubahan dibatalkan.'); return; }
+
+            // Validasi password baru (opsional — hanya jika diisi)
+            let finalPass = oldPass;
+            if (newPass) {
+                if (newPass.length < 6) { alert('Password baru minimal 6 karakter!'); return; }
+                if (newPass !== confPass) { alert('Konfirmasi password baru tidak cocok!'); return; }
+                finalPass = newPass;
+            }
+
+            try {
+                await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials', docId), {
+                    username: newUser, password: finalPass,
+                    displayName: newDisplay || newUser, updatedAt: Date.now()
+                });
+                ['setting-admin-old-pass','setting-admin-new-pass','setting-admin-conf-pass'].forEach(id => {
+                    const el = document.getElementById(id); if (el) el.value = '';
+                });
+                alert('\u2705 Kredensial admin berhasil diperbarui!\n\nUsername: ' + newUser + '\nPassword: ' + (newPass ? '(diperbarui)' : '(tidak berubah)') + '\n\nGunakan data baru saat login berikutnya.');
+            } catch(e) { alert('Gagal menyimpan: ' + e.message); }
+        };
+
+        // Load data kredensial ke form saat panel dibuka
+        window.loadAdminCredentialFields = async function() {
+            if (!window.isFirebaseReady || !window.db) return;
+            try {
+                const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials'));
+                snap.forEach(ds => {
+                    const d = ds.data();
+                    const el1 = document.getElementById('setting-admin-user');
+                    const el2 = document.getElementById('setting-admin-display');
+                    if (el1) el1.value = d.username || '';
+                    if (el2) el2.value = d.displayName || '';
+                });
+            } catch(e) { console.warn('loadAdminCredentialFields:', e); }
+        };
+
+                window.listenForRuang = function() {
             if (!window.db || !window.isFirebaseReady) return;
             const q = query(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'ruang_ujian'));
             onSnapshot(q, (snapshot) => {
@@ -3638,6 +3807,13 @@
 
         // --- DASHBOARD UI LOGIC ---
         window.switchDashTab = function(tab) {
+            // ── Role Guard: pengawas hanya boleh akses tab yang diizinkan ──
+            const PENGAWAS_TABS = ['nilai', 'analitik'];
+            if (window.currentPengawasRuang && !PENGAWAS_TABS.includes(tab)) {
+                console.warn(`[GUARD] Pengawas tidak diizinkan akses tab: ${tab}`);
+                return; // tolak, tidak lakukan apapun
+            }
+
             const activeClass   = "pb-3 border-b-2 border-blue-600 font-bold text-blue-600 px-4 whitespace-nowrap flex items-center gap-2";
             const inactiveClass = "pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2";
             const tabs   = ['nilai','kelas','soal','ruang','analitik','tampilan'];
@@ -4611,29 +4787,65 @@
             });
         };
 
-        window.handleAdminLogin = function(e) {
+        window.handleAdminLogin = async function(e) {
             e.preventDefault();
-            const u = document.getElementById('admin-user').value;
+            const u = document.getElementById('admin-user').value.trim();
             const p = document.getElementById('admin-pass').value;
+            const btn = e.target.querySelector('button[type="submit"]') || e.target.querySelector('button');
 
-            if (u === 'authar' && p === 'Sedayu@123') {
+            if (!u || !p) { alert("Username dan password tidak boleh kosong!"); return; }
+            if (btn) { btn.disabled = true; btn.textContent = "Memeriksa..."; }
+
+            try {
+                let loginOk = false;
+                let adminDisplayName = u;
+
+                // ── Cek credentials ke Firebase ──
+                if (window.isFirebaseReady && window.db) {
+                    try {
+                        const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials'));
+                        snap.forEach(ds => {
+                            const d = ds.data();
+                            // Bandingkan username (case-insensitive) dan password (case-sensitive)
+                            if (d.username && d.username.toLowerCase() === u.toLowerCase() && d.password === p) {
+                                loginOk = true;
+                                adminDisplayName = d.displayName || u;
+                            }
+                        });
+                    } catch(dbErr) {
+                        console.warn("Firebase credentials check error:", dbErr);
+                        // Fallback ke hardcoded jika Firebase error
+                        if (u.toLowerCase() === 'authar' && p === 'Sedayu@123') {
+                            loginOk = true; adminDisplayName = 'Admin';
+                        }
+                    }
+                } else {
+                    // Mode offline: fallback ke default (pertama kali setup)
+                    if (u.toLowerCase() === 'authar' && p === 'Sedayu@123') {
+                        loginOk = true; adminDisplayName = 'Admin';
+                    }
+                }
+
+                if (!loginOk) {
+                    alert("❌ Username atau Password Admin Salah!\n\nPeriksa kembali username dan password Anda.");
+                    return;
+                }
+
+                // ── Login berhasil ──
                 window.currentUserRole = 'teacher';
-                window.currentPengawasRuang = null; // null = semua ruang (admin)
+                window.currentPengawasRuang = null;
                 if(window.setupRealtimeListener) window.setupRealtimeListener();
                 if(window.listenForKelas) window.listenForKelas();
                 if(window.listenForPaket) window.listenForPaket();
                 if(window.listenForRuang) window.listenForRuang();
                 if(window.listenForActiveSesi) window.listenForActiveSesi();
 
-                // Update header
                 document.getElementById('dash-header-title').textContent = 'Panel Admin / Koordinator';
-                document.getElementById('dash-header-subtitle').textContent = 'Akses Penuh — Semua Ruang';
+                document.getElementById('dash-header-subtitle').textContent = `Akses Penuh — Login sebagai: ${adminDisplayName}`;
                 document.getElementById('dash-header-icon').className = 'bg-indigo-600 p-2 rounded-lg';
                 document.getElementById('pengawas-room-badge').classList.add('hidden');
 
-                // Tampilkan semua tab (termasuk Ruang)
                 document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.remove('hidden'));
-                document.querySelectorAll('.admin-only-panel').forEach(el => {}); // panel tetap hidden, buka via tab
 
                 document.getElementById('section-login').classList.add('hidden-section');
                 document.getElementById('section-dashboard').classList.remove('hidden-section');
@@ -4641,8 +4853,9 @@
                 const teacherInput = document.getElementById('teacher-token-input');
                 if(teacherInput) teacherInput.value = window.currentExamToken;
                 if(typeof lucide !== 'undefined') lucide.createIcons();
-            } else {
-                alert("Username atau Password Admin Salah!");
+
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = "Masuk"; }
             }
         };
 
