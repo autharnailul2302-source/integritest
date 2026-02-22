@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>INTEGRITEST</title>
+    <link rel="icon" type="image/png" href="images/favicon.png">
     
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
@@ -977,10 +978,10 @@
                 <div class="relative z-10 flex flex-col items-center">
                     <div class="w-24 h-24 bg-white p-1.5 rounded-full shadow-lg mb-4 transform transition-all duration-500 hover:rotate-[360deg] hover:scale-105 ring-4 ring-white/30 relative">
                         <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity"></div>
-                        <img src="images/logotkj.png" onerror="this.src='https://via.placeholder.com/150?text=TKJ'" alt="Logo TKJ" class="w-full h-full object-contain rounded-full bg-white">
+                        <img src="images/integritest.png" onerror="this.src='https://via.placeholder.com/150?text=TKJ'" alt="Logo TKJ" class="w-full h-full object-contain rounded-full bg-white">
                     </div>
-                    <h1 id="login-header-judul" class="text-3xl font-black text-white tracking-tight drop-shadow-md">
-                        INTEGRITEST
+                    <h1 id="login-header-judul" class="text-3xl font-black tracking-tight drop-shadow-md">
+                        <span class="text-white">INTEGRI</span><span style="color:#38bdf8;text-shadow:0 0 18px rgba(56,189,248,0.55)">TEST</span>
                     </h1>
                     <div class="h-1 w-20 bg-blue-400/50 rounded-full my-2"></div>
                     <p id="login-header-sub" class="text-blue-100 text-sm font-medium tracking-wide">Digitalyzing Integrity, Empowering Honestly</p>
@@ -1233,7 +1234,7 @@
                             <i data-lucide="graduation-cap" class="w-9 h-9 text-white"></i>
                         </div>
                         <h2 class="text-2xl font-black text-white tracking-tight">Selamat Datang! 👋</h2>
-                        <p class="text-blue-200 text-sm mt-1">INTEGRITEST</p>
+                        <p class="text-blue-200 text-sm mt-1"><span class="text-white font-black">INTEGRI</span><span style="color:#38bdf8" class="font-black">TEST</span></p>
                     </div>
                 </div>
 
@@ -1298,7 +1299,7 @@
         <header class="bg-white shadow-sm border-b sticky top-0 z-30">
             <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                    <img src="images/logotkj.png" onerror="this.src='https://via.placeholder.com/50?text=TKJ'" alt="Logo TKJ" class="w-10 h-10 object-contain">
+                    <img src="images/integritest.png" onerror="this.src='https://via.placeholder.com/50?text=TKJ'" alt="Logo TKJ" class="w-10 h-10 object-contain">
                     <div>
                         <h2 class="font-bold text-gray-800" id="header-name">Nama Siswa</h2>
                         <p class="text-xs text-gray-500" id="header-detail">Kelas • Paket A (Kelas XI)</p>
@@ -1710,17 +1711,17 @@
                 <button onclick="window.switchDashTab('nilai')" id="tab-dash-nilai" class="pb-3 border-b-2 border-blue-600 font-bold text-blue-600 px-4 whitespace-nowrap flex items-center gap-2">
                     <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Monitoring Nilai
                 </button>
-                <button onclick="window.switchDashTab('kelas')" id="tab-dash-kelas" class="pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
+                <button onclick="window.switchDashTab('kelas')" id="tab-dash-kelas" class="admin-only-tab pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
                     <i data-lucide="school" class="w-4 h-4"></i> Manajemen Kelas
                 </button>
-                <button onclick="window.switchDashTab('soal')" id="tab-dash-soal" class="pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
+                <button onclick="window.switchDashTab('soal')" id="tab-dash-soal" class="admin-only-tab pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
                     <i data-lucide="layers" class="w-4 h-4"></i> Manajemen Soal
                 </button>
                 <button onclick="window.switchDashTab('ruang')" id="tab-dash-ruang" class="admin-only-tab pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
                     <i data-lucide="door-open" class="w-4 h-4"></i> Manajemen Ruang
                 </button>
-                <button onclick="window.switchDashTab('analitik')" id="tab-dash-analitik" class="admin-only-tab pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
-                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Analitik Integritas
+                <button onclick="window.switchDashTab('analitik')" id="tab-dash-analitik" class="pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i> Analitik Integritas
                 </button>
                 <button onclick="window.switchDashTab('tampilan')" id="tab-dash-tampilan" class="admin-only-tab pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
                     <i data-lucide="palette" class="w-4 h-4"></i> Setting Tampilan
@@ -1730,7 +1731,7 @@
             <!-- PANEL 1: MONITORING NILAI -->
             <div id="panel-nilai">
                 <!-- MODIFIED: PENGATURAN TOKEN DAN DURASI -->
-                <div class="bg-white rounded-xl shadow-sm border p-6 mb-6">
+                <div class="admin-only-el bg-white rounded-xl shadow-sm border p-6 mb-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-gray-600"></i> Pengaturan Ujian</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         <!-- Input Token -->
@@ -1965,38 +1966,58 @@
             <!-- PANEL 2: BANK SOAL (REDESIGNED) -->
             <!-- PANEL 2: MANAJEMEN SOAL (REDESIGNED - PAKET FIRST) -->
             <div id="panel-soal" class="hidden-section">
-                
-                <!-- STEP 1: DAFTAR PAKET SOAL -->
+
+                <!-- ══ STEP 1: DAFTAR PAKET SOAL ══ -->
                 <div id="view-paket-list">
-                    <!-- Info Banner -->
-                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-5 mb-5 text-white shadow-lg">
-                        <div class="flex items-start gap-4">
-                            <div class="bg-white/20 p-3 rounded-xl shrink-0">
-                                <i data-lucide="layers" class="w-7 h-7"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-bold mb-1">Manajemen Soal</h2>
-                                <p class="text-blue-100 text-sm leading-relaxed">
-                                    <strong class="text-white">Cara kerja:</strong> Buat <strong class="text-white">Paket Soal</strong> terlebih dahulu (contoh: "Informatika Kelas X"), lalu masukkan soal-soal ke dalam paket tersebut. Setiap paket memiliki token akses, kelas, dan pengaturan sendiri.
-                                </p>
-                                <div class="flex flex-wrap gap-3 mt-3 text-xs">
-                                    <span class="bg-white/20 px-3 py-1 rounded-full flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> 1. Buat Paket Soal</span>
-                                    <span class="text-blue-300">→</span>
-                                    <span class="bg-white/20 px-3 py-1 rounded-full flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> 2. Klik "Kelola Soal"</span>
-                                    <span class="text-blue-300">→</span>
-                                    <span class="bg-white/20 px-3 py-1 rounded-full flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> 3. Tambah / Import Soal</span>
+
+                    <!-- Banner header — slate gelap, bukan biru terang -->
+                    <div class="rounded-2xl mb-5 overflow-hidden shadow-lg border border-gray-200">
+                        <!-- Stripe atas berwarna -->
+                        <div class="bg-gradient-to-r from-gray-800 to-gray-900 px-6 pt-5 pb-4 text-white">
+                            <div class="flex items-start gap-4">
+                                <div class="bg-white/10 border border-white/20 p-2.5 rounded-xl shrink-0">
+                                    <i data-lucide="layers" class="w-6 h-6 text-white"></i>
                                 </div>
-                                <!-- Download template - langsung di sini -->
-                                <div class="mt-4 pt-4 border-t border-white/20 flex flex-wrap items-center gap-3">
-                                    <span class="text-white/80 text-xs font-semibold flex items-center gap-1.5"><i data-lucide="download" class="w-3.5 h-3.5"></i> Download Template Import Soal:</span>
-                                    <button onclick="window.downloadExcelTemplate()" type="button" class="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors border border-white/30">
-                                        <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Excel (.xlsx)
-                                    </button>
-                                    <button onclick="window.downloadWordTemplate()" type="button" class="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors border border-white/30">
-                                        <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Word (.docx)
-                                    </button>
+                                <div class="flex-1">
+                                    <h2 class="text-lg font-bold mb-0.5">Manajemen Soal</h2>
+                                    <p class="text-gray-300 text-sm leading-relaxed">
+                                        Buat <strong class="text-white">Paket Soal</strong> terlebih dahulu, lalu masukkan soal ke dalamnya. Setiap paket memiliki token akses, kelas, dan pengaturan sendiri.
+                                    </p>
+                                    <!-- Alur kerja -->
+                                    <div class="flex flex-wrap gap-2 mt-3 text-xs">
+                                        <span class="bg-white/10 border border-white/20 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                                            <span class="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center font-bold text-[10px]">1</span> Buat Paket
+                                        </span>
+                                        <span class="text-gray-500 self-center">›</span>
+                                        <span class="bg-white/10 border border-white/20 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                                            <span class="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center font-bold text-[10px]">2</span> Kelola Soal
+                                        </span>
+                                        <span class="text-gray-500 self-center">›</span>
+                                        <span class="bg-white/10 border border-white/20 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                                            <span class="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center font-bold text-[10px]">3</span> Tambah / Import
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+                        <!-- Strip bawah: download template dengan warna khas masing-masing format -->
+                        <div class="bg-gray-50 border-t border-gray-200 px-6 py-3 flex flex-wrap items-center gap-3">
+                            <span class="text-xs font-semibold text-gray-500 flex items-center gap-1.5">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> Download Template:
+                            </span>
+                            <!-- Excel: hijau khas Microsoft Excel -->
+                            <button onclick="window.downloadExcelTemplate()" type="button"
+                                class="flex items-center gap-2 bg-[#217346] hover:bg-[#1a5c38] text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm">
+                                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+                                Excel (.xlsx)
+                            </button>
+                            <!-- Word: biru khas Microsoft Word -->
+                            <button onclick="window.downloadWordTemplate()" type="button"
+                                class="flex items-center gap-2 bg-[#2B579A] hover:bg-[#1f4178] text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm">
+                                <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                                Word (.docx)
+                            </button>
+                            <span class="text-xs text-gray-400 ml-1">Gunakan template ini agar format kolom sudah sesuai otomatis.</span>
                         </div>
                     </div>
 
@@ -2006,7 +2027,8 @@
                             <h3 class="text-lg font-bold text-gray-800">Daftar Paket Soal</h3>
                             <p id="paket-count-info" class="text-sm text-gray-500">Memuat paket...</p>
                         </div>
-                        <button onclick="window.openPaketModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md active:scale-95 transition-all">
+                        <button onclick="window.openPaketModal()"
+                            class="bg-gray-800 hover:bg-gray-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md active:scale-95 transition-all">
                             <i data-lucide="plus" class="w-4 h-4"></i> Buat Paket Soal Baru
                         </button>
                     </div>
@@ -2014,7 +2036,7 @@
                     <!-- Grid Paket -->
                     <div id="paket-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pr-1">
                         <div class="col-span-full bg-white rounded-2xl border p-10 text-center shadow-sm">
-                            <i data-lucide="loader-2" class="w-8 h-8 mx-auto mb-3 text-blue-400 animate-spin"></i>
+                            <i data-lucide="loader-2" class="w-8 h-8 mx-auto mb-3 text-gray-400 animate-spin"></i>
                             <p class="text-gray-400 text-sm">Memuat paket soal...</p>
                         </div>
                     </div>
@@ -2022,20 +2044,23 @@
 
                     <!-- Tombol seed legacy -->
                     <div class="mt-4 border-t pt-4">
-                        <button id="btn-seed-db" onclick="window.seedDatabase()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                        <button id="btn-seed-db" onclick="window.seedDatabase()"
+                            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
                             <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload Soal Bawaan ke DB (+ Buat Paket A/B/C)
                         </button>
                     </div>
                 </div>
 
-                <!-- STEP 2: DETAIL SOAL DALAM PAKET (hidden by default) -->
+                <!-- ══ STEP 2: DETAIL SOAL DALAM PAKET ══ -->
                 <div id="view-soal-in-paket" class="hidden">
+
                     <!-- Breadcrumb / Back -->
                     <div class="flex items-center gap-2 mb-4">
-                        <button onclick="window.backToPaketList()" class="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-semibold text-sm bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors">
+                        <button onclick="window.backToPaketList()"
+                            class="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-semibold text-sm bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg transition-colors">
                             <i data-lucide="arrow-left" class="w-4 h-4"></i> Kembali ke Daftar Paket
                         </button>
-                        <span class="text-gray-400">/</span>
+                        <span class="text-gray-300">/</span>
                         <span id="breadcrumb-paket-nama" class="text-gray-700 font-semibold text-sm"></span>
                     </div>
 
@@ -2043,12 +2068,12 @@
                     <div id="active-paket-info-card" class="bg-white rounded-2xl border shadow-sm p-5 mb-5">
                         <div class="flex flex-col md:flex-row justify-between gap-4">
                             <div class="flex items-start gap-4">
-                                <div id="active-paket-icon" class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 bg-blue-500">A</div>
+                                <div id="active-paket-icon" class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 bg-gray-700">A</div>
                                 <div>
                                     <h3 id="active-paket-nama" class="text-lg font-bold text-gray-800">Nama Paket</h3>
                                     <p id="active-paket-mapel" class="text-sm text-gray-500"></p>
                                     <div class="flex flex-wrap gap-2 mt-2">
-                                        <span class="bg-yellow-100 text-yellow-700 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                                        <span class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1">
                                             <i data-lucide="key" class="w-3 h-3"></i> Token: <span id="active-paket-token">-</span>
                                         </span>
                                         <span id="active-paket-kelas-tags" class="flex flex-wrap gap-1"></span>
@@ -2056,33 +2081,43 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="flex gap-2 shrink-0">
-                                <button onclick="window.openPaketModal(window.activePaketId)" class="border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2">
+                            <div class="flex gap-2 shrink-0 flex-wrap">
+                                <button onclick="window.openPaketModal(window.activePaketId)"
+                                    class="border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2">
                                     <i data-lucide="settings" class="w-4 h-4"></i> Edit Paket
                                 </button>
-                                <button onclick="window.openQuestionModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
+                                <!-- Tambah Soal: ungu/violet — berbeda dari impor -->
+                                <button onclick="window.openQuestionModal()"
+                                    class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
                                     <i data-lucide="plus" class="w-4 h-4"></i> Tambah Soal
                                 </button>
-                                <button onclick="window.toggleImportSection()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
+                                <!-- Import Soal: teal/cyan — berbeda dari tambah manual -->
+                                <button onclick="window.toggleImportSection()"
+                                    class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
                                     <i data-lucide="upload" class="w-4 h-4"></i> Import Soal
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Filter & Search di dalam paket -->
+                    <!-- Filter & Search -->
                     <div class="bg-white rounded-xl border shadow-sm p-4 mb-4">
                         <div class="flex flex-wrap gap-3 items-end">
                             <div class="flex-1 min-w-[200px]">
                                 <label class="block text-xs font-semibold text-gray-500 mb-1">Cari Soal</label>
                                 <div class="relative">
                                     <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                                    <input type="text" id="search-bank-soal" oninput="if(window._pg)window._pg.soal.page=1; window.filterQuestionBank()" placeholder="Ketik kata kunci soal..." class="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <input type="text" id="search-bank-soal"
+                                        oninput="if(window._pg)window._pg.soal.page=1; window.filterQuestionBank()"
+                                        placeholder="Ketik kata kunci soal..."
+                                        class="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-gray-400 outline-none">
                                 </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-1">Status</label>
-                                <select id="filter-bank-status" onchange="if(window._pg)window._pg.soal.page=1; window.filterQuestionBank()" class="px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                <select id="filter-bank-status"
+                                    onchange="if(window._pg)window._pg.soal.page=1; window.filterQuestionBank()"
+                                    class="px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-gray-400 outline-none">
                                     <option value="all">Semua Status</option>
                                     <option value="aktif">Aktif</option>
                                     <option value="nonaktif">Nonaktif</option>
@@ -2091,7 +2126,7 @@
                             <div class="flex gap-2 items-center text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border">
                                 <span id="stat-total" class="font-semibold text-gray-700">Total: 0</span>
                                 <span>•</span>
-                                <span id="stat-aktif" class="text-green-600 font-semibold">Aktif: 0</span>
+                                <span id="stat-aktif" class="text-emerald-600 font-semibold">Aktif: 0</span>
                                 <span>•</span>
                                 <span id="stat-nonaktif" class="text-red-500 font-semibold">Nonaktif: 0</span>
                             </div>
@@ -2101,43 +2136,59 @@
                     <!-- Soal List -->
                     <div id="bank-soal-list" class="space-y-3 pr-1">
                         <div class="bg-white rounded-xl p-8 text-center text-gray-400 border shadow-sm">
-                            <i data-lucide="loader-2" class="w-8 h-8 mx-auto mb-2 animate-spin text-blue-400"></i>
+                            <i data-lucide="loader-2" class="w-8 h-8 mx-auto mb-2 animate-spin text-gray-400"></i>
                             <p>Memuat soal...</p>
                         </div>
                     </div>
                     <div id="pager-soal-wrap" class="mt-2"></div>
 
-                    <!-- SECTION IMPORT (inline, collapsible) -->
-                    <div id="section-import-inline" class="hidden mt-6 space-y-4">
-                        <!-- Header -->
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-base font-bold text-gray-700 flex items-center gap-2">
-                                <i data-lucide="upload-cloud" class="w-5 h-5 text-green-600"></i> Import Soal ke Paket Ini
+                    <!-- ══ SECTION IMPORT (collapsible) ══ -->
+                    <div id="section-import-inline" class="hidden mt-6">
+
+                        <!-- Header section import -->
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                                <i data-lucide="upload-cloud" class="w-5 h-5 text-teal-600"></i>
+                                Import Soal ke Paket Ini
                             </h3>
-                            <button onclick="window.toggleImportSection()" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+                            <button onclick="window.toggleImportSection()"
+                                class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                                 <i data-lucide="x" class="w-4 h-4"></i>
                             </button>
                         </div>
 
-                        <!-- Format info -->
-                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
-                            <div class="flex items-start gap-2">
-                                <i data-lucide="info" class="w-4 h-4 mt-0.5 shrink-0 text-blue-500"></i>
-                                <div>
-                                    <p class="font-bold mb-1">Format kolom yang diperlukan:</p>
-                                    <div class="font-mono text-xs bg-white/70 p-2 rounded border border-blue-100 overflow-x-auto whitespace-nowrap">
-                                        <span class="text-purple-700 font-bold">question</span> | <span class="text-green-700 font-bold">question_image</span> | <span class="text-orange-700 font-bold">option_a</span> | <span class="text-green-600 font-bold">image_a</span> | <span class="text-orange-700 font-bold">option_b</span> | ... | <span class="text-red-700 font-bold">correct</span>
+                        <!-- Kotak format info — abu netral, bukan biru -->
+                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
+                            <div class="flex items-start gap-3">
+                                <i data-lucide="info" class="w-4 h-4 mt-0.5 shrink-0 text-gray-500"></i>
+                                <div class="w-full">
+                                    <p class="font-bold text-sm text-gray-700 mb-2">Format kolom yang diperlukan:</p>
+                                    <div class="font-mono text-xs bg-white border border-gray-200 rounded-lg p-2.5 overflow-x-auto whitespace-nowrap">
+                                        <span class="text-purple-700 font-bold">question</span>
+                                        <span class="text-gray-400"> | </span>
+                                        <span class="text-emerald-700 font-bold">question_image</span>
+                                        <span class="text-gray-400"> | </span>
+                                        <span class="text-orange-600 font-bold">option_a</span>
+                                        <span class="text-gray-400"> | </span>
+                                        <span class="text-emerald-600 font-bold">image_a</span>
+                                        <span class="text-gray-400"> | </span>
+                                        <span class="text-orange-600 font-bold">option_b ... option_e</span>
+                                        <span class="text-gray-400"> | </span>
+                                        <span class="text-red-600 font-bold">correct</span>
                                     </div>
-                                    <div class="mt-2 grid grid-cols-2 gap-1 text-xs">
-                                        <span>✅ <strong>correct</strong>: huruf A/B/C/D/E</span>
-                                        <span>🖼️ image_*: URL Google Drive (opsional)</span>
+                                    <div class="mt-2.5 grid grid-cols-2 gap-1 text-xs text-gray-500">
+                                        <span>✅ <strong class="text-gray-700">correct</strong>: huruf A / B / C / D / E</span>
+                                        <span>🖼️ <strong class="text-gray-700">image_*</strong>: URL Google Drive (opsional)</span>
                                     </div>
-                                    <div class="mt-3 flex gap-2 flex-wrap">
-                                        <span class="text-xs text-blue-600 font-semibold">Download template:</span>
-                                        <button onclick="window.downloadExcelTemplate()" type="button" class="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg">
+                                    <!-- Download dalam kotak format -->
+                                    <div class="mt-3 pt-3 border-t border-gray-200 flex flex-wrap gap-2 items-center">
+                                        <span class="text-xs text-gray-500 font-medium">Download template siap pakai:</span>
+                                        <button onclick="window.downloadExcelTemplate()" type="button"
+                                            class="flex items-center gap-1.5 bg-[#217346] hover:bg-[#1a5c38] text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow-sm transition-colors">
                                             <i data-lucide="file-spreadsheet" class="w-3 h-3"></i> Excel
                                         </button>
-                                        <button onclick="window.downloadWordTemplate()" type="button" class="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg">
+                                        <button onclick="window.downloadWordTemplate()" type="button"
+                                            class="flex items-center gap-1.5 bg-[#2B579A] hover:bg-[#1f4178] text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow-sm transition-colors">
                                             <i data-lucide="file-text" class="w-3 h-3"></i> Word
                                         </button>
                                     </div>
@@ -2145,86 +2196,116 @@
                             </div>
                         </div>
 
-                        <!-- Import Excel -->
-                        <div class="bg-white rounded-xl border shadow-sm p-5">
-                            <div class="flex items-center gap-3 mb-4">
-                                <div class="bg-emerald-100 p-2 rounded-lg"><i data-lucide="file-spreadsheet" class="w-5 h-5 text-emerald-600"></i></div>
-                                <div>
-                                    <h4 class="font-bold text-gray-800">Import dari Excel (.xlsx / .xls)</h4>
-                                    <p class="text-xs text-gray-500">Upload file Excel yang sudah diisi sesuai template.</p>
-                                </div>
-                            </div>
-                            <div id="excel-drop-zone"
-                                 ondragover="event.preventDefault(); this.classList.add('border-green-500','bg-green-50')"
-                                 ondragleave="this.classList.remove('border-green-500','bg-green-50')"
-                                 ondrop="window.handleExcelDrop(event)"
-                                 class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-green-400 hover:bg-green-50/50 transition-all"
-                                 onclick="document.getElementById('excel-file-input').click()">
-                                <i data-lucide="upload-cloud" class="w-10 h-10 text-gray-400 mx-auto mb-2"></i>
-                                <p class="font-semibold text-gray-600 text-sm">Klik atau drag & drop file Excel</p>
-                                <p class="text-xs text-gray-400 mt-1">Mendukung .xlsx dan .xls</p>
-                                <input type="file" id="excel-file-input" accept=".xlsx,.xls" class="hidden" onchange="window.handleExcelFile(this.files[0])">
-                            </div>
-                            <div id="excel-preview" class="hidden mt-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h5 class="font-bold text-gray-700 text-sm flex items-center gap-2">
-                                        <i data-lucide="eye" class="w-4 h-4 text-green-600"></i> Preview: <span id="excel-count" class="text-green-600 font-extrabold">0</span> soal terdeteksi
-                                    </h5>
-                                    <button onclick="document.getElementById('excel-preview').classList.add('hidden'); document.getElementById('excel-file-input').value=''" class="text-xs text-gray-400 hover:text-red-500"><i data-lucide="x" class="w-4 h-4"></i></button>
-                                </div>
-                                <div id="excel-preview-table" class="overflow-x-auto border rounded-lg max-h-52 overflow-y-auto text-xs"></div>
-                                <div class="mt-3 flex gap-2 justify-end">
-                                    <button onclick="document.getElementById('excel-preview').classList.add('hidden'); document.getElementById('excel-file-input').value=''" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 text-sm">Batal</button>
-                                    <button onclick="window.uploadParsedQuestions()" id="btn-upload-excel" class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm">
-                                        <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload ke Paket
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Grid 2 kolom: Excel | Word -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                        <!-- Import Word -->
-                        <div class="bg-white rounded-xl border shadow-sm p-5">
-                            <div class="flex items-center gap-3 mb-4">
-                                <div class="bg-sky-100 p-2 rounded-lg"><i data-lucide="file-text" class="w-5 h-5 text-sky-600"></i></div>
-                                <div>
-                                    <h4 class="font-bold text-gray-800">Import dari Word (.docx)</h4>
-                                    <p class="text-xs text-gray-500">Upload file Word yang tabelnya sesuai format template.</p>
+                            <!-- ── EXCEL CARD (tema hijau Excel) ── -->
+                            <div class="bg-white rounded-xl border-2 border-emerald-100 shadow-sm overflow-hidden">
+                                <!-- Header card Excel -->
+                                <div class="bg-[#217346] px-4 py-3 flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                                        <i data-lucide="file-spreadsheet" class="w-4 h-4 text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-white text-sm">Import dari Excel</h4>
+                                        <p class="text-white/70 text-[11px]">.xlsx &nbsp;/&nbsp; .xls</p>
+                                    </div>
+                                </div>
+                                <div class="p-4">
+                                    <div id="excel-drop-zone"
+                                        ondragover="event.preventDefault(); this.classList.add('border-emerald-400','bg-emerald-50')"
+                                        ondragleave="this.classList.remove('border-emerald-400','bg-emerald-50')"
+                                        ondrop="window.handleExcelDrop(event)"
+                                        onclick="document.getElementById('excel-file-input').click()"
+                                        class="border-2 border-dashed border-emerald-200 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/60 transition-all">
+                                        <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                                            <i data-lucide="upload-cloud" class="w-5 h-5 text-emerald-700"></i>
+                                        </div>
+                                        <p class="font-semibold text-gray-600 text-sm">Klik atau drag & drop file Excel</p>
+                                        <p class="text-xs text-gray-400 mt-1">Mendukung .xlsx dan .xls</p>
+                                        <input type="file" id="excel-file-input" accept=".xlsx,.xls" class="hidden"
+                                            onchange="window.handleExcelFile(this.files[0])">
+                                    </div>
+                                    <div id="excel-preview" class="hidden mt-3">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h5 class="font-bold text-gray-700 text-sm flex items-center gap-1.5">
+                                                <i data-lucide="eye" class="w-3.5 h-3.5 text-emerald-600"></i>
+                                                Preview: <span id="excel-count" class="text-emerald-600 font-extrabold">0</span> soal
+                                            </h5>
+                                            <button onclick="document.getElementById('excel-preview').classList.add('hidden'); document.getElementById('excel-file-input').value=''"
+                                                class="text-gray-400 hover:text-red-500 p-1"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                                        </div>
+                                        <div id="excel-preview-table" class="overflow-x-auto border rounded-lg max-h-48 overflow-y-auto text-xs"></div>
+                                        <div class="mt-3 flex gap-2 justify-end">
+                                            <button onclick="document.getElementById('excel-preview').classList.add('hidden'); document.getElementById('excel-file-input').value=''"
+                                                class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 text-sm">Batal</button>
+                                            <button onclick="window.uploadParsedQuestions()" id="btn-upload-excel"
+                                                class="px-5 py-2 bg-[#217346] hover:bg-[#1a5c38] text-white rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm">
+                                                <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload ke Paket
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div id="word-drop-zone"
-                                 ondragover="event.preventDefault(); this.classList.add('border-blue-500','bg-blue-50')"
-                                 ondragleave="this.classList.remove('border-blue-500','bg-blue-50')"
-                                 ondrop="window.handleWordDrop(event)"
-                                 class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all"
-                                 onclick="document.getElementById('word-file-input').click()">
-                                <i data-lucide="upload-cloud" class="w-10 h-10 text-gray-400 mx-auto mb-2"></i>
-                                <p class="font-semibold text-gray-600 text-sm">Klik atau drag & drop file Word</p>
-                                <p class="text-xs text-gray-400 mt-1">Format .docx</p>
-                                <input type="file" id="word-file-input" accept=".docx" class="hidden" onchange="window.handleWordFile(this.files[0])">
-                            </div>
-                            <div id="word-preview" class="hidden mt-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h5 class="font-bold text-gray-700 text-sm flex items-center gap-2">
-                                        <i data-lucide="eye" class="w-4 h-4 text-blue-600"></i> Preview: <span id="word-count" class="text-blue-600 font-extrabold">0</span> soal terdeteksi
-                                    </h5>
-                                    <button onclick="document.getElementById('word-preview').classList.add('hidden'); document.getElementById('word-file-input').value=''" class="text-xs text-gray-400 hover:text-red-500"><i data-lucide="x" class="w-4 h-4"></i></button>
-                                </div>
-                                <div id="word-preview-table" class="overflow-x-auto border rounded-lg max-h-52 overflow-y-auto text-xs"></div>
-                                <div class="mt-3 flex gap-2 justify-end">
-                                    <button onclick="document.getElementById('word-preview').classList.add('hidden'); document.getElementById('word-file-input').value=''" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 text-sm">Batal</button>
-                                    <button onclick="window.uploadParsedWordQuestions()" id="btn-upload-word" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm">
-                                        <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload ke Paket
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="word-log" class="hidden mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800"></div>
-                        </div>
 
-                        <!-- Status -->
-                        <div id="import-status" class="hidden p-4 rounded-xl border text-sm font-medium"></div>
-                    </div>
-                </div>
-            </div>
+                            <!-- ── WORD CARD (tema biru Word) ── -->
+                            <div class="bg-white rounded-xl border-2 border-blue-100 shadow-sm overflow-hidden">
+                                <!-- Header card Word -->
+                                <div class="bg-[#2B579A] px-4 py-3 flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                                        <i data-lucide="file-text" class="w-4 h-4 text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-white text-sm">Import dari Word</h4>
+                                        <p class="text-white/70 text-[11px]">.docx</p>
+                                    </div>
+                                </div>
+                                <div class="p-4">
+                                    <div id="word-drop-zone"
+                                        ondragover="event.preventDefault(); this.classList.add('border-blue-400','bg-blue-50')"
+                                        ondragleave="this.classList.remove('border-blue-400','bg-blue-50')"
+                                        ondrop="window.handleWordDrop(event)"
+                                        onclick="document.getElementById('word-file-input').click()"
+                                        class="border-2 border-dashed border-blue-200 rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/60 transition-all">
+                                        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                                            <i data-lucide="upload-cloud" class="w-5 h-5 text-[#2B579A]"></i>
+                                        </div>
+                                        <p class="font-semibold text-gray-600 text-sm">Klik atau drag & drop file Word</p>
+                                        <p class="text-xs text-gray-400 mt-1">Format .docx</p>
+                                        <input type="file" id="word-file-input" accept=".docx" class="hidden"
+                                            onchange="window.handleWordFile(this.files[0])">
+                                    </div>
+                                    <div id="word-preview" class="hidden mt-3">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h5 class="font-bold text-gray-700 text-sm flex items-center gap-1.5">
+                                                <i data-lucide="eye" class="w-3.5 h-3.5 text-[#2B579A]"></i>
+                                                Preview: <span id="word-count" class="text-[#2B579A] font-extrabold">0</span> soal
+                                            </h5>
+                                            <button onclick="document.getElementById('word-preview').classList.add('hidden'); document.getElementById('word-file-input').value=''"
+                                                class="text-gray-400 hover:text-red-500 p-1"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                                        </div>
+                                        <div id="word-preview-table" class="overflow-x-auto border rounded-lg max-h-48 overflow-y-auto text-xs"></div>
+                                        <div class="mt-3 flex gap-2 justify-end">
+                                            <button onclick="document.getElementById('word-preview').classList.add('hidden'); document.getElementById('word-file-input').value=''"
+                                                class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 text-sm">Batal</button>
+                                            <button onclick="window.uploadParsedWordQuestions()" id="btn-upload-word"
+                                                class="px-5 py-2 bg-[#2B579A] hover:bg-[#1f4178] text-white rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm">
+                                                <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload ke Paket
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="word-log" class="hidden mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800"></div>
+                                </div>
+                            </div>
+
+                        </div><!-- end grid -->
+
+                        <!-- Status upload -->
+                        <div id="import-status" class="hidden mt-4 p-4 rounded-xl border text-sm font-medium"></div>
+
+                    </div><!-- end section-import-inline -->
+                </div><!-- end view-soal-in-paket -->
+            </div><!-- end panel-soal -->
 
 
                         <!-- PANEL 4: MANAJEMEN KELAS -->
@@ -2308,96 +2389,295 @@
             <!-- ══════════════════════════════════════════════════════ -->
             <!-- PANEL: ANALITIK INTEGRITAS (BARU)                     -->
             <!-- ══════════════════════════════════════════════════════ -->
-            <div id="panel-analitik" class="hidden-section admin-only-panel">
+            <div id="panel-analitik" class="hidden-section">
 
-                <!-- ══ BANNER PANDUAN (tampil saat data kosong) ══ -->
-                <div id="analitik-guide-banner" class="mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-5 text-white shadow-lg">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                            <i data-lucide="info" class="w-6 h-6 text-white"></i>
+                <!-- ══ HEADER HALAMAN ══ -->
+                <div class="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-black text-gray-800 flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-6 h-6 text-emerald-600"></i>
+                            Analitik Integritas Ujian
+                        </h2>
+                        <p class="text-sm text-gray-400 mt-1">Sistem pengukuran kejujuran digital berbasis data perilaku siswa secara real-time.</p>
+                    </div>
+                    <button onclick="window.generateIntegrityReport()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md active:scale-95 transition-transform shrink-0">
+                        <i data-lucide="download" class="w-4 h-4"></i> Export Laporan PDF
+                    </button>
+                </div>
+
+                <!-- ══ FILTER BAR ══ -->
+                <div class="bg-white rounded-xl border shadow-sm p-4 mb-6">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2 text-sm font-bold text-gray-600 shrink-0">
+                            <i data-lucide="filter" class="w-4 h-4 text-emerald-500"></i> Filter:
                         </div>
-                        <div class="flex-1">
-                            <h3 class="font-black text-lg mb-1">Apa itu Dashboard Analitik Integritas?</h3>
-                            <p class="text-sm text-white/85 leading-relaxed">
-                                Fitur ini <strong>otomatis menganalisis kejujuran setiap siswa</strong> berdasarkan perilaku selama ujian berlangsung. 
-                                Data akan muncul setelah siswa selesai mengerjakan ujian. Saat ini data masih kosong karena belum ada siswa yang menyelesaikan ujian.
-                            </p>
-                            <!-- Cara kerja -->
-                            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div class="bg-white/15 rounded-xl p-3">
-                                    <p class="font-bold text-sm mb-1">📊 Skor Integritas (0–100)</p>
-                                    <p class="text-xs text-white/80">Setiap siswa mendapat skor kejujuran otomatis. Dimulai dari 100, dikurangi 20 per pelanggaran. Diskualifikasi = 0.</p>
-                                </div>
-                                <div class="bg-white/15 rounded-xl p-3">
-                                    <p class="font-bold text-sm mb-1">🚨 Deteksi Pelanggaran</p>
-                                    <p class="text-xs text-white/80">Sistem mendeteksi: ganti tab/aplikasi, keluar layar, blur window, dan aktivitas mencurigakan lainnya secara real-time.</p>
-                                </div>
-                                <div class="bg-white/15 rounded-xl p-3">
-                                    <p class="font-bold text-sm mb-1">📄 Export Laporan PDF</p>
-                                    <p class="text-xs text-white/80">Setelah ujian selesai, klik "Export Laporan PDF" untuk cetak laporan integritas lengkap siap diserahkan ke pimpinan.</p>
+                        <!-- Filter Sesi -->
+                        <div class="flex-1 min-w-[160px]">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Sesi Ujian</label>
+                            <select id="analitik-filter-sesi" onchange="window._pg.analitik.page=1; window.renderIntegrityDashboard()" class="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="all">Semua Sesi</option>
+                            </select>
+                        </div>
+                        <!-- Filter Ruang (admin only) -->
+                        <div class="flex-1 min-w-[160px] admin-only-el" id="analitik-filter-ruang-wrap">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Ruang Ujian</label>
+                            <select id="analitik-filter-ruang" onchange="window._pg.analitik.page=1; window.renderIntegrityDashboard()" class="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="all">Semua Ruang</option>
+                            </select>
+                        </div>
+                        <!-- Filter Kelas -->
+                        <div class="flex-1 min-w-[160px]">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Kelas</label>
+                            <select id="analitik-filter-kelas" onchange="window._pg.analitik.page=1; window.renderIntegrityDashboard()" class="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="all">Semua Kelas</option>
+                            </select>
+                        </div>
+                        <!-- Filter Predikat -->
+                        <div class="flex-1 min-w-[140px]">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Predikat</label>
+                            <select id="analitik-filter-predikat" onchange="window._pg.analitik.page=1; window.renderIntegrityDashboard()" class="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="all">Semua</option>
+                                <option value="teladan">🏆 Teladan (100)</option>
+                                <option value="baik">✅ Baik (80–99)</option>
+                                <option value="cukup">⚠️ Cukup (60–79)</option>
+                                <option value="evaluasi">⛔ Evaluasi (&lt;60)</option>
+                                <option value="dq">❌ Diskualifikasi</option>
+                            </select>
+                        </div>
+                        <!-- Reset -->
+                        <div class="shrink-0 pt-4">
+                            <button onclick="window.resetAnalitikFilter()" class="px-3 py-2 border rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-50 flex items-center gap-1">
+                                <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Reset
+                            </button>
+                        </div>
+                        <!-- Info jumlah hasil -->
+                        <div class="shrink-0 pt-4 text-xs text-gray-400 hidden" id="analitik-filter-info"></div>
+                    </div>
+                </div>
+
+                <!-- ══ BANNER KOSONG — muncul sebelum ada data ujian ══ -->
+                <div id="analitik-empty-banner" class="mb-6">
+                    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 shadow-xl p-6 md:p-8">
+                        <!-- dekor background -->
+                        <div class="absolute -top-8 -right-8 w-48 h-48 rounded-full bg-emerald-500/10 pointer-events-none"></div>
+                        <div class="absolute -bottom-6 -left-6 w-36 h-36 rounded-full bg-blue-500/10 pointer-events-none"></div>
+                        <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+                            <!-- Ikon besar -->
+                            <div class="shrink-0 w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                                <i data-lucide="shield-check" class="w-8 h-8 text-emerald-400"></i>
+                            </div>
+                            <!-- Teks penjelasan -->
+                            <div class="flex-1">
+                                <p class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1">📊 Menunggu Data Pertama</p>
+                                <h3 class="text-lg font-black text-white mb-2">Dashboard ini akan aktif setelah ujian pertama berlangsung</h3>
+                                <p class="text-sm text-slate-300 leading-relaxed">
+                                    Saat siswa mulai mengerjakan ujian, seluruh data integritas — mulai dari skor, grafik distribusi, hingga ranking kejujuran — akan muncul di sini secara <strong class="text-white">otomatis dan real-time</strong> tanpa perlu me-refresh halaman.
+                                </p>
+                                <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div class="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                        <i data-lucide="activity" class="w-5 h-5 text-blue-400 mx-auto mb-1"></i>
+                                        <p class="text-[11px] text-slate-400">Skor integritas per siswa dihitung otomatis</p>
+                                    </div>
+                                    <div class="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                        <i data-lucide="bar-chart-3" class="w-5 h-5 text-purple-400 mx-auto mb-1"></i>
+                                        <p class="text-[11px] text-slate-400">Grafik & distribusi skor muncul langsung</p>
+                                    </div>
+                                    <div class="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                        <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400 mx-auto mb-1"></i>
+                                        <p class="text-[11px] text-slate-400">Setiap pelanggaran tercatat beserta waktunya</p>
+                                    </div>
+                                    <div class="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                        <i data-lucide="file-text" class="w-5 h-5 text-emerald-400 mx-auto mb-1"></i>
+                                        <p class="text-[11px] text-slate-400">Laporan PDF siap dicetak per siswa</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- ══ LEGENDA KATEGORI ══ -->
-                <div class="bg-white rounded-2xl border shadow-sm p-5 mb-6">
-                    <h3 class="font-bold text-gray-700 mb-4 flex items-center gap-2">
-                        <i data-lucide="tag" class="w-4 h-4 text-gray-400"></i>
-                        Kategori Skor Integritas — Cara Membaca Data
-                    </h3>
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-                        <div class="flex flex-col items-center bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-                            <span class="text-2xl mb-1">🏆</span>
-                            <span class="font-black text-emerald-700 text-lg">100</span>
-                            <span class="text-xs font-bold text-emerald-600 mt-0.5">Sangat Jujur</span>
-                            <span class="text-[11px] text-gray-400 mt-1">0 pelanggaran terdeteksi selama ujian</span>
+                <!-- ══ KOTAK PENJELASAN UTAMA (gaya konsisten dengan tab lain) ══ -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="info" class="w-5 h-5 text-blue-500 shrink-0 mt-0.5"></i>
+                        <div>
+                            <p class="font-bold text-blue-800 mb-2">Apa itu Analitik Integritas & Bagaimana Cara Kerjanya?</p>
+                            <p class="text-sm text-blue-700 leading-relaxed mb-3">
+                                Tab ini secara otomatis menganalisis <strong>tingkat kejujuran setiap siswa</strong> berdasarkan data perilaku yang direkam sistem selama ujian berlangsung — tanpa perlu input manual dari guru.
+                                Setiap kali siswa mencoba berpindah tab, membuka aplikasi lain, atau meninggalkan layar ujian, sistem mencatat kejadian tersebut sebagai <strong>pelanggaran</strong> dan mengurangi skor integritasnya secara otomatis.
+                            </p>
+                            <!-- Alur cara kerja -->
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+                                <div class="bg-white border border-blue-100 rounded-xl p-3">
+                                    <div class="flex items-center gap-2 mb-1.5">
+                                        <span class="w-6 h-6 bg-blue-600 text-white rounded-full text-xs font-black flex items-center justify-center shrink-0">1</span>
+                                        <span class="text-xs font-bold text-blue-800">Siswa Mulai Ujian</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500">Sensor anti-cheat aktif otomatis. Sistem mulai memantau layar, fokus window, dan perpindahan tab.</p>
+                                </div>
+                                <div class="bg-white border border-blue-100 rounded-xl p-3">
+                                    <div class="flex items-center gap-2 mb-1.5">
+                                        <span class="w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-black flex items-center justify-center shrink-0">2</span>
+                                        <span class="text-xs font-bold text-amber-800">Pelanggaran Terdeteksi</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500">Jika siswa pindah tab/aplikasi, sistem mencatat waktu kejadian dan memberi peringatan. Skor integritas dikurangi sesuai bobot.</p>
+                                </div>
+                                <div class="bg-white border border-blue-100 rounded-xl p-3">
+                                    <div class="flex items-center gap-2 mb-1.5">
+                                        <span class="w-6 h-6 bg-red-600 text-white rounded-full text-xs font-black flex items-center justify-center shrink-0">3</span>
+                                        <span class="text-xs font-bold text-red-800">Batas Maksimal</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500">Jika pelanggaran mencapai 3×, ujian dihentikan otomatis dan siswa didiskualifikasi. Skor integritas = 0.</p>
+                                </div>
+                                <div class="bg-white border border-blue-100 rounded-xl p-3">
+                                    <div class="flex items-center gap-2 mb-1.5">
+                                        <span class="w-6 h-6 bg-emerald-600 text-white rounded-full text-xs font-black flex items-center justify-center shrink-0">4</span>
+                                        <span class="text-xs font-bold text-emerald-800">Laporan Otomatis</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500">Setelah ujian selesai, data langsung muncul di tab ini. Export PDF per siswa tersedia dengan 1 klik.</p>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex flex-col items-center bg-green-50 border border-green-200 rounded-xl p-3 text-center">
-                            <span class="text-2xl mb-1">✅</span>
-                            <span class="font-black text-green-700 text-lg">80–99</span>
-                            <span class="text-xs font-bold text-green-600 mt-0.5">Jujur</span>
-                            <span class="text-[11px] text-gray-400 mt-1">1× pelanggaran kecil (mungkin tidak sengaja)</span>
-                        </div>
-                        <div class="flex flex-col items-center bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
-                            <span class="text-2xl mb-1">⚠️</span>
-                            <span class="font-black text-amber-700 text-lg">60–79</span>
-                            <span class="text-xs font-bold text-amber-600 mt-0.5">Perlu Perhatian</span>
-                            <span class="text-[11px] text-gray-400 mt-1">2× pelanggaran — perlu ditindaklanjuti</span>
-                        </div>
-                        <div class="flex flex-col items-center bg-red-50 border border-red-200 rounded-xl p-3 text-center">
-                            <span class="text-2xl mb-1">🚨</span>
-                            <span class="font-black text-red-700 text-lg">1–59</span>
-                            <span class="text-xs font-bold text-red-600 mt-0.5">Mencurigakan</span>
-                            <span class="text-[11px] text-gray-400 mt-1">Banyak pelanggaran — indikasi kecurangan</span>
-                        </div>
-                        <div class="flex flex-col items-center bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
-                            <span class="text-2xl mb-1">❌</span>
-                            <span class="font-black text-rose-700 text-lg">0</span>
-                            <span class="text-xs font-bold text-rose-600 mt-0.5">Diskualifikasi</span>
-                            <span class="text-[11px] text-gray-400 mt-1">≥3 pelanggaran — ujian otomatis gugur</span>
-                        </div>
-                    </div>
-                    <div class="mt-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2">
-                        <i data-lucide="lightbulb" class="w-4 h-4 text-blue-500 shrink-0 mt-0.5"></i>
-                        <p class="text-xs text-blue-700"><strong>Formula Skor:</strong> Skor Integritas = 100 − (Jumlah Pelanggaran × 20). Diskualifikasi otomatis saat ≥3 pelanggaran dan skor menjadi 0.</p>
                     </div>
                 </div>
 
-                <!-- ══ HEADER + EXPORT ══ -->
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                    <div>
-                        <h2 class="text-lg font-black text-gray-800 flex items-center gap-2">
-                            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>
-                            Data Integritas Real-Time
-                        </h2>
-                        <p class="text-sm text-gray-400 mt-0.5">Terisi otomatis saat siswa menyelesaikan ujian. Refresh otomatis setiap ada data baru.</p>
+                <!-- ══ FORMULA & CARA BACA SKOR ══ -->
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-6">
+
+                    <!-- Formula Perhitungan -->
+                    <div class="bg-white border rounded-xl p-5 shadow-sm">
+                        <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2">
+                            <i data-lucide="calculator" class="w-4 h-4 text-indigo-500"></i>
+                            Formula Skor Integritas
+                        </h3>
+                        <!-- Formula visual -->
+                        <div class="bg-slate-900 rounded-xl p-4 font-mono text-sm mb-4">
+                            <div class="text-slate-400 text-xs mb-2">// Dihitung otomatis setelah ujian selesai</div>
+                            <div class="text-emerald-400">Skor <span class="text-white">=</span> <span class="text-yellow-300">max</span><span class="text-white">(</span><span class="text-blue-300">0</span><span class="text-white">,</span> <span class="text-blue-300">100</span> <span class="text-red-400">−</span> bobot_pelanggaran<span class="text-white">)</span></div>
+                            <div class="mt-3 text-xs space-y-1 text-slate-300">
+                                <div><span class="text-amber-300">Pelanggaran 1×</span> <span class="text-slate-500">→</span> <span class="text-red-400">−20 poin</span> <span class="text-slate-500">→ Skor:</span> <span class="text-white font-bold">80</span></div>
+                                <div><span class="text-amber-300">Pelanggaran 2×</span> <span class="text-slate-500">→</span> <span class="text-red-400">−60 poin total</span> <span class="text-slate-500">→ Skor:</span> <span class="text-white font-bold">40</span></div>
+                                <div><span class="text-red-400">Pelanggaran 3×</span> <span class="text-slate-500">→</span> <span class="text-red-400">DISKUALIFIKASI</span> <span class="text-slate-500">→ Skor:</span> <span class="text-white font-bold">0</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2">
+                            <i data-lucide="lightbulb" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
+                            <p class="text-xs text-amber-700">Bobot pelanggaran <strong>progresif</strong> — pelanggaran kedua lebih berat dari yang pertama untuk mencerminkan niat yang lebih jelas.</p>
+                        </div>
                     </div>
-                    <button onclick="window.generateIntegrityReport()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md active:scale-95 transition-transform shrink-0">
-                        <i data-lucide="download" class="w-4 h-4"></i> Export Laporan PDF
-                    </button>
+
+                    <!-- Kategori & Predikat -->
+                    <div class="bg-white border rounded-xl p-5 shadow-sm">
+                        <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2">
+                            <i data-lucide="tag" class="w-4 h-4 text-gray-400"></i>
+                            Kategori & Predikat Integritas
+                        </h3>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2.5">
+                                <span class="text-lg shrink-0">🏆</span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-black text-emerald-700 text-sm">Skor 100</span>
+                                        <span class="bg-emerald-200 text-emerald-800 text-[10px] font-bold px-1.5 py-0.5 rounded">TELADAN</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-0.5">Tidak ada pelanggaran sama sekali — ujian berjalan 100% bersih</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+                                <span class="text-lg shrink-0">⚠️</span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-black text-amber-700 text-sm">Skor 70–99</span>
+                                        <span class="bg-amber-200 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded">CUKUP</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-0.5">1 pelanggaran terdeteksi — butuh pembinaan fokus digital</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
+                                <span class="text-lg shrink-0">⛔</span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-black text-red-700 text-sm">Skor &lt;70</span>
+                                        <span class="bg-red-200 text-red-800 text-[10px] font-bold px-1.5 py-0.5 rounded">EVALUASI</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-0.5">2 pelanggaran — perlu pendampingan khusus dan dialog guru</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2.5">
+                                <span class="text-lg shrink-0">❌</span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-black text-rose-700 text-sm">Skor 0</span>
+                                        <span class="bg-rose-200 text-rose-800 text-[10px] font-bold px-1.5 py-0.5 rounded">DISKUALIFIKASI</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-0.5">≥3 pelanggaran — ujian dihentikan otomatis oleh sistem</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- ══ APA YANG DIDETEKSI SISTEM ══ -->
+                <div class="bg-white border rounded-xl p-5 shadow-sm mb-6">
+                    <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <i data-lucide="radar" class="w-4 h-4 text-red-500"></i>
+                        Apa Saja yang Dideteksi Sistem sebagai Pelanggaran?
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="border border-gray-100 rounded-xl p-3 bg-gray-50">
+                            <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mb-2">
+                                <i data-lucide="layout-grid" class="w-4 h-4 text-red-600"></i>
+                            </div>
+                            <p class="font-bold text-xs text-gray-700 mb-1">Pindah Tab / Browser</p>
+                            <p class="text-[11px] text-gray-400">Buka tab baru atau pindah ke website lain saat ujian berlangsung</p>
+                        </div>
+                        <div class="border border-gray-100 rounded-xl p-3 bg-gray-50">
+                            <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mb-2">
+                                <i data-lucide="app-window" class="w-4 h-4 text-orange-600"></i>
+                            </div>
+                            <p class="font-bold text-xs text-gray-700 mb-1">Buka Aplikasi Lain</p>
+                            <p class="text-[11px] text-gray-400">Alt+Tab ke WhatsApp, kalkulator, atau aplikasi lainnya</p>
+                        </div>
+                        <div class="border border-gray-100 rounded-xl p-3 bg-gray-50">
+                            <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center mb-2">
+                                <i data-lucide="minimize-2" class="w-4 h-4 text-amber-600"></i>
+                            </div>
+                            <p class="font-bold text-xs text-gray-700 mb-1">Minimize Browser</p>
+                            <p class="text-[11px] text-gray-400">Mengecilkan atau menyembunyikan jendela ujian</p>
+                        </div>
+                        <div class="border border-gray-100 rounded-xl p-3 bg-gray-50">
+                            <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mb-2">
+                                <i data-lucide="scan-line" class="w-4 h-4 text-purple-600"></i>
+                            </div>
+                            <p class="font-bold text-xs text-gray-700 mb-1">Mode Incognito</p>
+                            <p class="text-[11px] text-gray-400">Login menggunakan browser mode private/incognito</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 flex items-start gap-2">
+                        <i data-lucide="shield" class="w-4 h-4 text-green-600 shrink-0 mt-0.5"></i>
+                        <p class="text-xs text-green-700"><strong>Yang TIDAK dianggap pelanggaran:</strong> scroll halaman, klik pilihan jawaban, meluangkan waktu berpikir lama di satu soal, atau gangguan teknis perangkat yang terjadi 1 kali.</p>
+                    </div>
+                </div>
+
+                <!-- ══ PANDUAN FITUR PDF & CATATAN ══ -->
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+                    <i data-lucide="file-text" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
+                    <div class="text-sm text-amber-800">
+                        <strong>Fitur Export PDF & Catatan Pengawas:</strong> Di tabel hasil ujian (tab Monitoring), setiap siswa memiliki tombol
+                        <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 font-bold text-xs px-2 py-0.5 rounded mx-0.5"><i data-lucide="file-text" class="w-3 h-3"></i> PDF</span>
+                        untuk cetak laporan karakter per-siswa, dan tombol
+                        <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-700 font-bold text-xs px-2 py-0.5 rounded mx-0.5"><i data-lucide="pencil" class="w-3 h-3"></i> Catatan</span>
+                        untuk menambah catatan manual pengawas sebelum dicetak. Laporan PDF berisi: identitas siswa, log insiden dengan timestamp, skor integritas, predikat karakter, dan kesimpulan otomatis sistem.
+                    </div>
+                </div>
+
+                <!-- ══ SEPARATOR: DATA REAL-TIME ══ -->
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="flex-1 h-px bg-gray-200"></div>
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest px-2">Data Real-Time</span>
+                    <div class="flex-1 h-px bg-gray-200"></div>
+                </div>
+                <p class="text-xs text-gray-400 mb-5 -mt-2">Data di bawah ini terisi otomatis setelah siswa menyelesaikan ujian. Tidak perlu refresh manual — halaman ini memperbarui diri sendiri secara langsung.</p>
 
                 <!-- Integrity Score Cards -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -2411,11 +2691,11 @@
                     </div>
                     <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg">
                         <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-bold opacity-90 uppercase tracking-wide">Siswa Jujur ≥80</span>
+                            <span class="text-xs font-bold opacity-90 uppercase tracking-wide">Siswa Skor 100</span>
                             <i data-lucide="user-check" class="w-5 h-5 opacity-80"></i>
                         </div>
                         <p id="honest-count" class="text-4xl font-black">0</p>
-                        <p id="honest-pct" class="text-xs opacity-75 mt-1">0% dari total peserta</p>
+                        <p id="honest-pct" class="text-xs opacity-75 mt-1">0% integritas sempurna</p>
                     </div>
                     <div class="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg">
                         <div class="flex items-center justify-between mb-2">
@@ -2423,7 +2703,7 @@
                             <i data-lucide="alert-triangle" class="w-5 h-5 opacity-80"></i>
                         </div>
                         <p id="minor-viol-count" class="text-4xl font-black">0</p>
-                        <p class="text-xs opacity-75 mt-1">1–2× pelanggaran</p>
+                        <p class="text-xs opacity-75 mt-1">1–2× pelanggaran terdeteksi</p>
                     </div>
                     <div class="bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl p-5 text-white shadow-lg">
                         <div class="flex items-center justify-between mb-2">
@@ -2431,7 +2711,7 @@
                             <i data-lucide="shield-x" class="w-5 h-5 opacity-80"></i>
                         </div>
                         <p id="dq-count-analitik" class="text-4xl font-black">0</p>
-                        <p class="text-xs opacity-75 mt-1">≥3 pelanggaran terdeteksi</p>
+                        <p class="text-xs opacity-75 mt-1">≥3 pelanggaran, ujian gugur</p>
                     </div>
                 </div>
 
@@ -2442,12 +2722,12 @@
                             <i data-lucide="bar-chart-3" class="w-4 h-4 text-blue-500"></i>
                             Distribusi Skor Integritas
                         </h3>
-                        <p class="text-xs text-gray-400 mb-4">Menunjukkan berapa siswa di setiap kategori kejujuran.</p>
+                        <p class="text-xs text-gray-400 mb-4">Berapa siswa di setiap rentang skor — dari Teladan sampai Diskualifikasi.</p>
                         <div id="chart-integrity-dist" class="space-y-3">
                             <div class="flex flex-col items-center justify-center py-10 gap-2 text-gray-300">
                                 <i data-lucide="bar-chart-2" class="w-10 h-10"></i>
                                 <p class="text-sm font-semibold text-gray-400">Menunggu data ujian...</p>
-                                <p class="text-xs text-gray-300">Chart akan terisi otomatis setelah siswa menyelesaikan ujian</p>
+                                <p class="text-xs text-gray-300">Terisi otomatis setelah siswa menyelesaikan ujian</p>
                             </div>
                         </div>
                     </div>
@@ -2456,12 +2736,12 @@
                             <i data-lucide="pie-chart" class="w-4 h-4 text-purple-500"></i>
                             Tingkat Pelanggaran per Kelas
                         </h3>
-                        <p class="text-xs text-gray-400 mb-4">Kelas mana yang paling banyak pelanggaran terdeteksi.</p>
+                        <p class="text-xs text-gray-400 mb-4">Perbandingan jumlah pelanggaran antar kelas — berguna untuk evaluasi per rombel.</p>
                         <div id="chart-viol-per-class" class="space-y-3">
                             <div class="flex flex-col items-center justify-center py-10 gap-2 text-gray-300">
                                 <i data-lucide="users" class="w-10 h-10"></i>
                                 <p class="text-sm font-semibold text-gray-400">Menunggu data ujian...</p>
-                                <p class="text-xs text-gray-300">Chart akan terisi otomatis setelah siswa menyelesaikan ujian</p>
+                                <p class="text-xs text-gray-300">Terisi otomatis setelah siswa menyelesaikan ujian</p>
                             </div>
                         </div>
                     </div>
@@ -2475,40 +2755,46 @@
                                 <i data-lucide="list-ordered" class="w-4 h-4 text-gray-500"></i>
                                 Ranking Integritas Siswa
                             </h3>
-                            <p class="text-xs text-gray-400 mt-0.5">Diurutkan dari skor integritas tertinggi. Skor makin tinggi = makin jujur.</p>
+                            <p class="text-xs text-gray-400 mt-0.5">Diurutkan dari skor tertinggi ke terendah. Makin tinggi skor = makin jujur selama ujian.</p>
                         </div>
                         <div class="flex gap-2 flex-wrap">
-                            <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">🏆 ≥100 Sangat Jujur</span>
-                            <span class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full">⚠️ 60–79 Perhatian</span>
-                            <span class="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full">❌ 0 DQ</span>
+                            <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">🏆 100 Teladan</span>
+                            <span class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">✅ 80–99 Baik</span>
+                            <span class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full">⚠️ 60–79 Cukup</span>
+                            <span class="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full">⛔ &lt;60 Evaluasi</span>
+                            <span class="bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1 rounded-full">❌ 0 DQ</span>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
                                 <tr>
-                                    <th class="px-5 py-3 text-left">Rank</th>
-                                    <th class="px-5 py-3 text-left">Nama Siswa</th>
-                                    <th class="px-5 py-3 text-left">Kelas</th>
-                                    <th class="px-5 py-3 text-center">Nilai Ujian</th>
-                                    <th class="px-5 py-3 text-center">Pelanggaran</th>
-                                    <th class="px-5 py-3 text-center">Skor Integritas</th>
-                                    <th class="px-5 py-3 text-center">Kategori</th>
+                                    <th class="px-4 py-3 text-left">Rank</th>
+                                    <th class="px-4 py-3 text-left">Nama Siswa</th>
+                                    <th class="px-4 py-3 text-left">Kelas</th>
+                                    <th class="px-4 py-3 text-left">Ruang</th>
+                                    <th class="px-4 py-3 text-center">Nilai</th>
+                                    <th class="px-4 py-3 text-center">Pelanggaran</th>
+                                    <th class="px-4 py-3 text-center">Skor Integritas</th>
+                                    <th class="px-4 py-3 text-center">Predikat</th>
+                                    <th class="px-4 py-3 text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="integrity-table-body">
                                 <tr>
-                                    <td colspan="7" class="text-center py-14">
+                                    <td colspan="9" class="text-center py-14">
                                         <div class="flex flex-col items-center gap-2 text-gray-300">
                                             <i data-lucide="clipboard-list" class="w-12 h-12"></i>
                                             <p class="font-bold text-gray-400 text-base">Belum ada data integritas</p>
-                                            <p class="text-sm text-gray-300 max-w-xs">Tabel ini akan terisi otomatis setelah siswa menyelesaikan ujian. Tidak perlu refresh manual.</p>
+                                            <p class="text-sm text-gray-300 max-w-xs">Tabel terisi otomatis setelah siswa menyelesaikan ujian. Tidak perlu refresh halaman.</p>
                                         </div>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
+                    <!-- Pager Analitik -->
+                    <div id="analitik-pager"></div>
                 </div>
 
             </div>
@@ -2584,9 +2870,9 @@
                         </h3>
                         <div class="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 rounded-2xl px-8 py-6 text-center max-w-sm mx-auto shadow-2xl">
                             <div class="w-16 h-16 bg-white rounded-full mx-auto mb-3 flex items-center justify-center shadow">
-                                <img id="preview-logo" src="images/logotkj.png" onerror="this.src='https://via.placeholder.com/64?text=LOGO'" class="w-12 h-12 object-contain rounded-full">
+                                <img id="preview-logo" src="images/integritest.png" onerror="this.src='https://via.placeholder.com/64?text=LOGO'" class="w-12 h-12 object-contain rounded-full">
                             </div>
-                            <h1 id="preview-judul" class="text-xl font-black text-white">INTEGRITEST</h1>
+                            <h1 id="preview-judul" class="text-xl font-black"><span class="text-white">INTEGRI</span><span style="color:#7dd3fc">TEST</span></h1>
                             <div class="h-0.5 w-14 bg-blue-300/50 rounded-full my-2 mx-auto"></div>
                             <p id="preview-sub" class="text-blue-100 text-xs font-medium">Digitalyzing Integrity, Empowering Honestly</p>
                         </div>
@@ -2615,6 +2901,18 @@
             </div>
 
         </main>
+        <!-- Footer Dashboard Guru -->
+        <footer class="bg-slate-900 border-t border-slate-700 mt-auto">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+                <p class="text-[11px] text-slate-500 flex items-center gap-1.5">
+                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    &copy; 2026 <span class="text-slate-400 font-semibold">Nailul Authar</span> <span class="text-slate-600">•</span> SMK Negeri 1 Brondong
+                </p>
+                <p class="text-[10px] text-slate-600 font-mono hidden md:block">
+                    <span class="text-white font-black">INTEGRI</span><span style="color:#38bdf8" class="font-black">TEST</span> &nbsp;v2.0
+                </p>
+            </div>
+        </footer>
     </div>
 
     <!-- MODAL: CATATAN PENGAWAS PER SISWA -->
@@ -2889,7 +3187,7 @@
             judulUjian : 'INTEGRITEST',
             subJudul   : 'Digitalyzing Integrity, Empowering Honestly',
             motivasi   : 'Kerjakan dengan jujur dan penuh semangat. Hasil terbaik lahir dari usaha yang sungguh-sungguh. Percayalah pada kemampuanmu — sukses menantimu!',
-            logoUrl    : 'images/logotkj.png'
+            logoUrl    : 'images/integritest.png'
         };
 
         // Terapkan pengaturan tampilan ke semua elemen UI
@@ -3342,16 +3640,23 @@
         window.switchDashTab = function(tab) {
             const activeClass   = "pb-3 border-b-2 border-blue-600 font-bold text-blue-600 px-4 whitespace-nowrap flex items-center gap-2";
             const inactiveClass = "pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2";
-            const tabs   = ['nilai','kelas','soal','ruang','tampilan'];
+            const tabs   = ['nilai','kelas','soal','ruang','analitik','tampilan'];
             const panels = { nilai:'panel-nilai', soal:'panel-soal', kelas:'panel-kelas', ruang:'panel-ruang', analitik:'panel-analitik', tampilan:'panel-tampilan' };
             const btnIds = { nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelas:'tab-dash-kelas', ruang:'tab-dash-ruang', analitik:'tab-dash-analitik', tampilan:'tab-dash-tampilan' };
-            if (tab === 'analitik') { setTimeout(() => window.renderIntegrityDashboard(), 100); }
             tabs.forEach(t => {
                 const btn = document.getElementById(btnIds[t]);
                 const pnl = document.getElementById(panels[t]);
-                if (btn) btn.className = (t === tab ? activeClass : inactiveClass) + (btn.classList.contains('admin-only-tab') ? ' admin-only-tab' : '');
+                if (btn) {
+                    // Tentukan base class (active/inactive) lalu tambah kembali flag2 yang harus dipertahankan
+                    const isAdminOnly = btn.classList.contains('admin-only-tab');
+                    const isHidden    = btn.classList.contains('hidden');
+                    btn.className = (t === tab ? activeClass : inactiveClass)
+                        + (isAdminOnly ? ' admin-only-tab' : '')
+                        + (isHidden    ? ' hidden'         : '');
+                }
                 if (pnl) { if (t === tab) pnl.classList.remove('hidden-section'); else pnl.classList.add('hidden-section'); }
             });
+            if (tab === 'analitik') { setTimeout(() => window.renderIntegrityDashboard(), 150); }
             if (tab === 'soal') { window.backToPaketList(); window.renderPaketGrid(); }
             if (tab === 'kelas') window.renderKelasList();
             if (tab === 'ruang') window.renderRuangList();
@@ -4373,11 +4678,17 @@
             badge.classList.add('flex');
             document.getElementById('pengawas-room-label').textContent = ruang.nama;
 
-            // Sembunyikan tab & elemen yang hanya untuk admin
+            // Sembunyikan tab & elemen yang hanya untuk admin — HARUS sebelum switchDashTab
             document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.admin-only-el').forEach(el => el.classList.add('hidden'));
 
-            // Load sesi aktif untuk pengawas
+            // Buka dashboard dan paksa tab Monitoring Nilai aktif
+            document.getElementById('section-login').classList.add('hidden-section');
+            document.getElementById('section-dashboard').classList.remove('hidden-section');
+            // switchDashTab dipanggil SETELAH hide agar class 'hidden' sudah ada saat className di-set ulang
+            window.switchDashTab('nilai');
+
+            // Load data untuk pengawas
             if(window.listenForActiveSesi) window.listenForActiveSesi();
             if(window.setupRealtimeListener) window.setupRealtimeListener();
             if(window.listenForKelas) window.listenForKelas();
@@ -4392,9 +4703,6 @@
                     window.filterDashboard();
                 }, 900);
             }
-
-            document.getElementById('section-login').classList.add('hidden-section');
-            document.getElementById('section-dashboard').classList.remove('hidden-section');
             if(typeof lucide !== 'undefined') lucide.createIcons();
         };
 
@@ -4483,6 +4791,7 @@
             soal:       { page: 1, perPage: 10 },
             kelas:      { page: 1, perPage: 15 },
             ruang:      { page: 1, perPage: 15 },
+            analitik:   { page: 1, perPage: 15 },
         };
 
         // Render a pager control into a wrapper element
@@ -4535,6 +4844,7 @@
                 soal:       () => window.filterQuestionBank(),
                 kelas:      () => window.renderKelasList(),
                 ruang:      () => window.renderRuangList(),
+                analitik:   () => window.renderIntegrityDashboard(),
             };
             if (map[section]) map[section]();
         };
@@ -5579,29 +5889,135 @@
         }
 
         window.renderIntegrityDashboard = function() {
-            const data = dashboardData || [];
-            const finished = data.filter(d => d.status !== 'SEDANG MENGERJAKAN');
+            const isAdmin = !window.currentPengawasRuang;
+            const rawData = dashboardData || [];
+            let finished = rawData.filter(d => d.status !== 'SEDANG MENGERJAKAN');
+
+            // ══ STEP 1: Filter pengawas DULU sebelum apapun ══
+            // Pengawas hanya boleh lihat data ruangnya sendiri + sesi aktif
+            if (!isAdmin && window.currentPengawasRuang) {
+                finished = finished.filter(d =>
+                    (d.ruangUjian || '') === (window.currentPengawasRuang.nama || '')
+                );
+                // Default sesi: hanya sesi aktif (bisa di-override oleh filter dropdown)
+                const activeSesiId = window.currentSesiId || 'default';
+                const fSesiDropdown = document.getElementById('analitik-filter-sesi')?.value || 'all';
+                if (fSesiDropdown === 'all') {
+                    finished = finished.filter(d =>
+                        (d.sesiId === activeSesiId) || (!d.sesiId && activeSesiId === 'default')
+                    );
+                }
+            }
+
+            // ══ STEP 2: Ambil nilai filter yang dipilih user ══
+            const sesiSel   = document.getElementById('analitik-filter-sesi');
+            const ruangSel  = document.getElementById('analitik-filter-ruang');
+            const kelasSel  = document.getElementById('analitik-filter-kelas');
+            const ruangWrap = document.getElementById('analitik-filter-ruang-wrap');
+            const fPredikat = document.getElementById('analitik-filter-predikat')?.value || 'all';
+            const fSesi     = sesiSel?.value  || 'all';
+            const fRuang    = isAdmin ? (ruangSel?.value || 'all') : 'locked'; // pengawas: tidak pakai filter ruang manual
+            const fKelas    = kelasSel?.value || 'all';
+
+            // ══ STEP 3: Terapkan filter admin (sesi/ruang/kelas) ══
+            if (fSesi  !== 'all') finished = finished.filter(d => (d.sesiId || 'default') === fSesi);
+            if (isAdmin && fRuang !== 'all') finished = finished.filter(d => (d.ruangUjian || '') === fRuang);
+            if (fKelas !== 'all') finished = finished.filter(d => (d.className || '') === fKelas);
+
+            // ══ STEP 4: Populate dropdown dari data yang sudah ter-filter ruang ══
+            // (sehingga pilihan dropdown relevan dengan scope user)
+            const baseForDropdown = (() => {
+                // Untuk dropdown: pakai data yang sudah filter ruang/pengawas tapi BELUM filter sesi/kelas
+                let base = rawData.filter(d => d.status !== 'SEDANG MENGERJAKAN');
+                if (!isAdmin && window.currentPengawasRuang) {
+                    base = base.filter(d => (d.ruangUjian || '') === (window.currentPengawasRuang.nama || ''));
+                }
+                return base;
+            })();
+
+            // Sembunyikan filter ruang untuk pengawas
+            if (ruangWrap) ruangWrap.style.display = isAdmin ? '' : 'none';
+
+            // Isi dropdown sesi
+            if (sesiSel) {
+                const curSesi = sesiSel.value;
+                const sesiSet = [...new Set(baseForDropdown.map(d => d.sesiId || 'default').filter(Boolean))];
+                sesiSel.innerHTML = '<option value="all">Semua Sesi</option>';
+                (window.allSesiDB || []).forEach(s => {
+                    if (sesiSet.includes(s.id)) {
+                        const opt = document.createElement('option');
+                        opt.value = s.id; opt.textContent = s.nama || s.id;
+                        sesiSel.appendChild(opt);
+                    }
+                });
+                if (curSesi && sesiSel.querySelector(`option[value="${curSesi}"]`)) sesiSel.value = curSesi;
+            }
+
+            // Isi dropdown ruang (admin only)
+            if (ruangSel && isAdmin) {
+                const curRuang = ruangSel.value;
+                const ruangSet = [...new Set(baseForDropdown.map(d => d.ruangUjian).filter(Boolean))];
+                ruangSel.innerHTML = '<option value="all">Semua Ruang</option>';
+                ruangSet.sort().forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r; opt.textContent = r;
+                    ruangSel.appendChild(opt);
+                });
+                if (curRuang && ruangSel.querySelector(`option[value="${curRuang}"]`)) ruangSel.value = curRuang;
+            }
+
+            // Isi dropdown kelas (dari scope ruang yg sudah di-filter)
+            if (kelasSel) {
+                const curKelas = kelasSel.value;
+                const kelasSet = [...new Set(baseForDropdown.map(d => d.className).filter(Boolean))];
+                kelasSel.innerHTML = '<option value="all">Semua Kelas</option>';
+                kelasSet.sort().forEach(k => {
+                    const opt = document.createElement('option');
+                    opt.value = k; opt.textContent = k;
+                    kelasSel.appendChild(opt);
+                });
+                if (curKelas && kelasSel.querySelector(`option[value="${curKelas}"]`)) kelasSel.value = curKelas;
+            }
+
+            // ══ STEP 5: Handle empty state ══
+            const emptyBanner = document.getElementById('analitik-empty-banner');
+
             if (finished.length === 0) {
+                if (emptyBanner) emptyBanner.style.display = '';
                 document.getElementById('avg-integrity-score').textContent = '—';
                 document.getElementById('honest-count').textContent = '0';
                 document.getElementById('honest-pct').textContent = '0% dari total';
                 document.getElementById('minor-viol-count').textContent = '0';
                 document.getElementById('dq-count-analitik').textContent = '0';
-                document.getElementById('chart-integrity-dist').innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Belum ada data ujian selesai.</p>';
-                document.getElementById('chart-viol-per-class').innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Belum ada data ujian selesai.</p>';
-                document.getElementById('integrity-table-body').innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-400">Belum ada data.</td></tr>';
+                document.getElementById('chart-integrity-dist').innerHTML = '<div class="flex flex-col items-center justify-center py-10 gap-2 text-gray-300"><i data-lucide="bar-chart-2" class="w-10 h-10"></i><p class="text-sm font-semibold text-gray-400">Menunggu data ujian...</p><p class="text-xs text-gray-300">Terisi otomatis setelah siswa menyelesaikan ujian</p></div>';
+                document.getElementById('chart-viol-per-class').innerHTML = '<div class="flex flex-col items-center justify-center py-10 gap-2 text-gray-300"><i data-lucide="users" class="w-10 h-10"></i><p class="text-sm font-semibold text-gray-400">Menunggu data ujian...</p><p class="text-xs text-gray-300">Terisi otomatis setelah siswa menyelesaikan ujian</p></div>';
+                document.getElementById('integrity-table-body').innerHTML = '<tr><td colspan="9" class="text-center py-14"><div class="flex flex-col items-center gap-2 text-gray-300"><i data-lucide="clipboard-list" class="w-12 h-12"></i><p class="font-bold text-gray-400 text-base">Belum ada data integritas</p><p class="text-sm text-gray-300 max-w-xs">Tabel terisi otomatis setelah siswa menyelesaikan ujian. Tidak perlu refresh halaman.</p></div></td></tr>';
+                const pager = document.getElementById('analitik-pager'); if (pager) pager.innerHTML = '';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
                 return;
             }
+            if (emptyBanner) emptyBanner.style.display = 'none';
 
-            // Hitung skor integritas per siswa
-            const withScores = finished.map(d => ({
-                ...d,
-                integrityScore: calcIntegrityScore(d)
+            // ── Hitung skor integritas ──
+            let withScores = finished.map(d => ({
+                ...d, integrityScore: calcIntegrityScore(d)
             })).filter(d => d.integrityScore !== null);
 
-            // Summary cards
+            // Filter predikat
+            if (fPredikat !== 'all') {
+                withScores = withScores.filter(d => {
+                    if (fPredikat === 'teladan')  return d.integrityScore === 100;
+                    if (fPredikat === 'baik')     return d.integrityScore >= 80 && d.integrityScore < 100;
+                    if (fPredikat === 'cukup')    return d.integrityScore >= 60 && d.integrityScore < 80;
+                    if (fPredikat === 'evaluasi') return d.integrityScore > 0 && d.integrityScore < 60;
+                    if (fPredikat === 'dq')       return d.integrityScore === 0;
+                    return true;
+                });
+            }
+
+            // ── Summary cards ──
             const scores = withScores.map(d => d.integrityScore);
-            const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+            const avg    = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
             const honest = withScores.filter(d => d.integrityScore >= 80).length;
             const minor  = withScores.filter(d => (d.violations||0) >= 1 && (d.violations||0) <= 2 && !d.status.includes('DISKUALIFIKASI')).length;
             const dq     = withScores.filter(d => d.integrityScore === 0).length;
@@ -5613,12 +6029,20 @@
             document.getElementById('minor-viol-count').textContent = minor;
             document.getElementById('dq-count-analitik').textContent = dq;
 
-            // ── Chart 1: Distribusi Skor Integritas ──
+            // Update info filter
+            const filterInfo = document.getElementById('analitik-filter-info');
+            if (filterInfo) {
+                const hasFilter = fSesi !== 'all' || (isAdmin && fRuang !== 'all') || fKelas !== 'all' || fPredikat !== 'all';
+                filterInfo.textContent = hasFilter ? `Menampilkan ${total} hasil` : '';
+                filterInfo.classList.toggle('hidden', !hasFilter);
+            }
+
+            // ── Chart 1: Distribusi Skor ──
             const bands = [
-                { label: 'Score 100 (Sangat Jujur)', min: 100, max: 100, color: '#10b981' },
-                { label: 'Score 80-99 (Jujur)',      min: 80,  max: 99,  color: '#34d399' },
-                { label: 'Score 60-79 (Perhatian)',  min: 60,  max: 79,  color: '#f59e0b' },
-                { label: 'Score 1-59 (Mencurigakan)',min: 1,   max: 59,  color: '#ef4444' },
+                { label: 'Score 100 (Teladan)',      min: 100, max: 100, color: '#10b981' },
+                { label: 'Score 80–99 (Baik)',       min: 80,  max: 99,  color: '#34d399' },
+                { label: 'Score 60–79 (Cukup)',      min: 60,  max: 79,  color: '#f59e0b' },
+                { label: 'Score 1–59 (Evaluasi)',    min: 1,   max: 59,  color: '#ef4444' },
                 { label: 'Score 0 (Diskualifikasi)', min: 0,   max: 0,   color: '#991b1b' },
             ];
             const distEl = document.getElementById('chart-integrity-dist');
@@ -5628,9 +6052,9 @@
                 const pct   = total > 0 ? Math.round(count/total*100) : 0;
                 distEl.innerHTML += `
                     <div class="flex items-center gap-3">
-                        <span class="text-xs text-gray-500 w-40 shrink-0">${band.label}</span>
+                        <span class="text-xs text-gray-500 w-44 shrink-0">${band.label}</span>
                         <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                            <div class="h-full rounded-full flex items-center justify-end pr-2 transition-all duration-700" 
+                            <div class="h-full rounded-full flex items-center justify-end pr-2 transition-all duration-700"
                                  style="width:${Math.max(pct,0)}%; background:${band.color}; min-width:${count>0?'2rem':'0'}">
                                 ${count > 0 ? `<span class="text-white text-xs font-bold">${count}</span>` : ''}
                             </div>
@@ -5655,7 +6079,7 @@
                 classEl.innerHTML = '';
                 const maxViol = Math.max(...classEntries.map(([,v]) => v.viol), 1);
                 classEntries.forEach(([cls, val]) => {
-                    const pct = Math.round(val.viol/val.total*100);
+                    const pct  = Math.round(val.viol/val.total*100);
                     const barW = Math.round(val.viol/maxViol*100);
                     const color = pct === 0 ? '#10b981' : pct < 30 ? '#f59e0b' : '#ef4444';
                     classEl.innerHTML += `
@@ -5672,38 +6096,73 @@
                 });
             }
 
-            // ── Tabel Ranking Integritas ──
+            // ── Tabel dengan Pagination ──
             const sorted = [...withScores].sort((a,b) => b.integrityScore - a.integrityScore);
+            const pgA = window._pg.analitik;
+            pgA.page = Math.max(1, Math.min(pgA.page, Math.ceil(sorted.length / pgA.perPage)));
+            const sliceStart = (pgA.page - 1) * pgA.perPage;
+            const pageItems  = sorted.slice(sliceStart, sliceStart + pgA.perPage);
+
             const tbody = document.getElementById('integrity-table-body');
-            if (sorted.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-400">Belum ada data.</td></tr>';
+            if (pageItems.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-gray-400">Tidak ada data untuk filter ini.</td></tr>`;
             } else {
                 tbody.innerHTML = '';
-                sorted.forEach((d, i) => {
+                pageItems.forEach((d, i) => {
+                    const globalRank = sliceStart + i;
                     const cat = getIntegrityCategory(d.integrityScore);
-                    const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+                    const rankIcon = globalRank === 0 ? '🥇' : globalRank === 1 ? '🥈' : globalRank === 2 ? '🥉' : `#${globalRank+1}`;
                     const scoreBar = `
                         <div class="flex items-center gap-2 justify-center">
-                            <div class="w-24 bg-gray-100 rounded-full h-2 overflow-hidden">
+                            <div class="w-20 bg-gray-100 rounded-full h-2 overflow-hidden">
                                 <div class="h-full rounded-full" style="width:${d.integrityScore}%; background:${d.integrityScore>=80?'#10b981':d.integrityScore>=60?'#f59e0b':'#ef4444'}"></div>
                             </div>
-                            <span class="font-black text-gray-800 w-8 text-right">${d.integrityScore}</span>
+                            <span class="font-black text-gray-800 w-7 text-right text-sm">${d.integrityScore}</span>
                         </div>`;
+                    const hasNote = d._customNote ? '📝' : '';
                     tbody.innerHTML += `
                         <tr class="border-b hover:bg-slate-50 transition-colors ${d.integrityScore === 0 ? 'bg-red-50' : ''}">
-                            <td class="px-5 py-3 text-center font-bold text-gray-500">${rankIcon}</td>
-                            <td class="px-5 py-3 font-semibold text-gray-800">${d.studentName}</td>
-                            <td class="px-5 py-3 text-gray-500">${d.className || '-'}</td>
-                            <td class="px-5 py-3 text-center font-bold text-gray-700">${d.score}</td>
-                            <td class="px-5 py-3 text-center">${(d.violations||0) > 0 
-                                ? `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold text-xs">${d.violations}x</span>` 
-                                : '<span class="text-emerald-500 font-bold">✓ Bersih</span>'}</td>
-                            <td class="px-5 py-3">${scoreBar}</td>
-                            <td class="px-5 py-3 text-center"><span class="px-2 py-1 rounded-lg text-xs font-bold ${cat.bg} ${cat.text}">${cat.label}</span></td>
+                            <td class="px-4 py-3 text-center font-bold text-gray-500 text-sm">${rankIcon}</td>
+                            <td class="px-4 py-3 font-semibold text-gray-800 text-sm">${d.studentName} ${hasNote}</td>
+                            <td class="px-4 py-3 text-gray-500 text-xs">${d.className || '-'}</td>
+                            <td class="px-4 py-3 text-gray-500 text-xs">${d.ruangUjian || '-'}</td>
+                            <td class="px-4 py-3 text-center font-bold text-gray-700 text-sm">${d.score ?? '-'}</td>
+                            <td class="px-4 py-3 text-center">${(d.violations||0) > 0
+                                ? `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold text-xs">${d.violations}×</span>`
+                                : '<span class="text-emerald-500 font-bold text-xs">✓ Bersih</span>'}</td>
+                            <td class="px-4 py-3">${scoreBar}</td>
+                            <td class="px-4 py-3 text-center"><span class="px-2 py-1 rounded-lg text-xs font-bold ${cat.bg} ${cat.text}">${cat.label}</span></td>
+                            <td class="px-4 py-3 text-center">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <button onclick="window.openNoteModal('${d.id}')"
+                                        class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors"
+                                        title="Tambah/Edit Catatan Pengawas">
+                                        <i data-lucide="pencil" class="w-3 h-3"></i> Catatan
+                                    </button>
+                                    <button onclick="window.exportSinglePDF('${d.id}')"
+                                        class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                                        title="Export PDF siswa ini">
+                                        <i data-lucide="file-text" class="w-3 h-3"></i> PDF
+                                    </button>
+                                </div>
+                            </td>
                         </tr>`;
                 });
             }
+
+            // Render pager
+            const pagerEl = document.getElementById('analitik-pager');
+            if (pagerEl) pagerEl.innerHTML = renderPagerHTML('analitik', sorted.length, pgA.page, pgA.perPage);
+
             if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        // Reset filter analitik
+        window.resetAnalitikFilter = function() {
+            const ids = ['analitik-filter-sesi','analitik-filter-ruang','analitik-filter-kelas','analitik-filter-predikat'];
+            ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = 'all'; });
+            if (window._pg) window._pg.analitik.page = 1;
+            window.renderIntegrityDashboard();
         };
 
         // ── Tambahkan integrityScore ke tabel monitoring ──
