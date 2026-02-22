@@ -215,7 +215,7 @@
                         if (data.token) window.currentExamToken = data.token;
                         if (data.examDuration) window.currentExamDuration = parseInt(data.examDuration);
                         if (data.minDuration) window.currentMinExamDuration = parseInt(data.minDuration); 
-                        if (data.deviceCooldown) window.deviceCooldownHours = parseInt(data.deviceCooldown); // menit
+                        if (data.deviceCooldown) window.deviceCooldownHours = Math.max(10, parseInt(data.deviceCooldown)); // menit, minimal 10
                         // Appearance
                         if (data.judulUjian) latestAppearance.judulUjian = data.judulUjian;
                         if (data.subJudul)   latestAppearance.subJudul   = data.subJudul;
@@ -306,29 +306,37 @@
             if(newMinDuration > newDuration) return alert("Durasi minimal tidak boleh lebih besar dari durasi ujian!");
             if(newCooldown < 10) return alert("Cooldown device minimal 10 menit!");
 
-            // Ambil juga pengaturan tampilan
-            const newJudulUjian   = (document.getElementById('setting-judul-ujian')?.value || '').trim();
-            const newSubJudul     = (document.getElementById('setting-sub-judul')?.value || '').trim();
-            const newMotivasi     = (document.getElementById('setting-motivasi')?.value || '').trim();
-            const newLogoUrl      = (document.getElementById('setting-logo-url')?.value || '').trim();
-            const newNomorIdMode  = document.getElementById('setting-nomor-id-mode')?.value || 'nisn';
+            // Ambil juga pengaturan tampilan (fallback ke nilai tersimpan sebelumnya jika kosong)
+            const savedApp = window._savedAppearance || {};
+            const newJudulUjian   = (document.getElementById('setting-judul-ujian')?.value || '').trim() || savedApp.judulUjian || '';
+            const newSubJudul     = (document.getElementById('setting-sub-judul')?.value || '').trim() || savedApp.subJudul || '';
+            const newMotivasi     = (document.getElementById('setting-motivasi')?.value || '').trim() || savedApp.motivasi || '';
+            const newLogoUrl      = (document.getElementById('setting-logo-url')?.value || '').trim() || savedApp.logoUrl || '';
+            const newNomorIdMode  = document.getElementById('setting-nomor-id-mode')?.value || savedApp.nomorIdMode || 'nisn';
 
             if (window.isFirebaseReady && window.db) {
-                await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings'), {
-                    token: newToken,
-                    examDuration: newDuration,
-                    minDuration: newMinDuration, 
-                    deviceCooldown: newCooldown,  // dalam MENIT
-                    judulUjian:   newJudulUjian   || undefined,
-                    subJudul:     newSubJudul     || undefined,
-                    motivasi:     newMotivasi     || undefined,
-                    logoUrl:      newLogoUrl      || undefined,
-                    nomorIdMode:  newNomorIdMode,
-                    timestamp: Date.now()
-                });
-                // Terapkan ke UI langsung
-                window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode });
-                alert(`✅ Pengaturan disimpan!\nToken: ${newToken} | Durasi: ${newDuration} mnt | Cooldown: ${newCooldown} mnt`);
+                try {
+                    await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings'), {
+                        token: newToken,
+                        examDuration: newDuration,
+                        minDuration: newMinDuration,
+                        deviceCooldown: newCooldown,
+                        judulUjian:   newJudulUjian   || null,
+                        subJudul:     newSubJudul     || null,
+                        motivasi:     newMotivasi     || null,
+                        logoUrl:      newLogoUrl      || null,
+                        nomorIdMode:  newNomorIdMode,
+                        timestamp: Date.now()
+                    });
+                    // Update cache lokal
+                    window._savedAppearance = { judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode };
+                    // Terapkan ke UI langsung
+                    window.applyAppearanceSettings(window._savedAppearance);
+                    alert(`✅ Pengaturan disimpan!\nToken: ${newToken} | Durasi: ${newDuration} mnt | Cooldown: ${newCooldown} mnt`);
+                } catch(saveErr) {
+                    alert(`❌ Gagal simpan ke server: ${saveErr.message}\n\nCek koneksi internet dan coba lagi.`);
+                    window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode });
+                }
             } else {
                 // Offline — terapkan ke UI saja
                 window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode });
@@ -977,9 +985,9 @@
                 </div>
 
                 <div class="relative z-10 flex flex-col items-center">
-                    <div class="w-24 h-24 bg-white p-1.5 rounded-full shadow-lg mb-4 transform transition-all duration-500 hover:rotate-[360deg] hover:scale-105 ring-4 ring-white/30 relative">
+                    <div class="w-24 h-24 bg-white p-0 rounded-full shadow-lg mb-4 transform transition-all duration-500 hover:rotate-[360deg] hover:scale-105 ring-4 ring-white/30 relative overflow-hidden">
                         <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity"></div>
-                        <img src="images/integritest.png" onerror="this.src='https://via.placeholder.com/150?text=TKJ'" alt="Logo TKJ" class="w-full h-full object-contain rounded-full bg-white">
+                        <img src="images/integritest.png" onerror="this.src='https://via.placeholder.com/150?text=TKJ'" alt="Logo TKJ" class="w-full h-full object-cover rounded-full bg-white">
                     </div>
                     <h1 id="login-header-judul" class="text-3xl font-black tracking-tight drop-shadow-md">
                         <span class="text-white">INTEGRI</span><span style="color:#38bdf8;text-shadow:0 0 18px rgba(56,189,248,0.55)">TEST</span>
@@ -3412,6 +3420,10 @@
                 if (modal && !modal.classList.contains('hidden')) {
                     window.renderSesiList();
                 }
+                // Refresh dropdown analitik agar sesi baru ikut muncul
+                if (window.renderIntegrityDashboard && document.getElementById('panel-analitik') && !document.getElementById('panel-analitik').classList.contains('hidden-section')) {
+                    window.renderIntegrityDashboard();
+                }
             });
         };
 
@@ -3667,6 +3679,10 @@
             }
             window.updateStudentRoomDropdown();
             window.updatePengawasRoomDropdown();
+            // Refresh dropdown analitik agar ikut terupdate dari data master ruang
+            if (window.renderIntegrityDashboard && document.getElementById('panel-analitik') && !document.getElementById('panel-analitik').classList.contains('hidden-section')) {
+                window.renderIntegrityDashboard();
+            }
         };
 
         window.updateStudentRoomDropdown = function() {
@@ -3832,7 +3848,7 @@
                 }
                 if (pnl) { if (t === tab) pnl.classList.remove('hidden-section'); else pnl.classList.add('hidden-section'); }
             });
-            if (tab === 'analitik') { setTimeout(() => window.renderIntegrityDashboard(), 150); }
+            if (tab === 'analitik') { setTimeout(() => window.renderIntegrityDashboard(), 300); }
             if (tab === 'soal') { window.backToPaketList(); window.renderPaketGrid(); }
             if (tab === 'kelas') window.renderKelasList();
             if (tab === 'ruang') window.renderRuangList();
@@ -4186,6 +4202,10 @@
             // Update modal kelas checkboxes
             window.rebuildKelasChecks();
             window.rebuildPaketKelasChecks();
+            // Refresh dropdown analitik agar ikut terupdate dari data master kelas
+            if (window.renderIntegrityDashboard && document.getElementById('panel-analitik') && !document.getElementById('panel-analitik').classList.contains('hidden-section')) {
+                window.renderIntegrityDashboard();
+            }
         };
 
         window.rebuildKelasChecks = function(checkedArr = []) {
@@ -4853,6 +4873,12 @@
                 const teacherInput = document.getElementById('teacher-token-input');
                 if(teacherInput) teacherInput.value = window.currentExamToken;
                 if(typeof lucide !== 'undefined') lucide.createIcons();
+
+                // Pastikan dropdown analitik terisi setelah semua listener siap
+                // Delay cukup panjang agar Firestore sempat mengembalikan data
+                setTimeout(() => {
+                    if (window.renderIntegrityDashboard) window.renderIntegrityDashboard();
+                }, 1500);
 
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = "Masuk"; }
@@ -5707,7 +5733,7 @@
 
             // Jika login sebagai pengawas, paksa filter ke ruang mereka
             if (window.currentPengawasRuang) {
-                filterRuang = window.currentPengawasRuang.nama;
+                filterRuang = (window.currentPengawasRuang.nama || '').trim();
                 if (filterRuangEl) {
                     filterRuangEl.value = filterRuang;
                     filterRuangEl.disabled = true;
@@ -5739,7 +5765,7 @@
 
                 const matchPkt   = filterPkt === 'all' || item.packetType === filterPkt;
                 const matchCls   = filterCls === 'all' || item.className === filterCls;
-                const matchRuang = filterRuang === 'all' || (item.ruangUjian || '-') === filterRuang;
+                const matchRuang = filterRuang === 'all' || (item.ruangUjian || '-').trim().toLowerCase() === filterRuang.trim().toLowerCase();
                 let matchDate = true;
                 if (filterDate) {
                     const itemDate = new Date(item.timestamp);
@@ -6109,9 +6135,12 @@
             // ══ STEP 1: Filter pengawas DULU sebelum apapun ══
             // Pengawas hanya boleh lihat data ruangnya sendiri + sesi aktif
             if (!isAdmin && window.currentPengawasRuang) {
-                finished = finished.filter(d =>
-                    (d.ruangUjian || '') === (window.currentPengawasRuang.nama || '')
-                );
+                const pgNama = (window.currentPengawasRuang.nama || '').trim().toLowerCase();
+                const pgId   = (window.currentPengawasRuang.id   || '').trim().toLowerCase();
+                finished = finished.filter(d => {
+                    const dr = (d.ruangUjian || '').trim().toLowerCase();
+                    return dr === pgNama || dr === pgId;
+                });
                 // Default sesi: hanya sesi aktif (bisa di-override oleh filter dropdown)
                 const activeSesiId = window.currentSesiId || 'default';
                 const fSesiDropdown = document.getElementById('analitik-filter-sesi')?.value || 'all';
@@ -6143,7 +6172,9 @@
                 // Untuk dropdown: pakai data yang sudah filter ruang/pengawas tapi BELUM filter sesi/kelas
                 let base = rawData.filter(d => d.status !== 'SEDANG MENGERJAKAN');
                 if (!isAdmin && window.currentPengawasRuang) {
-                    base = base.filter(d => (d.ruangUjian || '') === (window.currentPengawasRuang.nama || ''));
+                    const _pgNama = (window.currentPengawasRuang.nama || '').trim().toLowerCase();
+                    const _pgId   = (window.currentPengawasRuang.id   || '').trim().toLowerCase();
+                    base = base.filter(d => { const dr=(d.ruangUjian||'').trim().toLowerCase(); return dr===_pgNama||dr===_pgId; });
                 }
                 return base;
             })();
@@ -6151,27 +6182,37 @@
             // Sembunyikan filter ruang untuk pengawas
             if (ruangWrap) ruangWrap.style.display = isAdmin ? '' : 'none';
 
-            // Isi dropdown sesi
+            // ══ POPULATE DROPDOWN: Gabungkan data master + data ujian ══
+            // Dropdown diisi dari DATABASE MASTER (ruangList/kelasList/allSesiDB)
+            // digabung dengan data yang sudah ada di exam results, agar selalu lengkap.
+
+            // Isi dropdown sesi — dari allSesiDB (master) + data ujian yang ada
             if (sesiSel) {
                 const curSesi = sesiSel.value;
-                const sesiSet = [...new Set(baseForDropdown.map(d => d.sesiId || 'default').filter(Boolean))];
+                // Kumpulkan sesiId yang ada di data ujian
+                const sesiSetFromData = new Set(baseForDropdown.map(d => d.sesiId || 'default').filter(Boolean));
                 sesiSel.innerHTML = '<option value="all">Semua Sesi</option>';
+                // Tampilkan SEMUA sesi dari master, bukan hanya yang ada di data ujian
                 (window.allSesiDB || []).forEach(s => {
-                    if (sesiSet.includes(s.id)) {
-                        const opt = document.createElement('option');
-                        opt.value = s.id; opt.textContent = s.nama || s.id;
-                        sesiSel.appendChild(opt);
-                    }
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.nama || s.id;
+                    sesiSel.appendChild(opt);
                 });
                 if (curSesi && sesiSel.querySelector(`option[value="${curSesi}"]`)) sesiSel.value = curSesi;
             }
 
-            // Isi dropdown ruang (admin only)
+            // Isi dropdown ruang (admin only) — dari ruangList (master) + data ujian
             if (ruangSel && isAdmin) {
                 const curRuang = ruangSel.value;
-                const ruangSet = [...new Set(baseForDropdown.map(d => d.ruangUjian).filter(Boolean))];
+                // Nama ruang dari database master
+                const ruangNamaFromMaster = (window.ruangList || []).map(r => r.nama).filter(Boolean);
+                // Nama ruang dari data ujian yang sudah ada (untuk antisipasi data lama)
+                const ruangNamaFromData = baseForDropdown.map(d => d.ruangUjian).filter(Boolean);
+                // Gabungkan dan deduplikasi
+                const ruangSet = [...new Set([...ruangNamaFromMaster, ...ruangNamaFromData])].sort();
                 ruangSel.innerHTML = '<option value="all">Semua Ruang</option>';
-                ruangSet.sort().forEach(r => {
+                ruangSet.forEach(r => {
                     const opt = document.createElement('option');
                     opt.value = r; opt.textContent = r;
                     ruangSel.appendChild(opt);
@@ -6179,12 +6220,17 @@
                 if (curRuang && ruangSel.querySelector(`option[value="${curRuang}"]`)) ruangSel.value = curRuang;
             }
 
-            // Isi dropdown kelas (dari scope ruang yg sudah di-filter)
+            // Isi dropdown kelas — dari kelasList (master) + data ujian
             if (kelasSel) {
                 const curKelas = kelasSel.value;
-                const kelasSet = [...new Set(baseForDropdown.map(d => d.className).filter(Boolean))];
+                // Nama kelas dari database master
+                const kelasNamaFromMaster = (window.kelasList || []).map(k => k.nama).filter(Boolean);
+                // Nama kelas dari data ujian yang sudah ada
+                const kelasNamaFromData = baseForDropdown.map(d => d.className).filter(Boolean);
+                // Gabungkan dan deduplikasi
+                const kelasSet = [...new Set([...kelasNamaFromMaster, ...kelasNamaFromData])].sort();
                 kelasSel.innerHTML = '<option value="all">Semua Kelas</option>';
-                kelasSet.sort().forEach(k => {
+                kelasSet.forEach(k => {
                     const opt = document.createElement('option');
                     opt.value = k; opt.textContent = k;
                     kelasSel.appendChild(opt);
