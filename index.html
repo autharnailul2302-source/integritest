@@ -3,13 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SI UJIAN</title>
+    <title>INTEGRITEST</title>
     
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             if(message.includes("ResizeObserver")) return;
             console.error(message, lineno);
         };
+
+        // ── DETEKSI HP KENTANG (Low-end Device) ──────────────────
+        // Aktifkan "perf-mode" untuk HP dengan RAM rendah / CPU lambat
+        // Gunakan Navigator deviceMemory + hardwareConcurrency sebagai sinyal
+        (function detectLowEndDevice() {
+            const mem    = navigator.deviceMemory || 4;       // GB RAM, default 4 jika tidak ada
+            const cores  = navigator.hardwareConcurrency || 4; // jumlah CPU core
+            const ua     = navigator.userAgent;
+            const isOldAndroid = /Android [1-6]\./.test(ua);
+            const isLowRam = mem <= 2;
+            const isFewCores = cores <= 2;
+
+            if (isOldAndroid || isLowRam || isFewCores) {
+                // Tandai body agar CSS perf-mode aktif
+                document.addEventListener('DOMContentLoaded', () => {
+                    document.body.classList.add('perf-mode');
+                    window._perfMode = true;
+                    console.log('[PerfMode] HP Kentang terdeteksi — animasi dinonaktifkan.');
+                });
+            } else {
+                window._perfMode = false;
+            }
+        })();
     </script>
 
     <!-- Tailwind CSS -->
@@ -140,6 +163,8 @@
                 setTimeout(() => { 
                     if (window.listenForRuang) window.listenForRuang();
                     if (window.listenForActiveSesi) window.listenForActiveSesi();
+                    // FIX: Kelas harus dimuat untuk SEMUA user (siswa butuh dropdown kelas saat login)
+                    if (window.listenForKelas) window.listenForKelas();
                 }, 500);
                 
                 if (window.currentUserRole === 'teacher') {
@@ -194,6 +219,7 @@
                         if (data.subJudul)   latestAppearance.subJudul   = data.subJudul;
                         if (data.motivasi)   latestAppearance.motivasi   = data.motivasi;
                         if (data.logoUrl)    latestAppearance.logoUrl    = data.logoUrl;
+                        if (data.nomorIdMode !== undefined) latestAppearance.nomorIdMode = data.nomorIdMode;
                     }
                 });
                 
@@ -283,6 +309,7 @@
             const newSubJudul     = (document.getElementById('setting-sub-judul')?.value || '').trim();
             const newMotivasi     = (document.getElementById('setting-motivasi')?.value || '').trim();
             const newLogoUrl      = (document.getElementById('setting-logo-url')?.value || '').trim();
+            const newNomorIdMode  = document.getElementById('setting-nomor-id-mode')?.value || 'nisn';
 
             if (window.isFirebaseReady && window.db) {
                 await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings'), {
@@ -294,14 +321,15 @@
                     subJudul:     newSubJudul     || undefined,
                     motivasi:     newMotivasi     || undefined,
                     logoUrl:      newLogoUrl      || undefined,
+                    nomorIdMode:  newNomorIdMode,
                     timestamp: Date.now()
                 });
                 // Terapkan ke UI langsung
-                window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl });
+                window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode });
                 alert(`✅ Pengaturan disimpan!\nToken: ${newToken} | Durasi: ${newDuration} mnt | Cooldown: ${newCooldown} mnt`);
             } else {
                 // Offline — terapkan ke UI saja
-                window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl });
+                window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode });
                 alert("Mode Offline: Pengaturan tampilan diterapkan sementara, pengaturan ujian tidak tersimpan ke server.");
             }
         };
@@ -808,6 +836,73 @@
         /* ===== ANTI-CHEAT ENGINE STYLES ===== */
         #watermark-canvas { pointer-events: none; }
         #modal-warning-student, #modal-dq-final { backdrop-filter: blur(6px); }
+
+        /* ===== HP KENTANG MODE (low-end device) ===== */
+        /* Diterapkan otomatis via JS bila device lambat */
+        body.perf-mode * {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            transition-delay: 0ms !important;
+        }
+        body.perf-mode .animate-pulse { animation: none !important; }
+        body.perf-mode .animate-spin  { animation: none !important; }
+        body.perf-mode .animate-bounce { animation: none !important; }
+        body.perf-mode .animate-ping  { animation: none !important; }
+        body.perf-mode .animate-fade-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+
+        /* Hapus semua blur/filter berat */
+        body.perf-mode .blur-\[100px\],
+        body.perf-mode .blur-\[80px\],
+        body.perf-mode .blur-xl,
+        body.perf-mode .blur-2xl,
+        body.perf-mode .backdrop-blur-xl,
+        body.perf-mode .backdrop-blur-sm,
+        body.perf-mode .backdrop-blur-md { 
+            filter: none !important; 
+            backdrop-filter: none !important; 
+            -webkit-backdrop-filter: none !important;
+        }
+
+        /* Hapus gradient berat — pakai warna solid */
+        body.perf-mode .bg-gradient-to-r,
+        body.perf-mode .bg-gradient-to-br,
+        body.perf-mode .bg-gradient-to-b { background-image: none !important; }
+
+        /* Sembunyikan elemen dekoratif yang tidak penting (blob/glow) */
+        body.perf-mode #section-login .absolute.rounded-full { display: none !important; }
+        body.perf-mode .bg-\[url\(\'https\:\/\/grainy-gradients\.vercel\.app\/noise\.svg\'\)\],
+        body.perf-mode .bg-\[url\(\'https\:\/\/www\.transparenttextures\.com\/patterns\/carbon-fibre\.png\'\)\] {
+            display: none !important;
+        }
+
+        /* Modal: tidak ada blur */
+        body.perf-mode #modal-warning-student,
+        body.perf-mode #modal-dq-final { backdrop-filter: none !important; background: rgba(0,0,0,0.85) !important; }
+
+        /* Kurangi shadow berat */
+        body.perf-mode .shadow-lg,
+        body.perf-mode .shadow-xl,
+        body.perf-mode .shadow-2xl { box-shadow: 0 2px 6px rgba(0,0,0,0.12) !important; }
+        body.perf-mode .drop-shadow-md { filter: none !important; }
+
+        /* Nonaktifkan hover:scale / hover:shadow karena lambat di HP kentang */
+        body.perf-mode *:hover { transform: none !important; box-shadow: inherit !important; }
+
+        /* Scroll lebih ringan */
+        body.perf-mode { scroll-behavior: auto !important; }
+
+        /* Indikator kecil di pojok bahwa perf-mode aktif (opsional, bisa dihapus) */
+        body.perf-mode::after {
+            content: '⚡ Mode Hemat';
+            position: fixed;
+            bottom: 6px;
+            right: 8px;
+            font-size: 10px;
+            color: #94a3b8;
+            z-index: 9999;
+            pointer-events: none;
+        }
         #modal-warning-student h1 { text-shadow: 0 0 40px rgba(239,68,68,0.9); }
         @keyframes siren-ring {
             0%   { box-shadow: 0 0 0 0   rgba(239,68,68,0.9); }
@@ -815,6 +910,38 @@
             100% { box-shadow: 0 0 0 0   rgba(239,68,68,0);  }
         }
         .siren-ring { animation: siren-ring 1.1s ease-out infinite; }
+
+        /* ===== MOBILE FRIENDLY (HP semua spesifikasi) ===== */
+        /* Cegah auto-zoom saat fokus input di iOS/Android */
+        @media (max-width: 768px) {
+            input, select, textarea {
+                font-size: 16px !important; /* iOS tidak zoom jika font >= 16px */
+            }
+            /* Tombol ujian lebih mudah di-tap (min 44px) */
+            #btn-prev, #btn-next, #btn-finish-main {
+                min-height: 48px;
+                padding-left: 1rem;
+                padding-right: 1rem;
+                font-size: 14px;
+            }
+            /* Pilihan jawaban soal lebih tinggi agar mudah di-tap */
+            .option-group label {
+                min-height: 52px;
+                padding-top: 0.75rem;
+                padding-bottom: 0.75rem;
+            }
+            /* Sidebar soal lebih lebar di layar kecil */
+            #exam-sidebar { width: 88vw; max-width: 320px; }
+            /* Login form lebih padat di HP */
+            #section-login .bg-white { padding: 1.25rem !important; }
+            /* Timer lebih kecil di HP agar tidak makan tempat */
+            #timer-box { font-size: 1rem; padding: 0.35rem 0.7rem; }
+        }
+        /* Layar sangat kecil (HP kecil <380px) */
+        @media (max-width: 380px) {
+            #btn-prev span, #btn-next span { display: none; }
+            #timer-display { font-size: 0.9rem; }
+        }
     </style>
 </head>
 <body>
@@ -853,10 +980,10 @@
                         <img src="images/logotkj.png" onerror="this.src='https://via.placeholder.com/150?text=TKJ'" alt="Logo TKJ" class="w-full h-full object-contain rounded-full bg-white">
                     </div>
                     <h1 id="login-header-judul" class="text-3xl font-black text-white tracking-tight drop-shadow-md">
-                        SI UJIAN TKJ
+                        INTEGRITEST
                     </h1>
                     <div class="h-1 w-20 bg-blue-400/50 rounded-full my-2"></div>
-                    <p id="login-header-sub" class="text-blue-100 text-sm font-medium tracking-wide">Computer Network Engineering Exam</p>
+                    <p id="login-header-sub" class="text-blue-100 text-sm font-medium tracking-wide">Digitalyzing Integrity, Empowering Honestly</p>
                 </div>
             </div>
 
@@ -889,7 +1016,7 @@
 					
 					 <!-- 2. TAMBAHAN BARU: Input NISN -->
                     <div class="group">
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">NISN</label>
+                        <label id="label-nomor-id" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">NISN</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i data-lucide="id-card" class="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors"></i>
@@ -1106,7 +1233,7 @@
                             <i data-lucide="graduation-cap" class="w-9 h-9 text-white"></i>
                         </div>
                         <h2 class="text-2xl font-black text-white tracking-tight">Selamat Datang! 👋</h2>
-                        <p class="text-blue-200 text-sm mt-1">Sistem Informasi Ujian — SI UJIAN TKJ</p>
+                        <p class="text-blue-200 text-sm mt-1">INTEGRITEST</p>
                     </div>
                 </div>
 
@@ -1120,7 +1247,7 @@
                         </div>
                         <div class="bg-white/8 border border-white/10 rounded-2xl p-4 text-center">
                             <i data-lucide="hash" class="w-5 h-5 text-purple-300 mx-auto mb-2"></i>
-                            <p class="text-[10px] text-white/40 uppercase font-bold tracking-wider mb-1">NISN</p>
+                            <p id="welcome-nisn-label" class="text-[10px] text-white/40 uppercase font-bold tracking-wider mb-1">NISN</p>
                             <p id="welcome-nisn" class="text-white font-bold text-xs leading-tight">—</p>
                         </div>
                         <div class="bg-white/8 border border-white/10 rounded-2xl p-4 text-center">
@@ -1592,6 +1719,9 @@
                 <button onclick="window.switchDashTab('ruang')" id="tab-dash-ruang" class="admin-only-tab pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
                     <i data-lucide="door-open" class="w-4 h-4"></i> Manajemen Ruang
                 </button>
+                <button onclick="window.switchDashTab('analitik')" id="tab-dash-analitik" class="admin-only-tab pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Analitik Integritas
+                </button>
                 <button onclick="window.switchDashTab('tampilan')" id="tab-dash-tampilan" class="admin-only-tab pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2">
                     <i data-lucide="palette" class="w-4 h-4"></i> Setting Tampilan
                 </button>
@@ -1811,13 +1941,14 @@
                         <table class="w-full text-left text-sm text-gray-600">
                             <thead class="bg-gray-50 text-gray-900 font-semibold border-b sticky top-0 z-10">
                                     <th class="px-6 py-4">Nama Siswa</th>
-									<th class="px-6 py-4">NISN</th>
+									<th id="th-nisn" class="px-6 py-4">NISN</th>
                                     <th class="px-6 py-4">Kelas</th>
                                     <th class="px-6 py-4">Ruang</th>
                                     <th class="px-6 py-4">Paket</th>
                                     <th class="px-6 py-4 text-center">Nilai</th>
                                     <th class="px-6 py-4">Status</th>
                                     <th class="px-6 py-4 text-center">Pelanggaran</th>
+                                    <th class="px-6 py-4 text-center">Integritas</th>
                                     <th class="px-6 py-4 text-center">Aksi</th>
                                 </tr>
                             </thead>
@@ -2174,6 +2305,215 @@
             </div>
 
             <!-- PANEL: SETTING TAMPILAN -->
+            <!-- ══════════════════════════════════════════════════════ -->
+            <!-- PANEL: ANALITIK INTEGRITAS (BARU)                     -->
+            <!-- ══════════════════════════════════════════════════════ -->
+            <div id="panel-analitik" class="hidden-section admin-only-panel">
+
+                <!-- ══ BANNER PANDUAN (tampil saat data kosong) ══ -->
+                <div id="analitik-guide-banner" class="mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-5 text-white shadow-lg">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                            <i data-lucide="info" class="w-6 h-6 text-white"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-black text-lg mb-1">Apa itu Dashboard Analitik Integritas?</h3>
+                            <p class="text-sm text-white/85 leading-relaxed">
+                                Fitur ini <strong>otomatis menganalisis kejujuran setiap siswa</strong> berdasarkan perilaku selama ujian berlangsung. 
+                                Data akan muncul setelah siswa selesai mengerjakan ujian. Saat ini data masih kosong karena belum ada siswa yang menyelesaikan ujian.
+                            </p>
+                            <!-- Cara kerja -->
+                            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="bg-white/15 rounded-xl p-3">
+                                    <p class="font-bold text-sm mb-1">📊 Skor Integritas (0–100)</p>
+                                    <p class="text-xs text-white/80">Setiap siswa mendapat skor kejujuran otomatis. Dimulai dari 100, dikurangi 20 per pelanggaran. Diskualifikasi = 0.</p>
+                                </div>
+                                <div class="bg-white/15 rounded-xl p-3">
+                                    <p class="font-bold text-sm mb-1">🚨 Deteksi Pelanggaran</p>
+                                    <p class="text-xs text-white/80">Sistem mendeteksi: ganti tab/aplikasi, keluar layar, blur window, dan aktivitas mencurigakan lainnya secara real-time.</p>
+                                </div>
+                                <div class="bg-white/15 rounded-xl p-3">
+                                    <p class="font-bold text-sm mb-1">📄 Export Laporan PDF</p>
+                                    <p class="text-xs text-white/80">Setelah ujian selesai, klik "Export Laporan PDF" untuk cetak laporan integritas lengkap siap diserahkan ke pimpinan.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ══ LEGENDA KATEGORI ══ -->
+                <div class="bg-white rounded-2xl border shadow-sm p-5 mb-6">
+                    <h3 class="font-bold text-gray-700 mb-4 flex items-center gap-2">
+                        <i data-lucide="tag" class="w-4 h-4 text-gray-400"></i>
+                        Kategori Skor Integritas — Cara Membaca Data
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        <div class="flex flex-col items-center bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                            <span class="text-2xl mb-1">🏆</span>
+                            <span class="font-black text-emerald-700 text-lg">100</span>
+                            <span class="text-xs font-bold text-emerald-600 mt-0.5">Sangat Jujur</span>
+                            <span class="text-[11px] text-gray-400 mt-1">0 pelanggaran terdeteksi selama ujian</span>
+                        </div>
+                        <div class="flex flex-col items-center bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                            <span class="text-2xl mb-1">✅</span>
+                            <span class="font-black text-green-700 text-lg">80–99</span>
+                            <span class="text-xs font-bold text-green-600 mt-0.5">Jujur</span>
+                            <span class="text-[11px] text-gray-400 mt-1">1× pelanggaran kecil (mungkin tidak sengaja)</span>
+                        </div>
+                        <div class="flex flex-col items-center bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                            <span class="text-2xl mb-1">⚠️</span>
+                            <span class="font-black text-amber-700 text-lg">60–79</span>
+                            <span class="text-xs font-bold text-amber-600 mt-0.5">Perlu Perhatian</span>
+                            <span class="text-[11px] text-gray-400 mt-1">2× pelanggaran — perlu ditindaklanjuti</span>
+                        </div>
+                        <div class="flex flex-col items-center bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                            <span class="text-2xl mb-1">🚨</span>
+                            <span class="font-black text-red-700 text-lg">1–59</span>
+                            <span class="text-xs font-bold text-red-600 mt-0.5">Mencurigakan</span>
+                            <span class="text-[11px] text-gray-400 mt-1">Banyak pelanggaran — indikasi kecurangan</span>
+                        </div>
+                        <div class="flex flex-col items-center bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
+                            <span class="text-2xl mb-1">❌</span>
+                            <span class="font-black text-rose-700 text-lg">0</span>
+                            <span class="text-xs font-bold text-rose-600 mt-0.5">Diskualifikasi</span>
+                            <span class="text-[11px] text-gray-400 mt-1">≥3 pelanggaran — ujian otomatis gugur</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                        <i data-lucide="lightbulb" class="w-4 h-4 text-blue-500 shrink-0 mt-0.5"></i>
+                        <p class="text-xs text-blue-700"><strong>Formula Skor:</strong> Skor Integritas = 100 − (Jumlah Pelanggaran × 20). Diskualifikasi otomatis saat ≥3 pelanggaran dan skor menjadi 0.</p>
+                    </div>
+                </div>
+
+                <!-- ══ HEADER + EXPORT ══ -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-lg font-black text-gray-800 flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>
+                            Data Integritas Real-Time
+                        </h2>
+                        <p class="text-sm text-gray-400 mt-0.5">Terisi otomatis saat siswa menyelesaikan ujian. Refresh otomatis setiap ada data baru.</p>
+                    </div>
+                    <button onclick="window.generateIntegrityReport()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md active:scale-95 transition-transform shrink-0">
+                        <i data-lucide="download" class="w-4 h-4"></i> Export Laporan PDF
+                    </button>
+                </div>
+
+                <!-- Integrity Score Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold opacity-90 uppercase tracking-wide">Rata-rata Integritas</span>
+                            <i data-lucide="shield" class="w-5 h-5 opacity-80"></i>
+                        </div>
+                        <p id="avg-integrity-score" class="text-4xl font-black">—</p>
+                        <p class="text-xs opacity-75 mt-1">dari 100 poin maksimal</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold opacity-90 uppercase tracking-wide">Siswa Jujur ≥80</span>
+                            <i data-lucide="user-check" class="w-5 h-5 opacity-80"></i>
+                        </div>
+                        <p id="honest-count" class="text-4xl font-black">0</p>
+                        <p id="honest-pct" class="text-xs opacity-75 mt-1">0% dari total peserta</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold opacity-90 uppercase tracking-wide">Pelanggaran Ringan</span>
+                            <i data-lucide="alert-triangle" class="w-5 h-5 opacity-80"></i>
+                        </div>
+                        <p id="minor-viol-count" class="text-4xl font-black">0</p>
+                        <p class="text-xs opacity-75 mt-1">1–2× pelanggaran</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl p-5 text-white shadow-lg">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold opacity-90 uppercase tracking-wide">Diskualifikasi</span>
+                            <i data-lucide="shield-x" class="w-5 h-5 opacity-80"></i>
+                        </div>
+                        <p id="dq-count-analitik" class="text-4xl font-black">0</p>
+                        <p class="text-xs opacity-75 mt-1">≥3 pelanggaran terdeteksi</p>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white rounded-2xl border shadow-sm p-6">
+                        <h3 class="font-bold text-gray-700 mb-1 flex items-center gap-2">
+                            <i data-lucide="bar-chart-3" class="w-4 h-4 text-blue-500"></i>
+                            Distribusi Skor Integritas
+                        </h3>
+                        <p class="text-xs text-gray-400 mb-4">Menunjukkan berapa siswa di setiap kategori kejujuran.</p>
+                        <div id="chart-integrity-dist" class="space-y-3">
+                            <div class="flex flex-col items-center justify-center py-10 gap-2 text-gray-300">
+                                <i data-lucide="bar-chart-2" class="w-10 h-10"></i>
+                                <p class="text-sm font-semibold text-gray-400">Menunggu data ujian...</p>
+                                <p class="text-xs text-gray-300">Chart akan terisi otomatis setelah siswa menyelesaikan ujian</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border shadow-sm p-6">
+                        <h3 class="font-bold text-gray-700 mb-1 flex items-center gap-2">
+                            <i data-lucide="pie-chart" class="w-4 h-4 text-purple-500"></i>
+                            Tingkat Pelanggaran per Kelas
+                        </h3>
+                        <p class="text-xs text-gray-400 mb-4">Kelas mana yang paling banyak pelanggaran terdeteksi.</p>
+                        <div id="chart-viol-per-class" class="space-y-3">
+                            <div class="flex flex-col items-center justify-center py-10 gap-2 text-gray-300">
+                                <i data-lucide="users" class="w-10 h-10"></i>
+                                <p class="text-sm font-semibold text-gray-400">Menunggu data ujian...</p>
+                                <p class="text-xs text-gray-300">Chart akan terisi otomatis setelah siswa menyelesaikan ujian</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabel Ranking -->
+                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                    <div class="p-5 border-b bg-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                        <div>
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                                <i data-lucide="list-ordered" class="w-4 h-4 text-gray-500"></i>
+                                Ranking Integritas Siswa
+                            </h3>
+                            <p class="text-xs text-gray-400 mt-0.5">Diurutkan dari skor integritas tertinggi. Skor makin tinggi = makin jujur.</p>
+                        </div>
+                        <div class="flex gap-2 flex-wrap">
+                            <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">🏆 ≥100 Sangat Jujur</span>
+                            <span class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full">⚠️ 60–79 Perhatian</span>
+                            <span class="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full">❌ 0 DQ</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                                <tr>
+                                    <th class="px-5 py-3 text-left">Rank</th>
+                                    <th class="px-5 py-3 text-left">Nama Siswa</th>
+                                    <th class="px-5 py-3 text-left">Kelas</th>
+                                    <th class="px-5 py-3 text-center">Nilai Ujian</th>
+                                    <th class="px-5 py-3 text-center">Pelanggaran</th>
+                                    <th class="px-5 py-3 text-center">Skor Integritas</th>
+                                    <th class="px-5 py-3 text-center">Kategori</th>
+                                </tr>
+                            </thead>
+                            <tbody id="integrity-table-body">
+                                <tr>
+                                    <td colspan="7" class="text-center py-14">
+                                        <div class="flex flex-col items-center gap-2 text-gray-300">
+                                            <i data-lucide="clipboard-list" class="w-12 h-12"></i>
+                                            <p class="font-bold text-gray-400 text-base">Belum ada data integritas</p>
+                                            <p class="text-sm text-gray-300 max-w-xs">Tabel ini akan terisi otomatis setelah siswa menyelesaikan ujian. Tidak perlu refresh manual.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+            <!-- ══ END PANEL ANALITIK ══ -->
+
             <div id="panel-tampilan" class="hidden-section admin-only-panel">
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
@@ -2199,6 +2539,24 @@
                                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">URL Logo <span class="text-gray-400 font-normal">(opsional)</span></label>
                                 <input type="url" id="setting-logo-url" oninput="window.updateTampilanPreview()" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-xs text-gray-600" placeholder="https://... (URL gambar logo)">
                                 <p class="text-[11px] text-gray-400 mt-1">Ganti logo di halaman login. Bisa pakai link Google Drive, CDN, dll.</p>
+                            </div>
+
+                            <!-- ── SETTING LABEL NOMOR ID ── -->
+                            <div class="border-t pt-4">
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Label Kolom Identitas Siswa
+                                    <span class="ml-1 text-indigo-500 normal-case font-normal">(Form Login)</span>
+                                </label>
+                                <select id="setting-nomor-id-mode" onchange="window.applyAppearanceSettings({...(window._savedAppearance||{}), nomorIdMode: this.value})" class="w-full px-4 py-2.5 border rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none text-gray-800 font-semibold">
+                                    <option value="nisn">NISN (Nomor Induk Siswa Nasional)</option>
+                                    <option value="kartu">No. Kartu Ujian</option>
+                                </select>
+                                <p class="text-[11px] text-gray-400 mt-1">Pilih jenis nomor identitas yang diminta saat siswa login. Perubahan langsung terlihat di form login.</p>
+                                <!-- Live preview label -->
+                                <div class="mt-2 flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+                                    <i data-lucide="id-card" class="w-4 h-4 text-indigo-400 shrink-0"></i>
+                                    <span class="text-xs text-indigo-600">Kolom di form login akan tampil sebagai: <strong id="preview-nomor-id-label">NISN</strong></span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2228,9 +2586,9 @@
                             <div class="w-16 h-16 bg-white rounded-full mx-auto mb-3 flex items-center justify-center shadow">
                                 <img id="preview-logo" src="images/logotkj.png" onerror="this.src='https://via.placeholder.com/64?text=LOGO'" class="w-12 h-12 object-contain rounded-full">
                             </div>
-                            <h1 id="preview-judul" class="text-xl font-black text-white">SI UJIAN TKJ</h1>
+                            <h1 id="preview-judul" class="text-xl font-black text-white">INTEGRITEST</h1>
                             <div class="h-0.5 w-14 bg-blue-300/50 rounded-full my-2 mx-auto"></div>
-                            <p id="preview-sub" class="text-blue-100 text-xs font-medium">Computer Network Engineering Exam</p>
+                            <p id="preview-sub" class="text-blue-100 text-xs font-medium">Digitalyzing Integrity, Empowering Honestly</p>
                         </div>
                         <div class="mt-4 bg-yellow-500/10 border border-yellow-400/20 rounded-xl px-5 py-3 max-w-sm mx-auto">
                             <div class="flex items-start gap-2">
@@ -2243,7 +2601,13 @@
                 </div>
 
                 <!-- Tombol simpan -->
-                <div class="mt-6 flex justify-end">
+                <div class="mt-6 flex items-center justify-between gap-4">
+                    <!-- Info Perf Mode -->
+                    <div id="perf-mode-info" class="hidden flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700">
+                        <i data-lucide="zap" class="w-4 h-4 text-amber-500 shrink-0"></i>
+                        <span><strong>Mode Performa Aktif</strong> — Animasi dinonaktifkan otomatis karena HP terdeteksi sebagai perangkat rendah spesifikasi.</span>
+                    </div>
+                    <div class="flex-1"></div>
                     <button onclick="window.saveSettings()" class="bg-gray-800 hover:bg-gray-900 text-white px-8 py-3 rounded-xl font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2">
                         <i data-lucide="save" class="w-4 h-4"></i> Simpan Semua Pengaturan
                     </button>
@@ -2251,6 +2615,37 @@
             </div>
 
         </main>
+    </div>
+
+    <!-- MODAL: CATATAN PENGAWAS PER SISWA -->
+    <div id="modal-note" class="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i data-lucide="pencil" class="w-5 h-5 text-blue-600"></i>
+                    Catatan Pengawas
+                </h3>
+                <button onclick="document.getElementById('modal-note').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <input type="hidden" id="note-student-id">
+            <div class="mb-2">
+                <p class="text-sm font-semibold text-gray-700" id="note-student-name">Nama Siswa</p>
+                <p class="text-xs text-gray-400" id="note-auto-text">Catatan otomatis sistem...</p>
+            </div>
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Catatan Tambahan Pengawas <span class="text-gray-400 font-normal">(opsional)</span></label>
+                <textarea id="note-custom-input" rows="4" placeholder='Contoh: "Siswa sempat izin ke toilet" atau "Laptop siswa sempat nge-lag namun tetap jujur."' class="w-full px-3 py-2.5 border rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-gray-700"></textarea>
+                <p class="text-xs text-gray-400 mt-1">Catatan ini akan muncul di PDF laporan integritas siswa ini.</p>
+            </div>
+            <div class="flex gap-2 justify-end">
+                <button onclick="document.getElementById('modal-note').classList.add('hidden')" class="px-4 py-2 border rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">Batal</button>
+                <button onclick="window.saveStudentNote()" class="px-5 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm hover:bg-blue-700">
+                    <i data-lucide="save" class="w-4 h-4"></i> Simpan Catatan
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL: TAMBAH / EDIT RUANG -->
@@ -2362,6 +2757,21 @@
 
     <!-- LOGIC SCRIPT -->
     <script>
+        // ── LUCIDE DEBOUNCE untuk HP Kentang ──────────────────
+        // Pada perf-mode, kumpulkan panggilan createIcons dan jalankan sekali per frame
+        (function() {
+            let _lucideTimer = null;
+            window._createIconsSafe = function() {
+                if (typeof lucide === 'undefined') return;
+                if (window._perfMode) {
+                    clearTimeout(_lucideTimer);
+                    _lucideTimer = setTimeout(() => lucide.createIcons(), 80);
+                } else {
+                    lucide.createIcons();
+                }
+            };
+        })();
+
         // Definisikan convertGDriveUrl di sini agar tersedia sebelum parseRows
         window.convertGDriveUrl = function(url) {
             if (!url) return '';
@@ -2476,8 +2886,8 @@
 
         // Data default tampilan
         window.appearanceDefaults = {
-            judulUjian : 'SI UJIAN TKJ',
-            subJudul   : 'Computer Network Engineering Exam',
+            judulUjian : 'INTEGRITEST',
+            subJudul   : 'Digitalyzing Integrity, Empowering Honestly',
             motivasi   : 'Kerjakan dengan jujur dan penuh semangat. Hasil terbaik lahir dari usaha yang sungguh-sungguh. Percayalah pada kemampuanmu — sukses menantimu!',
             logoUrl    : 'images/logotkj.png'
         };
@@ -2489,6 +2899,7 @@
             const sub     = (s.subJudul   || '').trim();
             const mot     = (s.motivasi   || '').trim();
             const logo    = (s.logoUrl    || '').trim();
+            const mode    = s.nomorIdMode || 'nisn'; // 'nisn' | 'kartu'
 
             // Halaman Login header (pakai id)
             const loginH1  = document.getElementById('login-header-judul');
@@ -2517,16 +2928,39 @@
             if (mot)   set('preview-motivasi', mot);
             const pLogo = document.getElementById('preview-logo');
             if (pLogo && logo) pLogo.src = logo;
+
+            // ── Ubah label & placeholder kolom ID siswa di form login ──
+            window._nomorIdMode = mode;
+            const labelEl = document.getElementById('label-nomor-id');
+            const inputEl = document.getElementById('student-nisn');
+            const welcomeNisnLabel = document.getElementById('welcome-nisn-label');
+            const dashHeaderEl = document.getElementById('th-nisn');
+            if (mode === 'kartu') {
+                if (labelEl)  labelEl.textContent = 'No. Kartu Ujian';
+                if (inputEl)  { inputEl.placeholder = 'Ketik No. Kartu Ujian...'; inputEl.setAttribute('type', 'text'); }
+                if (welcomeNisnLabel) welcomeNisnLabel.textContent = 'NO. KARTU';
+                if (dashHeaderEl) dashHeaderEl.textContent = 'No. Kartu';
+            } else {
+                if (labelEl)  labelEl.textContent = 'NISN';
+                if (inputEl)  { inputEl.placeholder = 'Ketik NISN...'; inputEl.setAttribute('type', 'number'); }
+                if (welcomeNisnLabel) welcomeNisnLabel.textContent = 'NISN';
+                if (dashHeaderEl) dashHeaderEl.textContent = 'NISN';
+            }
+
+            // Sinkron dropdown setting
+            const modeSelect = document.getElementById('setting-nomor-id-mode');
+            if (modeSelect && document.activeElement !== modeSelect) modeSelect.value = mode;
         };
 
         // Isi form panel tampilan dari pengaturan tersimpan
         window.loadTampilanFields = function() {
             const s = window._savedAppearance || {};
-            const setVal = (id, v) => { const el = document.getElementById(id); if(el && v) el.value = v; };
+            const setVal = (id, v) => { const el = document.getElementById(id); if(el && v !== undefined) el.value = v; };
             setVal('setting-judul-ujian', s.judulUjian);
             setVal('setting-sub-judul',   s.subJudul);
             setVal('setting-motivasi',    s.motivasi);
             setVal('setting-logo-url',    s.logoUrl);
+            setVal('setting-nomor-id-mode', s.nomorIdMode || 'nisn');
             // update preview
             window.updateTampilanPreview();
         };
@@ -2538,10 +2972,12 @@
             const sub   = g('setting-sub-judul')   || window.appearanceDefaults.subJudul;
             const mot   = g('setting-motivasi')    || window.appearanceDefaults.motivasi;
             const logo  = g('setting-logo-url')    || window.appearanceDefaults.logoUrl;
+            const mode  = document.getElementById('setting-nomor-id-mode')?.value || 'nisn';
             const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
             set('preview-judul', judul);
             set('preview-sub', sub);
             set('preview-motivasi', mot);
+            set('preview-nomor-id-label', mode === 'kartu' ? 'No. Kartu Ujian' : 'NISN');
             const pLogo = document.getElementById('preview-logo');
             if (pLogo) pLogo.src = logo;
         };
@@ -2907,8 +3343,9 @@
             const activeClass   = "pb-3 border-b-2 border-blue-600 font-bold text-blue-600 px-4 whitespace-nowrap flex items-center gap-2";
             const inactiveClass = "pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-bold px-4 whitespace-nowrap flex items-center gap-2";
             const tabs   = ['nilai','kelas','soal','ruang','tampilan'];
-            const panels = { nilai:'panel-nilai', soal:'panel-soal', kelas:'panel-kelas', ruang:'panel-ruang', tampilan:'panel-tampilan' };
-            const btnIds = { nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelas:'tab-dash-kelas', ruang:'tab-dash-ruang', tampilan:'tab-dash-tampilan' };
+            const panels = { nilai:'panel-nilai', soal:'panel-soal', kelas:'panel-kelas', ruang:'panel-ruang', analitik:'panel-analitik', tampilan:'panel-tampilan' };
+            const btnIds = { nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelas:'tab-dash-kelas', ruang:'tab-dash-ruang', analitik:'tab-dash-analitik', tampilan:'tab-dash-tampilan' };
+            if (tab === 'analitik') { setTimeout(() => window.renderIntegrityDashboard(), 100); }
             tabs.forEach(t => {
                 const btn = document.getElementById(btnIds[t]);
                 const pnl = document.getElementById(panels[t]);
@@ -4410,19 +4847,29 @@
             const canvas  = document.getElementById('watermark-canvas');
             if (!overlay || !canvas) return;
             overlay.classList.remove('hidden');
-            canvas.width  = window.innerWidth;
-            canvas.height = window.innerHeight;
+
+            // HP Kentang: gunakan resolusi canvas lebih kecil (scale 0.5)
+            const scale = window._perfMode ? 0.5 : 1;
+            const W = Math.round(window.innerWidth  * scale);
+            const H = Math.round(window.innerHeight * scale);
+            canvas.width  = W;
+            canvas.height = H;
+            canvas.style.width  = '100%';
+            canvas.style.height = '100%';
+
             const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, W, H);
             ctx.fillStyle = '#1e3a5f';
-            ctx.font = 'bold 18px Arial';
+            ctx.font = `bold ${Math.round(18 * scale)}px Arial`;
             ctx.textAlign = 'center';
             const text = `${name} • SI UJIAN TKJ • SMKN 1 BRONDONG`;
             ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.translate(W / 2, H / 2);
             ctx.rotate(-28 * Math.PI / 180);
-            for (let y = -canvas.height * 1.5; y < canvas.height * 1.5; y += 200) {
-                for (let x = -canvas.width * 1.5; x < canvas.width * 1.5; x += 380) {
+            const stepY = Math.round(200 * scale);
+            const stepX = Math.round(380 * scale);
+            for (let y = -H * 1.5; y < H * 1.5; y += stepY) {
+                for (let x = -W * 1.5; x < W * 1.5; x += stepX) {
                     ctx.fillText(text, x, y);
                 }
             }
@@ -4432,11 +4879,13 @@
             const o = document.getElementById('watermark-overlay');
             if (o) o.classList.add('hidden');
         };
-        // Redraw saat resize / rotasi layar
+        // Redraw saat resize / rotasi layar — THROTTLE 500ms untuk HP kentang
+        let _wmResizeTimer = null;
         window.addEventListener('resize', () => {
             const nm = document.getElementById('header-name');
-            if (nm && nm.innerText && nm.innerText !== 'Nama Siswa')
-                window.renderWatermark(nm.innerText);
+            if (!nm || !nm.innerText || nm.innerText === 'Nama Siswa') return;
+            clearTimeout(_wmResizeTimer);
+            _wmResizeTimer = setTimeout(() => window.renderWatermark(nm.innerText), 500);
         });
 
         // ── DETEKSI PRIVATE / INCOGNITO MODE ─────────────────
@@ -4601,6 +5050,12 @@
             };
 
             if(window.saveExamResult) window.saveExamResult(resultData);
+            // ★ BARU: Tampilkan Skor Integritas di halaman hasil siswa
+            setTimeout(() => {
+                if (window._patchResultPage) window._patchResultPage(forced ? 3 : violations, forced);
+            }, 300);
+            // ★ BARU: Auto-refresh dashboard analitik jika sedang terbuka
+            if (window._integrityAutoRefresh) window._integrityAutoRefresh();
 
             localStorage.setItem('ukktkj_session_done', JSON.stringify({
                 name: currentStudent.name,
@@ -4841,9 +5296,25 @@
                         <td class="px-6 py-4 ${statusColor}">${statusIcon} ${item.status}</td>
                         <td class="px-6 py-4 text-center">${violationDisplay}</td>
                         <td class="px-6 py-4 text-center">
-                            <button onclick="window.deleteExamResult('${item.id}')" class="text-red-500 hover:bg-red-100 p-2 rounded transition-colors" title="Hapus Data">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
+                            ${(()=>{
+                                const sc = typeof calcIntegrityScore === 'function' ? calcIntegrityScore(item) : null;
+                                if (sc === null) return '<span class="text-gray-300 text-xs">—</span>';
+                                const color = sc===100?'text-emerald-600 bg-emerald-50':sc>=70?'text-amber-600 bg-amber-50':'text-red-600 bg-red-50';
+                                return `<span class="px-2 py-1 rounded font-black text-sm ${color}">${sc}</span>`;
+                            })()}
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex gap-1 justify-center">
+                                <button onclick="window.openNoteModal('${item.id}')" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Tambah Catatan Pengawas">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="window.exportSinglePDF('${item.id}')" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded transition-colors" title="Export PDF Integritas">
+                                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="window.deleteExamResult('${item.id}')" class="text-red-500 hover:bg-red-100 p-1.5 rounded transition-colors" title="Hapus Data">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -4878,9 +5349,579 @@
             set('sc-violations', withViol);set('sc-violations-pct', pct(withViol)+'%');setBar('sc-bar-violations', pct(withViol));
             set('sc-avg', avg !== null ? avg : '—');
             set('sc-lulus', lulus);        set('sc-lulus-pct', scores.length > 0 ? Math.round(lulus/scores.length*100)+'%' : '0%');
+            // ★ BARU: refresh analitik otomatis
+            if (window._integrityAutoRefresh) window._integrityAutoRefresh(data);
         }
 
         // ============================================================
+        // ★ FITUR BARU: SKOR INTEGRITAS + ANALITIK DASHBOARD
+        // ============================================================
+
+        // ============================================================
+        // FORMULA SKOR INTEGRITAS (PROGRESIF BERBOBOT)
+        // Pelanggaran ke-1: -20 poin  → skor 80
+        // Pelanggaran ke-2: -40 poin tambahan → total -60 → skor 40
+        // Pelanggaran ke-3+: DISKUALIFIKASI → skor 0
+        // Rumus: max(0, 100 - bobot_kumulatif)
+        // ============================================================
+        function calcIntegrityScore(item) {
+            if (!item || item.status === 'SEDANG MENGERJAKAN') return null;
+            if (item.status.includes('DISKUALIFIKASI')) return 0;
+            const viol = item.violations || 0;
+            if (viol >= 3) return 0;
+            let penalty = 0;
+            if (viol >= 1) penalty += 20; // 1x pindah tab: -20
+            if (viol >= 2) penalty += 40; // 2x pindah tab: -40 lagi (total -60)
+            return Math.max(0, 100 - penalty);
+        }
+
+        // Kategori predikat sesuai permintaan
+        function getIntegrityCategory(score) {
+            if (score === null) return { label: '—', predikat: '—', bg: 'bg-gray-100', text: 'text-gray-500', headerColor: '#475569' };
+            if (score === 100) return { label: '🏆 Sangat Terpuji', predikat: '🎖️ TELADAN', bg: 'bg-emerald-100', text: 'text-emerald-700', headerColor: '#065f46' };
+            if (score >= 70)   return { label: '⚠️ Cukup (Butuh Pembinaan)', predikat: '⚠️ CUKUP', bg: 'bg-amber-100', text: 'text-amber-700', headerColor: '#92400e' };
+            if (score > 0)     return { label: '⛔ Kurang (Perlu Pendampingan)', predikat: '⛔ EVALUASI', bg: 'bg-red-100', text: 'text-red-700', headerColor: '#991b1b' };
+            return { label: '❌ Diskualifikasi', predikat: '⛔ EVALUASI', bg: 'bg-rose-100', text: 'text-rose-700', headerColor: '#881337' };
+        }
+
+        // Catatan otomatis per-siswa berdasarkan jumlah pelanggaran
+        function getAutoNote(viol, isDQ) {
+            if (isDQ || viol >= 3) return {
+                kategori: 'Critical / Disqualified',
+                note: 'Sesi ujian dihentikan secara otomatis oleh sistem karena pengabaian standar integritas digital secara berulang (3 kali peringatan). Laporan ini diterbitkan sebagai data objektif bagi guru pembimbing untuk melakukan pendekatan persuasif dan evaluasi mendalam terhadap perilaku akademik peserta didik.'
+            };
+            if (viol === 0) return {
+                kategori: 'Excellent Integrity',
+                note: 'Peserta didik menunjukkan dedikasi luar biasa terhadap nilai kejujuran digital. Konsistensi dalam menjaga fokus tanpa anomali sistem merupakan cerminan karakter unggul yang siap menghadapi tantangan akademik masa depan. Pertahankan standar integritas ini sebagai modal utama kesuksesan.'
+            };
+            if (viol === 1) return {
+                kategori: 'Minor Alert',
+                note: 'Secara umum, peserta didik mengikuti prosedur ujian dengan baik. Terdapat satu catatan aktivitas di luar jendela utama yang langsung direspon dengan perbaikan sikap. Diharapkan adanya peningkatan disiplin dan fokus digital agar proses evaluasi berjalan lebih optimal di sesi berikutnya.'
+            };
+            return {
+                kategori: 'Needs Improvement',
+                note: 'Sistem mendeteksi beberapa kali upaya pengalihan layar yang mengganggu standarisasi integritas ujian. Meskipun sesi berhasil diselesaikan, laporan ini merekomendasikan adanya dialog pembinaan karakter untuk memperkuat pemahaman peserta didik mengenai pentingnya kejujuran di lingkungan digital.'
+            };
+        }
+
+        // Kesimpulan sistem otomatis
+        function getSystemConclusion(score, isDQ) {
+            if (isDQ || score === 0) return 'Sistem mendeteksi adanya anomali aktivitas yang memerlukan tindak lanjut persuasif. Laporan ini dapat digunakan sebagai dasar dialog pembinaan antara guru dan peserta didik untuk memahami kendala yang dihadapi.';
+            if (score === 100) return 'Peserta didik menunjukkan konsistensi luar biasa dalam menjunjung tinggi nilai kejujuran digital. Perilaku ini mencerminkan kesiapan karakter dalam menghadapi tantangan akademik yang lebih tinggi.';
+            if (score >= 70) return 'Secara umum peserta didik mengikuti prosedur dengan baik, namun terdapat catatan aktivitas di luar jendela ujian. Disarankan untuk dilakukan penguatan fokus dan disiplin digital pada sesi berikutnya.';
+            return 'Sistem mendeteksi adanya anomali aktivitas yang memerlukan tindak lanjut persuasif. Laporan ini dapat digunakan sebagai dasar dialog pembinaan antara guru dan peserta didik untuk memahami kendala yang dihadapi.';
+        }
+
+        // QR verifikasi visual (pattern ASCII berbasis hash ID siswa)
+        function makeQRPlaceholder(seed) {
+            const h = [...String(seed)].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+            const hex = Math.abs(h).toString(16).toUpperCase().padStart(8, '0');
+            return `<div style="display:inline-block;border:2px solid #065f46;padding:3px 4px;font-family:monospace;font-size:6.5px;line-height:1.3;color:#065f46;background:white;border-radius:3px">
+                <div>█▀▀█ ${hex.slice(0,2)} ▀</div>
+                <div>█ ▄ █ ${hex.slice(2,4)}</div>
+                <div>█▄▄█ ${hex.slice(4,6)} ▄</div>
+                <div>▄ ${hex.slice(6)} ▄▄</div>
+                <div style="font-size:5.5px;text-align:center;margin-top:1px;letter-spacing:0.5px">VERIFIED ✓</div>
+            </div>`;
+        }
+
+        // Bangun halaman PDF per siswa
+        function buildStudentCard(d, idx, schoolName) {
+            const isDQ = (d.status || '').includes('DISKUALIFIKASI');
+            const intScore = calcIntegrityScore(d);
+            const cat = getIntegrityCategory(intScore);
+            const autoNote = getAutoNote(d.violations || 0, isDQ);
+            const conclusion = getSystemConclusion(intScore, isDQ);
+            const now = new Date().toLocaleString('id-ID');
+            const ujianTime = d.timestamp ? new Date(d.timestamp).toLocaleString('id-ID') : '-';
+            const hdrColor = cat.headerColor;
+            const scoreColor = intScore === 100 ? '#059669' : intScore >= 70 ? '#d97706' : '#dc2626';
+            const statusLabel = isDQ ? 'DISKUALIFIKASI' : (d.score >= 75 ? 'LULUS' : 'TIDAK LULUS');
+            const statusColor = isDQ ? '#dc2626' : (d.score >= 75 ? '#059669' : '#d97706');
+
+            // Log insiden dari violationLogs
+            const logs = d.violationLogs || [];
+            const logHTML = logs.length === 0
+                ? `<tr><td colspan="2" style="padding:7px 12px;font-style:italic;color:#6b7280;font-size:11px">Tidak ada insiden yang tercatat — seluruh sesi ujian berjalan bersih.</td></tr>`
+                : logs.map((l, li) => {
+                    const t = l.time ? new Date(l.time).toLocaleTimeString('id-ID') : '-';
+                    return `<tr style="background:${li % 2 === 0 ? '#fff7ed' : '#fff'}">
+                        <td style="padding:5px 10px;font-size:11px;color:#92400e;font-weight:700;white-space:nowrap;width:110px">${t}</td>
+                        <td style="padding:5px 10px;font-size:11px;color:#78350f">${l.message || 'Aktivitas mencurigakan terdeteksi'} &nbsp;<span style="background:#fde68a;color:#92400e;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px">Teguran ${li + 1}</span></td>
+                    </tr>`;
+                }).join('');
+
+            // Catatan pengawas - custom note jika ada, atau kosong untuk diisi manual
+            const customNote = d._customNote || '';
+            const noteBody = customNote
+                ? `<div style="font-size:12px;color:#334155;line-height:1.7">${autoNote.note}<br><br><strong>Catatan Pengawas:</strong> ${customNote}</div>`
+                : `<div style="font-size:12px;color:#334155;line-height:1.7;margin-bottom:10px">${autoNote.note}</div>
+                   <div style="border:1px dashed #cbd5e1;border-radius:6px;padding:8px 12px;background:#fafafa;min-height:40px">
+                     <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Catatan Pengawas (isi manual sebelum dicetak)</div>
+                     <div style="border-bottom:1px solid #e2e8f0;margin-bottom:6px;padding-bottom:2px"></div>
+                     <div style="border-bottom:1px solid #e2e8f0;padding-bottom:2px"></div>
+                   </div>`;
+
+            return `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:740px;margin:0 auto 0 auto;page-break-after:always;padding-bottom:8px">
+
+                <!-- HEADER DOKUMEN -->
+                <div style="background:linear-gradient(135deg,${hdrColor} 0%,#0f172a 100%);color:white;padding:20px 26px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:flex-start">
+                    <div>
+                        <div style="font-size:9px;letter-spacing:3px;opacity:0.65;text-transform:uppercase;margin-bottom:5px">Laporan Karakter Akademik Digital</div>
+                        <div style="font-size:21px;font-weight:900;letter-spacing:-0.3px">IntegrityTest Report</div>
+                        <div style="font-size:11px;opacity:0.78;margin-top:3px">${schoolName}</div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0">
+                        <div style="font-size:9px;opacity:0.6;margin-bottom:3px">Diterbitkan: ${now}</div>
+                        ${makeQRPlaceholder(d.studentNisn || d.studentName || idx)}
+                        <div style="font-size:7.5px;opacity:0.55;margin-top:3px">Verified by IntegrityTest Engine</div>
+                    </div>
+                </div>
+
+                <!-- IDENTITAS SISWA -->
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;padding:14px 26px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                    <div>
+                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">Nama Peserta Didik</div>
+                        <div style="font-size:15px;font-weight:800;color:#0f172a;margin-top:2px">${d.studentName || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">NISN</div>
+                        <div style="font-size:13px;font-weight:600;color:#334155;margin-top:2px">${d.studentNisn || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">Kelas</div>
+                        <div style="font-size:13px;font-weight:600;color:#334155;margin-top:2px">${d.className || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ruang Ujian</div>
+                        <div style="font-size:13px;font-weight:600;color:#334155;margin-top:2px">${d.ruangUjian || '-'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">Waktu Ujian</div>
+                        <div style="font-size:11px;font-weight:600;color:#475569;margin-top:2px">${ujianTime}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">Paket Soal</div>
+                        <div style="font-size:13px;font-weight:600;color:#334155;margin-top:2px">Paket ${d.packetType || '-'}</div>
+                    </div>
+                </div>
+
+                <!-- INTEGRITY DASHBOARD -->
+                <div style="border:1px solid #e2e8f0;border-top:none;padding:16px 26px;background:white">
+                    <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;margin-bottom:12px">📊 Integrity Dashboard</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+
+                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:13px;text-align:center">
+                            <div style="font-size:9px;color:#3b82f6;font-weight:700;text-transform:uppercase;margin-bottom:3px">Nilai Akademik</div>
+                            <div style="font-size:30px;font-weight:900;color:#1d4ed8">${d.score ?? '-'}</div>
+                            <div style="font-size:9px;color:#93c5fd;margin-top:1px">dari 100 poin</div>
+                        </div>
+
+                        <div style="background:${intScore===100?'#ecfdf5':intScore>=70?'#fffbeb':'#fef2f2'};border:1px solid ${intScore===100?'#6ee7b7':intScore>=70?'#fcd34d':'#fca5a5'};border-radius:10px;padding:13px;text-align:center">
+                            <div style="font-size:9px;color:${scoreColor};font-weight:700;text-transform:uppercase;margin-bottom:3px">Indeks Integritas</div>
+                            <div style="font-size:30px;font-weight:900;color:${scoreColor}">${intScore}</div>
+                            <div style="font-size:9px;color:${scoreColor};opacity:0.7;margin-top:1px">${intScore}% — ${cat.label.replace(/[🏆✅⚠️🚨❌⛔]/g,'').trim()}</div>
+                        </div>
+
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:13px;text-align:center">
+                            <div style="font-size:9px;color:#64748b;font-weight:700;text-transform:uppercase;margin-bottom:3px">Status Ujian</div>
+                            <div style="font-size:16px;font-weight:900;color:${statusColor};margin-top:5px">${statusLabel}</div>
+                            <div style="font-size:9px;color:#94a3b8;margin-top:4px">${d.violations||0} pelanggaran</div>
+                        </div>
+
+                        <div style="background:${hdrColor}15;border:2px solid ${hdrColor}50;border-radius:10px;padding:13px;text-align:center">
+                            <div style="font-size:9px;color:${hdrColor};font-weight:700;text-transform:uppercase;margin-bottom:3px">Predikat</div>
+                            <div style="font-size:13px;font-weight:900;color:${hdrColor};margin-top:4px;line-height:1.3">${cat.predikat}</div>
+                            <div style="font-size:8px;color:#64748b;margin-top:4px">${autoNote.kategori}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LOG INSIDEN -->
+                <div style="border:1px solid #e2e8f0;border-top:none;padding:14px 26px;background:white">
+                    <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;margin-bottom:10px">🔍 Log Insiden & Aktivitas Sistem</div>
+                    <table style="width:100%;border-collapse:collapse;border:1px solid #fed7aa;border-radius:8px;overflow:hidden">
+                        <thead><tr style="background:#fff7ed">
+                            <th style="padding:6px 10px;text-align:left;font-size:9px;color:#92400e;font-weight:700;text-transform:uppercase;border-bottom:1px solid #fed7aa;width:120px">Waktu Kejadian</th>
+                            <th style="padding:6px 10px;text-align:left;font-size:9px;color:#92400e;font-weight:700;text-transform:uppercase;border-bottom:1px solid #fed7aa">Deskripsi Aktivitas Terdeteksi</th>
+                        </tr></thead>
+                        <tbody>${logHTML}</tbody>
+                    </table>
+                </div>
+
+                <!-- CATATAN SISTEM + PENGAWAS -->
+                <div style="border:1px solid #e2e8f0;border-top:none;padding:14px 26px;background:white">
+                    <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;margin-bottom:10px">📝 Catatan Otomatis & Pengawas</div>
+                    <div style="border-left:4px solid ${hdrColor};padding:10px 14px;background:#f8fafc;border-radius:0 8px 8px 0;margin-bottom:10px">
+                        ${noteBody}
+                    </div>
+                </div>
+
+                <!-- KESIMPULAN SISTEM -->
+                <div style="border:1px solid #e2e8f0;border-top:none;padding:13px 26px;background:${intScore===100?'#ecfdf5':intScore>=70?'#fffbeb':'#fef2f2'}">
+                    <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:${hdrColor};margin-bottom:7px">🤖 Kesimpulan Sistem (Auto-Generated)</div>
+                    <div style="font-size:12px;color:#334155;line-height:1.7;font-style:italic">"${conclusion}"</div>
+                </div>
+
+                <!-- FOOTER FILOSOFIS -->
+                <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 14px 14px;background:#0f172a;padding:13px 26px;display:flex;justify-content:space-between;align-items:center;gap:16px">
+                    <div style="font-size:9.5px;color:#94a3b8;font-style:italic;line-height:1.6;flex:1">
+                        "Hasil ujian adalah potret kompetensi kognitif, namun integritas adalah cermin kualitas diri. Skor akademik bisa diperbaiki, tetapi kejujuran adalah fondasi yang harus dijaga selamanya. Laporan ini diterbitkan bukan untuk menghukum, melainkan untuk mendukung tumbuh kembang karakter yang autentik."
+                    </div>
+                    <div style="text-align:right;white-space:nowrap;flex-shrink:0">
+                        <div style="font-size:9px;color:#64748b;font-weight:700">IntegrityTest Engine v2</div>
+                        <div style="font-size:8px;color:#475569;margin-top:1px">Dok. #${String(idx+1).padStart(4,'0')}-${(d.studentNisn||'0000').toString().slice(-4)}</div>
+                        <div style="font-size:8px;color:#334155;margin-top:2px">✅ Verified &amp; Auto-Generated</div>
+                    </div>
+                </div>
+                <div style="height:28px"></div>
+            </div>`;
+        }
+
+        window.renderIntegrityDashboard = function() {
+            const data = dashboardData || [];
+            const finished = data.filter(d => d.status !== 'SEDANG MENGERJAKAN');
+            if (finished.length === 0) {
+                document.getElementById('avg-integrity-score').textContent = '—';
+                document.getElementById('honest-count').textContent = '0';
+                document.getElementById('honest-pct').textContent = '0% dari total';
+                document.getElementById('minor-viol-count').textContent = '0';
+                document.getElementById('dq-count-analitik').textContent = '0';
+                document.getElementById('chart-integrity-dist').innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Belum ada data ujian selesai.</p>';
+                document.getElementById('chart-viol-per-class').innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Belum ada data ujian selesai.</p>';
+                document.getElementById('integrity-table-body').innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-400">Belum ada data.</td></tr>';
+                return;
+            }
+
+            // Hitung skor integritas per siswa
+            const withScores = finished.map(d => ({
+                ...d,
+                integrityScore: calcIntegrityScore(d)
+            })).filter(d => d.integrityScore !== null);
+
+            // Summary cards
+            const scores = withScores.map(d => d.integrityScore);
+            const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+            const honest = withScores.filter(d => d.integrityScore >= 80).length;
+            const minor  = withScores.filter(d => (d.violations||0) >= 1 && (d.violations||0) <= 2 && !d.status.includes('DISKUALIFIKASI')).length;
+            const dq     = withScores.filter(d => d.integrityScore === 0).length;
+            const total  = withScores.length;
+
+            document.getElementById('avg-integrity-score').textContent = avg;
+            document.getElementById('honest-count').textContent = honest;
+            document.getElementById('honest-pct').textContent = total > 0 ? Math.round(honest/total*100)+'% dari total' : '0% dari total';
+            document.getElementById('minor-viol-count').textContent = minor;
+            document.getElementById('dq-count-analitik').textContent = dq;
+
+            // ── Chart 1: Distribusi Skor Integritas ──
+            const bands = [
+                { label: 'Score 100 (Sangat Jujur)', min: 100, max: 100, color: '#10b981' },
+                { label: 'Score 80-99 (Jujur)',      min: 80,  max: 99,  color: '#34d399' },
+                { label: 'Score 60-79 (Perhatian)',  min: 60,  max: 79,  color: '#f59e0b' },
+                { label: 'Score 1-59 (Mencurigakan)',min: 1,   max: 59,  color: '#ef4444' },
+                { label: 'Score 0 (Diskualifikasi)', min: 0,   max: 0,   color: '#991b1b' },
+            ];
+            const distEl = document.getElementById('chart-integrity-dist');
+            distEl.innerHTML = '';
+            bands.forEach(band => {
+                const count = withScores.filter(d => d.integrityScore >= band.min && d.integrityScore <= band.max).length;
+                const pct   = total > 0 ? Math.round(count/total*100) : 0;
+                distEl.innerHTML += `
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-gray-500 w-40 shrink-0">${band.label}</span>
+                        <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                            <div class="h-full rounded-full flex items-center justify-end pr-2 transition-all duration-700" 
+                                 style="width:${Math.max(pct,0)}%; background:${band.color}; min-width:${count>0?'2rem':'0'}">
+                                ${count > 0 ? `<span class="text-white text-xs font-bold">${count}</span>` : ''}
+                            </div>
+                        </div>
+                        <span class="text-xs font-bold text-gray-600 w-10 text-right">${pct}%</span>
+                    </div>`;
+            });
+
+            // ── Chart 2: Pelanggaran per Kelas ──
+            const classMap = {};
+            withScores.forEach(d => {
+                const cls = d.className || 'Tidak Diketahui';
+                if (!classMap[cls]) classMap[cls] = { total: 0, viol: 0 };
+                classMap[cls].total++;
+                if ((d.violations||0) > 0) classMap[cls].viol++;
+            });
+            const classEl = document.getElementById('chart-viol-per-class');
+            const classEntries = Object.entries(classMap).sort((a,b) => b[1].viol - a[1].viol);
+            if (classEntries.length === 0) {
+                classEl.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Belum ada data kelas.</p>';
+            } else {
+                classEl.innerHTML = '';
+                const maxViol = Math.max(...classEntries.map(([,v]) => v.viol), 1);
+                classEntries.forEach(([cls, val]) => {
+                    const pct = Math.round(val.viol/val.total*100);
+                    const barW = Math.round(val.viol/maxViol*100);
+                    const color = pct === 0 ? '#10b981' : pct < 30 ? '#f59e0b' : '#ef4444';
+                    classEl.innerHTML += `
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-gray-600 font-bold w-28 shrink-0 truncate">${cls}</span>
+                            <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                                <div class="h-full rounded-full transition-all duration-700 flex items-center justify-end pr-2"
+                                     style="width:${Math.max(barW,0)}%; background:${color}; min-width:${val.viol>0?'2rem':'0'}">
+                                    ${val.viol > 0 ? `<span class="text-white text-xs font-bold">${val.viol}</span>` : ''}
+                                </div>
+                            </div>
+                            <span class="text-xs text-gray-500 w-20 text-right">${val.viol}/${val.total} (${pct}%)</span>
+                        </div>`;
+                });
+            }
+
+            // ── Tabel Ranking Integritas ──
+            const sorted = [...withScores].sort((a,b) => b.integrityScore - a.integrityScore);
+            const tbody = document.getElementById('integrity-table-body');
+            if (sorted.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-400">Belum ada data.</td></tr>';
+            } else {
+                tbody.innerHTML = '';
+                sorted.forEach((d, i) => {
+                    const cat = getIntegrityCategory(d.integrityScore);
+                    const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+                    const scoreBar = `
+                        <div class="flex items-center gap-2 justify-center">
+                            <div class="w-24 bg-gray-100 rounded-full h-2 overflow-hidden">
+                                <div class="h-full rounded-full" style="width:${d.integrityScore}%; background:${d.integrityScore>=80?'#10b981':d.integrityScore>=60?'#f59e0b':'#ef4444'}"></div>
+                            </div>
+                            <span class="font-black text-gray-800 w-8 text-right">${d.integrityScore}</span>
+                        </div>`;
+                    tbody.innerHTML += `
+                        <tr class="border-b hover:bg-slate-50 transition-colors ${d.integrityScore === 0 ? 'bg-red-50' : ''}">
+                            <td class="px-5 py-3 text-center font-bold text-gray-500">${rankIcon}</td>
+                            <td class="px-5 py-3 font-semibold text-gray-800">${d.studentName}</td>
+                            <td class="px-5 py-3 text-gray-500">${d.className || '-'}</td>
+                            <td class="px-5 py-3 text-center font-bold text-gray-700">${d.score}</td>
+                            <td class="px-5 py-3 text-center">${(d.violations||0) > 0 
+                                ? `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold text-xs">${d.violations}x</span>` 
+                                : '<span class="text-emerald-500 font-bold">✓ Bersih</span>'}</td>
+                            <td class="px-5 py-3">${scoreBar}</td>
+                            <td class="px-5 py-3 text-center"><span class="px-2 py-1 rounded-lg text-xs font-bold ${cat.bg} ${cat.text}">${cat.label}</span></td>
+                        </tr>`;
+                });
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        // ── Tambahkan integrityScore ke tabel monitoring ──
+        window.addIntegrityToMonitorRow = function(item) {
+            const score = calcIntegrityScore(item);
+            if (score === null) return '';
+            const cat = getIntegrityCategory(score);
+            return `<span class="px-2 py-0.5 rounded text-xs font-bold ${cat.bg} ${cat.text}">${score}</span>`;
+        };
+
+        // ── Skor Integritas di Hasil Siswa ──
+        window.getStudentIntegrityForResult = function(viols, isDQ) {
+            if (isDQ) return 0;
+            return Math.max(0, 100 - (viols * 20));
+        };
+
+        // ── Export Laporan PDF Integritas ──
+        window.generateIntegrityReport = function(singleId) {
+            const data = dashboardData || [];
+            let finished = data.filter(d => d.status !== 'SEDANG MENGERJAKAN');
+            if (singleId) finished = finished.filter(d => d.id === singleId);
+            if (finished.length === 0) { alert('Belum ada data ujian selesai untuk diexport.'); return; }
+
+            const withScores = finished.map(d => ({
+                ...d, integrityScore: calcIntegrityScore(d)
+            })).filter(d => d.integrityScore !== null)
+              .sort((a, b) => b.integrityScore - a.integrityScore);
+
+            const now = new Date().toLocaleString('id-ID');
+            const schoolName = (document.getElementById('setting-sub-judul') || {}).value || 'Sistem Integritas Ujian Digital';
+            const avg    = withScores.length ? Math.round(withScores.reduce((s,d) => s + d.integrityScore, 0) / withScores.length) : 0;
+            const honest = withScores.filter(d => d.integrityScore === 100).length;
+            const dq     = withScores.filter(d => d.integrityScore === 0).length;
+            const perlu  = withScores.length - honest - dq;
+
+            // Ringkasan tabel
+            const summaryRows = withScores.map((d, i) => {
+                const cat = getIntegrityCategory(d.integrityScore);
+                const sc = d.integrityScore;
+                const isDQ = (d.status||'').includes('DISKUALIFIKASI');
+                return `<tr style="background:${isDQ?'#fef2f2':i%2===0?'#f8fafc':'white'}">
+                    <td style="padding:6px 10px;text-align:center;font-weight:700;color:#64748b">${i+1}</td>
+                    <td style="padding:6px 10px;font-weight:700;color:#0f172a">${d.studentName||'-'}</td>
+                    <td style="padding:6px 10px;color:#64748b">${d.studentNisn||'-'}</td>
+                    <td style="padding:6px 10px;color:#64748b">${d.className||'-'}</td>
+                    <td style="padding:6px 10px;color:#64748b">${d.ruangUjian||'-'}</td>
+                    <td style="padding:6px 10px;text-align:center;font-weight:700;font-size:14px">${d.score??'-'}</td>
+                    <td style="padding:6px 10px;text-align:center">${d.violations||0}</td>
+                    <td style="padding:6px 10px;text-align:center;font-weight:900;font-size:14px;color:${sc===100?'#059669':sc>=70?'#d97706':'#dc2626'}">${sc}</td>
+                    <td style="padding:6px 10px;font-size:11px">${cat.label}</td>
+                </tr>`;
+            }).join('');
+
+            // Halaman per siswa
+            const studentPages = withScores.map((d, i) => buildStudentCard(d, i, schoolName)).join('');
+
+            const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+            <title>IntegrityTest Report — ${now}</title>
+            <style>
+                *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+                body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:24px;background:#f1f5f9;color:#1e293b}
+                @media print{
+                    body{background:white;padding:0}
+                    .no-print{display:none!important}
+                    div[style*="page-break-after:always"]{page-break-after:always}
+                }
+            </style></head><body>
+
+            <!-- TOMBOL AKSI -->
+            <div class="no-print" style="margin-bottom:18px;background:white;padding:12px 18px;border-radius:12px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px #0001">
+                <button onclick="window.print()" style="background:#065f46;color:white;border:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">🖨️ Cetak / Simpan PDF</button>
+                <button onclick="window.close()" style="background:#334155;color:white;border:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">✕ Tutup</button>
+                <span style="font-size:11px;color:#64748b">IntegrityTest Report · ${withScores.length} peserta · ${now}</span>
+            </div>
+
+            <!-- HALAMAN 1: RINGKASAN KELAS -->
+            <div style="background:white;border-radius:16px;overflow:hidden;margin-bottom:32px;box-shadow:0 4px 20px #0001;page-break-after:always">
+                <div style="background:linear-gradient(135deg,#065f46,#0f172a);color:white;padding:22px 30px;display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div style="font-size:9px;letter-spacing:3px;opacity:0.6;text-transform:uppercase">Dokumen Resmi — Rekap Kelas</div>
+                        <div style="font-size:24px;font-weight:900;margin-top:4px">IntegrityTest Report</div>
+                        <div style="font-size:11px;opacity:0.75;margin-top:2px">${schoolName} · Diterbitkan: ${now}</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div style="font-size:52px;font-weight:900;line-height:1">${avg}</div>
+                        <div style="font-size:10px;opacity:0.75">Rata-rata Indeks Integritas</div>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border-bottom:1px solid #e2e8f0">
+                    <div style="padding:14px 18px;text-align:center;border-right:1px solid #e2e8f0">
+                        <div style="font-size:9px;color:#64748b;font-weight:700;text-transform:uppercase">Total Peserta</div>
+                        <div style="font-size:30px;font-weight:900;color:#0f172a">${withScores.length}</div>
+                    </div>
+                    <div style="padding:14px 18px;text-align:center;border-right:1px solid #e2e8f0;background:#ecfdf5">
+                        <div style="font-size:9px;color:#065f46;font-weight:700;text-transform:uppercase">🏆 Integritas Sempurna</div>
+                        <div style="font-size:30px;font-weight:900;color:#059669">${honest}</div>
+                    </div>
+                    <div style="padding:14px 18px;text-align:center;border-right:1px solid #e2e8f0;background:#fffbeb">
+                        <div style="font-size:9px;color:#92400e;font-weight:700;text-transform:uppercase">⚠️ Perlu Pembinaan</div>
+                        <div style="font-size:30px;font-weight:900;color:#d97706">${perlu}</div>
+                    </div>
+                    <div style="padding:14px 18px;text-align:center;background:#fef2f2">
+                        <div style="font-size:9px;color:#991b1b;font-weight:700;text-transform:uppercase">❌ Diskualifikasi</div>
+                        <div style="font-size:30px;font-weight:900;color:#dc2626">${dq}</div>
+                    </div>
+                </div>
+                <div style="padding:22px 30px">
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:12px">Rekap Seluruh Peserta</div>
+                    <table style="width:100%;border-collapse:collapse;font-size:12px">
+                        <thead><tr style="background:#065f46;color:white">
+                            <th style="padding:8px 10px;text-align:center">No</th>
+                            <th style="padding:8px 10px;text-align:left">Nama Siswa</th>
+                            <th style="padding:8px 10px;text-align:left">NISN</th>
+                            <th style="padding:8px 10px;text-align:left">Kelas</th>
+                            <th style="padding:8px 10px;text-align:left">Ruang</th>
+                            <th style="padding:8px 10px;text-align:center">Nilai</th>
+                            <th style="padding:8px 10px;text-align:center">Pelang.</th>
+                            <th style="padding:8px 10px;text-align:center">Integritas</th>
+                            <th style="padding:8px 10px;text-align:left">Predikat</th>
+                        </tr></thead>
+                        <tbody>${summaryRows}</tbody>
+                    </table>
+                </div>
+                <div style="padding:12px 30px;background:#0f172a;color:#64748b;font-size:9.5px;font-style:italic;text-align:center">
+                    Formula: Skor = max(0, 100 − (bobot_pelanggaran)). Pindah tab 1×=−20, 2×=−60, ≥3×=Diskualifikasi (0). Verified by IntegrityTest Engine v2.
+                </div>
+            </div>
+
+            <!-- HALAMAN PER SISWA -->
+            ${studentPages}
+
+            </body></html>`;
+
+            const win = window.open('', '_blank');
+            if (win) { win.document.write(html); win.document.close(); }
+            else { alert('Popup diblokir browser. Izinkan popup untuk tab ini lalu coba lagi.'); }
+        };
+
+        // Export PDF satu siswa dari tabel monitoring
+        window.exportSinglePDF = function(studentId) { window.generateIntegrityReport(studentId); };
+
+        // ── Modal Catatan Pengawas Per Siswa ──
+        window._studentNotes = {};  // simpan catatan per ID siswa (in-memory)
+
+        window.openNoteModal = function(studentId) {
+            const data = dashboardData || [];
+            const student = data.find(d => d.id === studentId);
+            if (!student) return;
+            const viol = student.violations || 0;
+            const isDQ = (student.status||'').includes('DISKUALIFIKASI');
+            const autoNote = getAutoNote(viol, isDQ);
+
+            document.getElementById('note-student-id').value = studentId;
+            document.getElementById('note-student-name').textContent = student.studentName || '-';
+            document.getElementById('note-auto-text').textContent = '💬 Catatan otomatis: ' + autoNote.note.slice(0, 100) + '...';
+            document.getElementById('note-custom-input').value = window._studentNotes[studentId] || '';
+            document.getElementById('modal-note').classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        window.saveStudentNote = function() {
+            const id = document.getElementById('note-student-id').value;
+            const note = document.getElementById('note-custom-input').value.trim();
+            window._studentNotes[id] = note;
+            // Sisipkan ke dashboardData agar PDF bisa akses
+            const data = dashboardData || [];
+            const student = data.find(d => d.id === id);
+            if (student) student._customNote = note;
+            document.getElementById('modal-note').classList.add('hidden');
+            // Toast notifikasi kecil
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-6 right-6 z-[999] bg-gray-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-xl animate-fade-in';
+            toast.textContent = '✅ Catatan pengawas disimpan';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        };
+
+        // ── Auto-update analitik ketika data berubah ──
+        const _origUpdateStatCards = window.updateStatCards || function(){};
+        window._integrityAutoRefresh = function(data) {
+            if (data) window._lastAnalitikData = data;
+            const panel = document.getElementById('panel-analitik');
+            if (panel && !panel.classList.contains('hidden-section')) {
+                window.renderIntegrityDashboard();
+            }
+        };
+
+        // ══ FITUR BARU: TAMPILKAN SKOR INTEGRITAS DI HASIL SISWA ══
+        // Patch fungsi finishExam untuk inject skor integritas ke halaman hasil
+        const _origFinishExam = window._finishExamPatched;
+        window._patchResultPage = function(viols, isDQ) {
+            const intScore = window.getStudentIntegrityForResult(viols, isDQ);
+            const cat = getIntegrityCategory(intScore);
+            const existingBadge = document.getElementById('integrity-score-badge');
+            if (existingBadge) existingBadge.remove();
+
+            const resultSection = document.getElementById('section-result');
+            if (!resultSection) return;
+            const firstCard = resultSection.querySelector('.bg-white, [class*="bg-slate"]');
+            if (!firstCard) return;
+
+            const badge = document.createElement('div');
+            badge.id = 'integrity-score-badge';
+            badge.className = 'mt-4 mx-auto max-w-xs';
+            badge.innerHTML = `
+                <div class="rounded-2xl border-2 p-4 text-center ${intScore >= 80 ? 'border-emerald-300 bg-emerald-50' : intScore >= 60 ? 'border-amber-300 bg-amber-50' : 'border-red-300 bg-red-50'}">
+                    <p class="text-xs font-bold uppercase tracking-wider ${intScore >= 80 ? 'text-emerald-600' : intScore >= 60 ? 'text-amber-600' : 'text-red-600'} mb-1">Skor Integritas Kamu</p>
+                    <p class="text-5xl font-black ${intScore >= 80 ? 'text-emerald-600' : intScore >= 60 ? 'text-amber-600' : 'text-red-600'}">${intScore}</p>
+                    <p class="text-sm font-bold mt-1 ${cat.text}">${cat.label}</p>
+                    <p class="text-xs text-gray-400 mt-2">${intScore >= 100 ? 'Luar biasa! Kamu mengerjakan dengan jujur tanpa pelanggaran.' : intScore >= 80 ? 'Bagus! Kamu mengerjakan dengan cukup jujur.' : intScore >= 60 ? 'Ada beberapa pelanggaran terdeteksi.' : intScore > 0 ? 'Banyak pelanggaran terdeteksi sistem.' : 'Ujian tidak sah karena pelanggaran berulang.'}</p>
+                </div>`;
+
+            const scoreDisplay = document.getElementById('final-score-display');
+            if (scoreDisplay && scoreDisplay.parentElement) {
+                scoreDisplay.parentElement.after(badge);
+            }
+        };
+
         // EXPORT EXCEL PROFESIONAL
         // ============================================================
         function exportToExcelInternal() {
@@ -4930,7 +5971,7 @@
             // Baris header dokumen (baris 1-7 = info sekolah + judul)
             const headerRows = [
                 ['SMK NEGERI 1 BRONDONG'],                          // R1
-                ['Sistem Informasi Ujian (SI UJIAN) - TKJ'],         // R2
+                ['INTEGRITEST'],         // R2
                 [''],                                                 // R3
                 [`Laporan Rekap Nilai Ujian`],                        // R4
                 [`Kelas: ${labelCls}  |  Paket: ${labelPkt}  |  Tanggal: ${labelDate}`], // R5
@@ -5381,7 +6422,7 @@
       xmlns='http://www.w3.org/TR/REC-html40'>
 <head>
 <meta charset='utf-8'>
-<title>Template Soal SI UJIAN</title>
+<title>Template Soal INTEGRITEST</title>
 <style>
 body { font-family: Arial, sans-serif; font-size: 11pt; }
 h1 { font-size: 14pt; color: #1d4ed8; }
@@ -5395,7 +6436,7 @@ tr:nth-child(even) { background: #eff6ff; }
 </style>
 </head>
 <body>
-<h1>Template Soal - SI UJIAN TKJ</h1>
+<h1>Template Soal - INTEGRITEST</h1>
 <div class="note">
 <strong>&#9888; PETUNJUK PENTING:</strong><br>
 &bull; Jangan ubah nama kolom pada baris pertama tabel<br>
@@ -5750,6 +6791,14 @@ tr:nth-child(even) { background: #eff6ff; }
         if(typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
+
+        // Tampilkan badge perf-mode di panel tampilan jika HP kentang
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window._perfMode) {
+                const badge = document.getElementById('perf-mode-info');
+                if (badge) badge.classList.remove('hidden');
+            }
+        });
     </script>
 </body>
 </html>
