@@ -282,21 +282,49 @@
 
         // --- SAVE RESULT ---
         window.saveExamResult = async (data) => {
+            // ★ Selalu simpan ke localStorage sebagai backup terlebih dahulu
+            try {
+                localStorage.setItem('integritest_result_backup', JSON.stringify({...data, savedAt: Date.now()}));
+            } catch(e) {}
+
+            const doSave = async () => {
+                if (window.currentExamDocId) {
+                    await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId), data);
+                } else {
+                    const ref = await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'), data);
+                    window.currentExamDocId = ref.id;
+                }
+            };
+
             if (window.isFirebaseReady && window.db) {
                 try {
-                    if (window.currentExamDocId) {
-                        await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId), data);
-                    } else {
-                        await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'), data);
-                    }
+                    await doSave();
+                    console.log('[IntegriTest] Nilai tersimpan ke server.');
                 } catch (e) {
-                    console.error("Failed save", e);
-                    alert("Gagal menyimpan ke database pusat (Offline Mode). Nilai tetap tersimpan di layar ini.");
+                    console.warn('[IntegriTest] Gagal simpan, retry dalam 3 detik...', e);
+                    // Tampilkan banner offline
+                    const ob = document.getElementById('offline-result-banner');
+                    if (ob) ob.style.display = '';
+                    // Retry 1x setelah 3 detik
+                    setTimeout(async () => {
+                        try {
+                            if (window.isFirebaseReady && window.db) {
+                                await doSave();
+                                console.log('[IntegriTest] Retry berhasil.');
+                                const ob2 = document.getElementById('offline-result-banner');
+                                if (ob2) { ob2.innerHTML = '<span style="color:#16a34a">✅ Nilai berhasil dikirim ke server!</span>'; }
+                            }
+                        } catch(e2) { console.error('[IntegriTest] Retry gagal.', e2); }
+                    }, 3000);
                 }
+            } else {
+                // Mode offline total
+                const ob = document.getElementById('offline-result-banner');
+                if (ob) ob.style.display = '';
             }
         }
 
-        // --- SAVE SETTINGS ---
+                // --- SAVE SETTINGS ---
         window.saveSettings = async () => {
             const newToken = document.getElementById('teacher-token-input').value.trim().toUpperCase();
             const newDuration = parseInt(document.getElementById('teacher-duration-input').value);
@@ -929,6 +957,8 @@
         body.perf-mode .shadow-xl,
         body.perf-mode .shadow-2xl { box-shadow: 0 2px 6px rgba(0,0,0,0.12) !important; }
         body.perf-mode .drop-shadow-md { filter: none !important; }
+        body.perf-mode #section-welcome { background: #1e40af !important; }
+        body.perf-mode .welcome-blob { display: none !important; }
 
         /* Nonaktifkan hover:scale / hover:shadow karena lambat di HP kentang */
         body.perf-mode *:hover { transform: none !important; box-shadow: inherit !important; }
@@ -1204,46 +1234,61 @@
     </div>
 
     <!-- ══════════ MODAL PERINGATAN SISWA — FULLSCREEN (countdown, tidak bisa ditutup paksa) ══════════ -->
-    <div id="modal-warning-student" class="fixed inset-0 z-[999] hidden" style="background:rgba(0,0,0,0.96)">
+    <div id="modal-warning-student" class="fixed inset-0 z-[999] hidden" style="background:rgba(0,0,0,0.93)">
         <!-- Flash merah kilat -->
         <div id="warning-flash" class="absolute inset-0 bg-red-600 opacity-0 pointer-events-none transition-opacity duration-100"></div>
+
         <div class="relative z-10 h-full flex flex-col items-center justify-center p-6 text-center overflow-y-auto">
+
             <!-- Ikon sirine -->
-            <div class="relative mb-6 shrink-0">
-                <div class="w-32 h-32 rounded-full bg-red-600 siren-ring flex items-center justify-center shadow-2xl shadow-red-500/60">
-                    <div class="w-24 h-24 rounded-full bg-red-700 border-4 border-red-400 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14 text-white animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <div class="relative mb-5 shrink-0">
+                <div class="w-28 h-28 rounded-full bg-red-600 siren-ring flex items-center justify-center shadow-2xl shadow-red-500/60">
+                    <div class="w-20 h-20 rounded-full bg-red-700 border-4 border-red-400 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 text-white animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                     </div>
                 </div>
             </div>
+
             <!-- Badge pelanggaran -->
-            <div class="inline-flex items-center gap-2 bg-red-700 text-white px-6 py-2 rounded-full font-black uppercase tracking-widest shadow-lg mb-5 text-sm md:text-base">
-                ⚠️ PELANGGARAN <span id="ws-vcount" class="text-yellow-300 text-2xl mx-1">1</span> / 3
+            <div class="inline-flex items-center gap-2 bg-red-700 text-white px-5 py-1.5 rounded-full font-black uppercase tracking-widest shadow-lg mb-4 text-sm">
+                ⚠️ PELANGGARAN <span id="ws-vcount" class="text-yellow-300 text-xl mx-1">1</span> / 3
             </div>
+
             <!-- Judul -->
-            <h1 id="ws-title" class="text-3xl md:text-5xl font-black text-white uppercase tracking-wider mb-2 leading-tight">TERDETEKSI CURANG!</h1>
-            <p id="ws-name" class="text-red-300 font-bold text-base md:text-lg mb-5"></p>
-            <!-- Detail kotak -->
-            <div class="bg-red-900/80 border-2 border-red-500 rounded-2xl p-5 max-w-lg w-full mb-5">
-                <p id="ws-detail" class="text-red-100 font-semibold text-sm md:text-base leading-relaxed"></p>
+            <h1 id="ws-title" class="text-3xl md:text-4xl font-black text-white uppercase tracking-wider mb-1 leading-tight">TERDETEKSI CURANG!</h1>
+            <p id="ws-name" class="text-red-300 font-bold text-sm mb-4"></p>
+
+            <!-- Detail -->
+            <div class="bg-red-900/70 border border-red-600 rounded-2xl p-4 max-w-md w-full mb-4">
+                <p id="ws-detail" class="text-red-100 font-semibold text-sm leading-relaxed"></p>
                 <div class="mt-3 pt-3 border-t border-red-700">
                     <p id="ws-consequence" class="font-bold text-sm"></p>
                 </div>
             </div>
+
+            <!-- NASIHAT BOX -->
+            <div id="ws-nasihat-box" class="bg-white/8 border border-white/15 rounded-2xl p-4 max-w-md w-full mb-4 text-left">
+                <p class="text-[10px] font-black uppercase tracking-widest text-yellow-400 mb-2 flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    Renungkan ini
+                </p>
+                <p id="ws-nasihat" class="text-white/80 text-sm leading-relaxed italic"></p>
+            </div>
+
             <!-- Countdown -->
-            <div id="ws-cd-wrapper" class="mb-5">
-                <p class="text-gray-400 text-xs mb-1">Tombol aktif dalam:</p>
+            <div id="ws-cd-wrapper" class="mb-4">
+                <p class="text-gray-500 text-xs mb-1">Tombol aktif dalam:</p>
                 <div id="ws-cd" class="text-5xl font-black text-white tabular-nums">5</div>
             </div>
-            <!-- Tombol tutup (disabled sampai countdown) -->
+
+            <!-- Tombol lanjutkan -->
             <button id="ws-close-btn" onclick="window.closeWarningModal()" disabled
-                class="w-full max-w-sm py-4 rounded-2xl font-black text-lg uppercase tracking-widest bg-gray-700 text-gray-500 cursor-not-allowed transition-all duration-500">
+                class="w-full max-w-sm py-4 rounded-2xl font-black text-base uppercase tracking-widest bg-gray-700 text-gray-500 cursor-not-allowed transition-all duration-500">
                 MENGERTI — LANJUTKAN UJIAN
             </button>
-            <p class="text-gray-600 text-xs mt-5 max-w-sm">Sistem merekam semua aktivitas secara real-time. Pengawas melihat pelanggaran ini langsung di dashboard.</p>
+            <p class="text-gray-600 text-xs mt-4 max-w-sm">Sistem merekam semua aktivitas secara real-time. Pengawas melihat pelanggaran ini di dashboard.</p>
         </div>
     </div>
-
     <!-- ══════════ MODAL DISKUALIFIKASI FINAL (otomatis redirect ke hasil) ══════════ -->
     <div id="modal-dq-final" class="fixed inset-0 z-[1000] hidden" style="background:rgba(0,0,0,0.99)">
         <div class="h-full flex flex-col items-center justify-center p-6 text-center">
@@ -1263,115 +1308,114 @@
     </div>
 
     <!-- SECTION: SELAMAT DATANG -->
-    <div id="section-welcome" class="hidden-section min-h-screen flex flex-col relative overflow-hidden" style="background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #8b5cf6 100%);">
+    <div id="section-welcome" class="hidden-section min-h-screen flex flex-col" style="background:#f0f6ff;">
 
-        <!-- BG blobs — disembunyikan di perf-mode lewat CSS -->
-        <div class="welcome-blob absolute top-[-20%] right-[-15%] w-[500px] h-[500px] rounded-full opacity-30 animate-pulse pointer-events-none" style="background:radial-gradient(circle,#fff 0%,transparent 70%);"></div>
-        <div class="welcome-blob absolute bottom-[-20%] left-[-15%] w-[400px] h-[400px] rounded-full opacity-20 animate-pulse pointer-events-none" style="background:radial-gradient(circle,#fbbf24 0%,transparent 70%);animation-delay:1.5s"></div>
+        <!-- BG blob (disembunyikan perf-mode) -->
+        <div class="welcome-blob pointer-events-none" style="position:absolute;top:-120px;right:-120px;width:350px;height:350px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,0.12) 0%,transparent 70%);"></div>
+        <div class="welcome-blob pointer-events-none" style="position:absolute;bottom:-80px;left:-80px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,0.10) 0%,transparent 70%);"></div>
 
-        <!-- TOP HERO STRIP -->
-        <div class="relative z-10 pt-10 pb-6 px-5 text-center">
-            <!-- Avatar / icon -->
-            <div class="inline-flex items-center justify-center w-20 h-20 rounded-[28px] shadow-2xl mb-4 border-4 border-white/30" style="background:rgba(255,255,255,0.2)">
-                <i data-lucide="graduation-cap" class="w-10 h-10 text-white"></i>
-            </div>
-            <h2 class="text-3xl font-black text-white drop-shadow-md tracking-tight">Halo! 👋</h2>
-            <p class="text-white/80 text-sm mt-1 font-semibold tracking-wide">
-                <span class="text-white font-black">INTEGRI</span><span style="color:#fde68a">TEST</span>
-                &nbsp;·&nbsp; Siap Mulai Ujian
-            </p>
-        </div>
-
-        <!-- MAIN CARD -->
-        <div class="relative z-10 flex-1 mx-3 mb-4 rounded-[28px] overflow-hidden shadow-2xl" style="background:rgba(255,255,255,0.97);">
-
-            <!-- IDENTITY STRIP — warna-warni per kolom -->
-            <div class="grid grid-cols-3 divide-x divide-gray-100">
-                <!-- Nama -->
-                <div class="flex flex-col items-center py-4 px-2 text-center" style="background:linear-gradient(180deg,#eff6ff,#fff)">
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-2 shadow-sm" style="background:#3b82f6">
-                        <i data-lucide="user-circle" class="w-4 h-4 text-white"></i>
-                    </div>
-                    <p class="text-[9px] font-black uppercase tracking-widest text-blue-400 mb-0.5">Nama</p>
-                    <p id="welcome-name" class="text-gray-800 font-black text-xs leading-tight break-words">—</p>
+        <!-- ── HEADER ── -->
+        <div style="background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 60%,#3b82f6 100%);" class="px-6 pt-10 pb-8 text-center relative overflow-hidden">
+            <!-- subtle grid pattern -->
+            <div class="absolute inset-0 opacity-[0.06]" style="background-image:linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px);background-size:24px 24px;"></div>
+            <div class="relative z-10">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 border border-white/20" style="background:rgba(255,255,255,0.15);">
+                    <i data-lucide="graduation-cap" class="w-8 h-8 text-white"></i>
                 </div>
-                <!-- NISN / No Kartu -->
-                <div class="flex flex-col items-center py-4 px-2 text-center" style="background:linear-gradient(180deg,#faf5ff,#fff)">
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-2 shadow-sm" style="background:#8b5cf6">
-                        <i data-lucide="hash" class="w-4 h-4 text-white"></i>
-                    </div>
-                    <p id="welcome-nisn-label" class="text-[9px] font-black uppercase tracking-widest text-purple-400 mb-0.5">NISN</p>
-                    <p id="welcome-nisn" class="text-gray-800 font-black text-xs leading-tight">—</p>
-                </div>
-                <!-- Kelas -->
-                <div class="flex flex-col items-center py-4 px-2 text-center" style="background:linear-gradient(180deg,#ecfdf5,#fff)">
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center mb-2 shadow-sm" style="background:#10b981">
-                        <i data-lucide="school" class="w-4 h-4 text-white"></i>
-                    </div>
-                    <p class="text-[9px] font-black uppercase tracking-widest text-emerald-400 mb-0.5">Kelas</p>
-                    <p id="welcome-kelas" class="text-gray-800 font-black text-xs leading-tight">—</p>
-                </div>
-            </div>
-
-            <div class="px-5 pt-5 pb-4">
-
-                <!-- MOTIVASI CARD — cerah dan segar -->
-                <div class="rounded-2xl p-4 mb-5 relative overflow-hidden" style="background:linear-gradient(135deg,#fef3c7,#fde68a)">
-                    <div class="flex items-start gap-3">
-                        <span class="text-2xl shrink-0 mt-0.5">✨</span>
-                        <p id="welcome-motivasi-text" class="text-amber-900 text-sm leading-relaxed font-medium">
-                            Kerjakan dengan <strong class="text-amber-700">jujur</strong> dan <strong class="text-amber-700">penuh semangat</strong>. Hasil terbaik lahir dari usaha yang sungguh-sungguh. Percayalah pada kemampuanmu — <strong class="text-orange-600">sukses menantimu!</strong>
-                        </p>
-                    </div>
-                </div>
-
-                <!-- LABEL PILIH MAPEL -->
-                <div class="flex items-center gap-2 mb-3">
-                    <div class="w-1 h-5 rounded-full" style="background:linear-gradient(180deg,#6366f1,#8b5cf6)"></div>
-                    <p class="text-gray-700 text-sm font-black tracking-tight">Pilih mata pelajaran:</p>
-                </div>
-
-                <!-- PAKET LIST -->
-                <div id="welcome-paket-list" class="space-y-2.5 min-h-[60px]">
-                    <div class="text-center py-6">
-                        <div class="w-8 h-8 rounded-full border-4 border-indigo-200 border-t-indigo-500 animate-spin mx-auto mb-2"></div>
-                        <p class="text-gray-400 text-sm">Memuat ujian...</p>
-                    </div>
-                </div>
-
-                <!-- STATUS BADGES -->
-                <div class="mt-5 pt-4 border-t border-gray-100 grid grid-cols-2 gap-y-2 gap-x-3">
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style="background:#eff6ff">
-                            <i data-lucide="maximize-2" class="w-3 h-3 text-blue-500"></i>
-                        </div>
-                        <span class="text-[10px] font-semibold text-gray-500">Layar Penuh Aktif</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style="background:#f0fdf4">
-                            <i data-lucide="shield-check" class="w-3 h-3 text-emerald-500"></i>
-                        </div>
-                        <span class="text-[10px] font-semibold text-gray-500">Anti-Kecurangan ON</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style="background:#ecfeff">
-                            <i data-lucide="wifi" class="w-3 h-3 text-cyan-500"></i>
-                        </div>
-                        <span class="text-[10px] font-semibold text-gray-500">Koneksi Terverifikasi</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style="background:#fffbeb">
-                            <i data-lucide="clock" class="w-3 h-3 text-amber-500"></i>
-                        </div>
-                        <span class="text-[10px] font-semibold text-gray-500">Timer mulai saat soal dibuka</span>
-                    </div>
-                </div>
-
+                <h2 class="text-2xl font-black text-white tracking-tight mb-1">Selamat Datang</h2>
+                <p class="text-blue-100 text-xs font-semibold tracking-widest uppercase opacity-80">
+                    <span class="text-white font-black">INTEGRI</span><span style="color:#bfdbfe">TEST</span>
+                    &nbsp;·&nbsp; Ujian Berbasis Komputer
+                </p>
             </div>
         </div>
-    </div>
 
-    <!-- SECTION: EXAM -->
+        <!-- ── IDENTITY CARD ── -->
+        <div class="mx-4 -mt-4 relative z-10">
+            <div class="bg-white rounded-2xl shadow-lg border border-blue-100 overflow-hidden">
+                <div class="grid grid-cols-3 divide-x divide-blue-50">
+                    <div class="flex flex-col items-center py-4 px-2 text-center">
+                        <div class="w-8 h-8 rounded-xl flex items-center justify-center mb-2" style="background:#dbeafe;">
+                            <i data-lucide="user" class="w-4 h-4 text-blue-600"></i>
+                        </div>
+                        <p class="text-[9px] font-bold uppercase tracking-widest text-blue-400 mb-1">Nama</p>
+                        <p id="welcome-name" class="text-gray-800 font-black text-xs leading-tight break-all">—</p>
+                    </div>
+                    <div class="flex flex-col items-center py-4 px-2 text-center">
+                        <div class="w-8 h-8 rounded-xl flex items-center justify-center mb-2" style="background:#ede9fe;">
+                            <i data-lucide="hash" class="w-4 h-4 text-indigo-600"></i>
+                        </div>
+                        <p id="welcome-nisn-label" class="text-[9px] font-bold uppercase tracking-widest text-indigo-400 mb-1">NISN</p>
+                        <p id="welcome-nisn" class="text-gray-800 font-black text-xs leading-tight">—</p>
+                    </div>
+                    <div class="flex flex-col items-center py-4 px-2 text-center">
+                        <div class="w-8 h-8 rounded-xl flex items-center justify-center mb-2" style="background:#dcfce7;">
+                            <i data-lucide="school" class="w-4 h-4 text-emerald-600"></i>
+                        </div>
+                        <p class="text-[9px] font-bold uppercase tracking-widest text-emerald-400 mb-1">Kelas</p>
+                        <p id="welcome-kelas" class="text-gray-800 font-black text-xs leading-tight">—</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── BODY ── -->
+        <div class="flex-1 px-4 pt-4 pb-6 space-y-4">
+
+            <!-- Motivasi -->
+            <div class="bg-white rounded-2xl border border-blue-100 shadow-sm p-4 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style="background:#dbeafe;">
+                    <i data-lucide="star" class="w-4 h-4 text-blue-500"></i>
+                </div>
+                <p id="welcome-motivasi-text" class="text-gray-700 text-sm leading-relaxed">
+                    Kerjakan dengan <strong class="text-blue-600">jujur</strong> dan <strong class="text-blue-600">penuh semangat</strong>. Hasil terbaik lahir dari usaha yang sungguh-sungguh. Percayalah pada kemampuanmu — <strong class="text-indigo-600">sukses menantimu!</strong>
+                </p>
+            </div>
+
+            <!-- Pilih Mata Pelajaran -->
+            <div class="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
+                <div class="px-4 py-3 border-b border-blue-50 flex items-center gap-2">
+                    <div class="w-1 h-4 rounded-full" style="background:linear-gradient(180deg,#2563eb,#6366f1)"></div>
+                    <p class="text-gray-800 text-sm font-black">Pilih Mata Pelajaran</p>
+                </div>
+                <div id="welcome-paket-list" class="p-3 space-y-2 min-h-[80px]">
+                    <div class="flex items-center justify-center gap-2 py-5 text-gray-400">
+                        <div class="w-5 h-5 rounded-full border-2 border-blue-200 border-t-blue-500 animate-spin"></div>
+                        <span class="text-sm">Memuat ujian...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status badges -->
+            <div class="bg-white rounded-2xl border border-blue-100 shadow-sm p-4 grid grid-cols-2 gap-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#dbeafe;">
+                        <i data-lucide="maximize-2" class="w-3 h-3 text-blue-500"></i>
+                    </div>
+                    <span class="text-[10px] font-semibold text-gray-500">Layar Penuh Aktif</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#dcfce7;">
+                        <i data-lucide="shield-check" class="w-3 h-3 text-emerald-500"></i>
+                    </div>
+                    <span class="text-[10px] font-semibold text-gray-500">Anti-Kecurangan ON</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#ecfeff;">
+                        <i data-lucide="wifi" class="w-3 h-3 text-cyan-500"></i>
+                    </div>
+                    <span class="text-[10px] font-semibold text-gray-500">Koneksi Terverifikasi</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#fffbeb;">
+                        <i data-lucide="clock" class="w-3 h-3 text-amber-500"></i>
+                    </div>
+                    <span class="text-[10px] font-semibold text-gray-500">Timer mulai saat soal dibuka</span>
+                </div>
+            </div>
+
+        </div>
+    </div>    <!-- SECTION: EXAM -->
     <div id="section-exam" class="hidden-section min-h-screen bg-slate-100 flex flex-col no-copy relative overflow-hidden">
         <header class="bg-white shadow-sm border-b sticky top-0 z-30">
             <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -3229,6 +3273,14 @@
 
     <!-- SECTION: RESULT -->
     <div id="section-result" class="hidden-section min-h-screen bg-slate-900 flex flex-col items-center justify-start pt-10 p-4 overflow-y-auto">
+        <!-- BANNER OFFLINE -->
+        <div id="offline-result-banner" class="w-full max-w-2xl mb-3 rounded-2xl border-2 border-orange-300 bg-orange-50 px-5 py-3 flex items-start gap-3 text-left" style="display:none;">
+            <span style="font-size:1.3rem;line-height:1.2">&#9888;&#65039;</span>
+            <div>
+                <p class="text-orange-800 font-black text-sm">Mode Offline — Nilai Belum Tersimpan ke Server</p>
+                <p class="text-orange-700 text-xs mt-0.5">Koneksi terputus. Nilai tersimpan sementara di perangkat. Sistem mencoba kirim ulang otomatis. Jika gagal, tunjukkan layar ini ke pengawas dan <strong>jangan tutup halaman.</strong></p>
+            </div>
+        </div>
         <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full text-center relative mb-8">
             <div id="result-icon-container" class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="check-circle" class="w-10 h-10"></i></div>
             <h2 id="result-title" class="text-2xl font-bold text-gray-800 mb-2">Ujian Selesai!</h2>
@@ -4784,32 +4836,30 @@
                 'from-rose-500 to-rose-700', 'from-amber-500 to-amber-700',
             ];
 
-            // Palet warna cerah untuk kartu paket
-            const cardStyles = [
-                { bg: 'linear-gradient(135deg,#6366f1,#8b5cf6)', shadow: 'rgba(99,102,241,0.35)' },
-                { bg: 'linear-gradient(135deg,#0ea5e9,#06b6d4)', shadow: 'rgba(14,165,233,0.35)' },
-                { bg: 'linear-gradient(135deg,#10b981,#059669)', shadow: 'rgba(16,185,129,0.35)' },
-                { bg: 'linear-gradient(135deg,#f59e0b,#ef4444)', shadow: 'rgba(245,158,11,0.35)' },
-                { bg: 'linear-gradient(135deg,#ec4899,#8b5cf6)', shadow: 'rgba(236,72,153,0.35)' },
-                { bg: 'linear-gradient(135deg,#f97316,#ef4444)', shadow: 'rgba(249,115,22,0.35)' },
+            // Palet warna biru-indigo seragam
+            const cardAccents = [
+                { icon:'#1d4ed8', badge:'#dbeafe', text:'#1e40af' },
+                { icon:'#4338ca', badge:'#e0e7ff', text:'#3730a3' },
+                { icon:'#0369a1', badge:'#e0f2fe', text:'#075985' },
+                { icon:'#1e3a8a', badge:'#bfdbfe', text:'#1e40af' },
             ];
             container.innerHTML = paketCocok.map((p, i) => {
-                const style = cardStyles[i % cardStyles.length];
+                const ac = cardAccents[i % cardAccents.length];
                 const jenisLabel = (p.jenis && p.jenis !== 'nonpaket') ? `Paket ${p.jenis}` : 'Ujian';
                 return `
                 <button onclick="window.startExamFromWelcome('${p.id}')"
-                    class="w-full text-left rounded-2xl overflow-hidden transition-all duration-150 active:scale-[0.97]"
-                    style="background:${style.bg}; box-shadow: 0 6px 20px ${style.shadow};">
-                    <div class="flex items-center gap-4 px-4 py-3.5">
-                        <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style="background:rgba(255,255,255,0.2); border:1.5px solid rgba(255,255,255,0.3)">
-                            <i data-lucide="book-open" class="w-5 h-5 text-white"></i>
+                    class="w-full text-left rounded-xl border border-blue-100 bg-white transition-all duration-150 active:scale-[0.98] hover:border-blue-300 hover:shadow-md"
+                    style="box-shadow:0 1px 4px rgba(59,130,246,0.08);">
+                    <div class="flex items-center gap-3 px-4 py-3.5">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:${ac.badge};">
+                            <i data-lucide="book-open" class="w-5 h-5" style="color:${ac.icon}"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p class="text-white font-black text-sm leading-tight truncate drop-shadow-sm">${p.nama}</p>
-                            <p class="text-white/70 text-xs mt-0.5 font-medium">${p.mapel ? p.mapel + ' · ' : ''}${jenisLabel}</p>
+                            <p class="font-black text-sm text-gray-800 leading-tight truncate">${p.nama}</p>
+                            <p class="text-xs mt-0.5 font-medium" style="color:${ac.text}">${p.mapel ? p.mapel + ' · ' : ''}${jenisLabel}</p>
                         </div>
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style="background:rgba(255,255,255,0.25)">
-                            <i data-lucide="arrow-right" class="w-4 h-4 text-white"></i>
+                        <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style="background:#dbeafe;">
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-blue-500"></i>
                         </div>
                     </div>
                 </button>`;
@@ -5629,6 +5679,15 @@
             };
             document.getElementById('ws-detail').textContent = detailMap[message] || message;
 
+            // Nasihat dinamis berdasarkan jumlah pelanggaran
+            const nasihatList = [
+                'Ini adalah peringatan pertama. Ujian yang jujur mencerminkan karakter aslimu. Kamu pasti bisa tanpa kecurangan!',
+                'Sudah dua kali terdeteksi. Ingat, setiap pelanggaran tercatat permanen. Lebih baik nilai rendah dengan jujur daripada curang dan menanggung malu.',
+                'Ini peringatan terakhir! Satu pelanggaran lagi dan kamu akan DIDISKUALIFIKASI. Berhentilah sekarang, mulailah dengan hati yang bersih.'
+            ];
+            const nasihatEl = document.getElementById('ws-nasihat');
+            if (nasihatEl) nasihatEl.textContent = nasihatList[Math.min(violations - 1, 2)];
+
             modal.classList.remove('hidden');
             flashScreen();
 
@@ -5660,6 +5719,14 @@
             if (modal) modal.classList.add('hidden');
             document.getElementById('ws-cd-wrapper').classList.remove('hidden');
             isWarningActive = false;
+            // Paksa kembali ke fullscreen setelah tutup peringatan
+            try {
+                const el = document.documentElement;
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+                    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                }
+            } catch(e) {}
             if (violations >= 3) _showDQModal();
         };
 
