@@ -178,6 +178,12 @@
                     window.listenForRuang();
                 }
 
+                // ★ RESTORE SESSION — cek sesi admin/pengawas yang tersimpan, delay agar
+                // semua listener & data Firestore sudah siap sebelum UI di-restore
+                setTimeout(() => {
+                    if (window.restoreStaffSession) window.restoreStaffSession();
+                }, 900);
+
             } catch (error) {
                 console.warn("Firebase Init Error/Timeout:", error);
                 window.isFirebaseReady = false;
@@ -5107,6 +5113,13 @@
                 window.currentUserRole = 'admin';
                 window.currentPengawasRuang = null;
 
+                // ★ Simpan session ke sessionStorage agar bertahan saat refresh
+                sessionStorage.setItem('integritest_staff_session', JSON.stringify({
+                    role: 'admin',
+                    displayName: adminDisplayName,
+                    savedAt: Date.now()
+                }));
+
                 // ★ Simpan UID + role ke Firestore agar Firestore Rules bisa verifikasi
                 try {
                     const uid = window.auth && window.auth.currentUser && window.auth.currentUser.uid;
@@ -5171,6 +5184,13 @@
             // Login berhasil sebagai pengawas
             window.currentUserRole = 'pengawas';
             window.currentPengawasRuang = ruang;
+
+            // ★ Simpan session ke sessionStorage agar bertahan saat refresh
+            sessionStorage.setItem('integritest_staff_session', JSON.stringify({
+                role: 'pengawas',
+                ruang: ruang,
+                savedAt: Date.now()
+            }));
 
             // ★ Simpan UID + role pengawas ke Firestore
             try {
@@ -5301,7 +5321,92 @@
         };
 
         window.logout = function() {
+            sessionStorage.removeItem('integritest_staff_session');
             location.reload();
+        };
+
+        // ★ RESTORE SESSION setelah refresh halaman
+        // Membaca sessionStorage dan mengembalikan state login admin/pengawas
+        // tanpa perlu login ulang, selama tab browser masih terbuka.
+        window.restoreStaffSession = function() {
+            const raw = sessionStorage.getItem('integritest_staff_session');
+            if (!raw) return; // tidak ada sesi tersimpan, tampilkan login normal
+
+            let session;
+            try { session = JSON.parse(raw); } catch(e) { sessionStorage.removeItem('integritest_staff_session'); return; }
+
+            // Tolak session lebih dari 12 jam (keamanan)
+            if (!session.savedAt || (Date.now() - session.savedAt) > 12 * 60 * 60 * 1000) {
+                sessionStorage.removeItem('integritest_staff_session');
+                return;
+            }
+
+            if (session.role === 'admin') {
+                // ── Restore admin session ──
+                window.currentUserRole = 'admin';
+                window.currentPengawasRuang = null;
+
+                if(window.setupRealtimeListener) window.setupRealtimeListener();
+                if(window.listenForKelas) window.listenForKelas();
+                if(window.listenForPaket) window.listenForPaket();
+                if(window.listenForRuang) window.listenForRuang();
+                if(window.listenForActiveSesi) window.listenForActiveSesi();
+
+                const adminDisplayName = session.displayName || 'Admin';
+                document.getElementById('dash-header-title').textContent = 'Panel Admin / Koordinator';
+                document.getElementById('dash-header-subtitle').textContent = `Akses Penuh — Login sebagai: ${adminDisplayName}`;
+                document.getElementById('dash-header-icon').className = 'bg-indigo-600 p-2 rounded-lg';
+                document.getElementById('pengawas-room-badge').classList.add('hidden');
+                document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.remove('hidden'));
+                const mobileNav = document.getElementById('mobile-bottom-nav');
+                if (mobileNav) mobileNav.style.display = '';
+
+                document.getElementById('section-login').classList.add('hidden-section');
+                document.getElementById('section-dashboard').classList.remove('hidden-section');
+
+                const teacherInput = document.getElementById('teacher-token-input');
+                if (teacherInput) teacherInput.value = window.currentExamToken;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                setTimeout(() => { if (window.renderIntegrityDashboard) window.renderIntegrityDashboard(); }, 800);
+
+                console.log('[Session] Admin session restored');
+
+            } else if (session.role === 'pengawas' && session.ruang) {
+                // ── Restore pengawas session ──
+                const ruang = session.ruang;
+
+                // Verifikasi ruang masih ada di ruangList (bisa berubah kalau admin hapus)
+                // Kalau ruangList belum dimuat, pakai data dari session langsung
+                window.currentUserRole = 'pengawas';
+                window.currentPengawasRuang = ruang;
+
+                if(window.setupRealtimeListener) window.setupRealtimeListener();
+                if(window.listenForKelas) window.listenForKelas();
+                if(window.listenForPaket) window.listenForPaket();
+                if(window.listenForRuang) window.listenForRuang();
+                if(window.listenForActiveSesi) window.listenForActiveSesi();
+
+                document.getElementById('dash-header-title').textContent = 'Monitoring Ruang';
+                document.getElementById('dash-header-subtitle').textContent = `Pengawas ${ruang.nama}`;
+                document.getElementById('dash-header-icon').className = 'bg-amber-500 p-2 rounded-lg';
+                const badge = document.getElementById('pengawas-room-badge');
+                badge.classList.remove('hidden');
+                badge.classList.add('flex');
+                document.getElementById('pengawas-room-label').textContent = ruang.nama;
+
+                document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.admin-only-el').forEach(el => el.classList.add('hidden'));
+
+                document.getElementById('section-login').classList.add('hidden-section');
+                document.getElementById('section-dashboard').classList.remove('hidden-section');
+                window.switchDashTab('nilai');
+
+                const filterRuangEl = document.getElementById('filter-ruang');
+                if (filterRuangEl) { filterRuangEl.value = ruang.nama; filterRuangEl.disabled = true; }
+
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                console.log('[Session] Pengawas session restored:', ruang.nama);
+            }
         };
         
         // ====================================================
