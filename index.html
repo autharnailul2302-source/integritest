@@ -171,7 +171,7 @@
                     if (window.listenForKelas) window.listenForKelas();
                 }, 500);
                 
-                if (window.currentUserRole === 'teacher') {
+                if (window.isStaff()) {
                     setupRealtimeListener();
                     window.listenForKelas();
                     window.listenForPaket();
@@ -823,6 +823,12 @@
             } catch (err) { alert("Gagal menyimpan: " + err.message); }
         };
 
+        // ── ROLE HELPER ─────────────────────────────────────────────
+        window.isAdmin    = () => window.currentUserRole === 'admin';
+        window.isPengawas = () => window.currentUserRole === 'pengawas';
+        window.isStaff    = () => ['admin','pengawas'].includes(window.currentUserRole);
+        window.isSiswa    = () => window.currentUserRole === 'siswa';
+
         window.setupRealtimeListener = () => {
             if (!window.isFirebaseReady || !window.db) {
                 // Jangan loop selamanya jika offline
@@ -837,7 +843,7 @@
                     results.push({ id: doc.id, ...doc.data() });
                 });
                 
-                if (!isInitialLoad && window.currentUserRole === 'teacher') {
+                if (!isInitialLoad && window.isStaff()) {
                     snapshot.docChanges().forEach((change) => {
                         if (change.type === "modified" || change.type === "added") {
                             const data = change.doc.data();
@@ -4812,6 +4818,22 @@
                 // ── 7. Simpan data login ke global untuk dipakai saat klik paket ──
                 window._loginData = { name, studentNisn, cls, room, tokenInput, paketCocok };
 
+                // ★ Simpan UID siswa ke Firestore dengan role=siswa
+                try {
+                    const uid = window.auth && window.auth.currentUser && window.auth.currentUser.uid;
+                    if (uid && window.db) {
+                        setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'authorized_uids', uid), {
+                            role: 'siswa',
+                            nama: name,
+                            nisn: studentNisn,
+                            kelas: cls,
+                            ruang: room,
+                            loginAt: Date.now()
+                        });
+                        window.currentUID = uid;
+                    }
+                } catch(uidErr) { console.warn('[Auth] UID save:', uidErr); }
+
                 // ── 8. Tampilkan halaman SELAMAT DATANG ──
                 document.getElementById('welcome-name').textContent  = name;
                 document.getElementById('welcome-nisn').textContent  = studentNisn;
@@ -5055,8 +5077,21 @@
                 }
 
                 // ── Login berhasil ──
-                window.currentUserRole = 'teacher';
+                window.currentUserRole = 'admin';
                 window.currentPengawasRuang = null;
+
+                // ★ Simpan UID + role ke Firestore agar Firestore Rules bisa verifikasi
+                try {
+                    const uid = window.auth && window.auth.currentUser && window.auth.currentUser.uid;
+                    if (uid && window.db) {
+                        await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'authorized_uids', uid), {
+                            role: 'admin',
+                            username: u,
+                            loginAt: Date.now()
+                        });
+                        window.currentUID = uid;
+                    }
+                } catch(uidErr) { console.warn('[Auth] UID save gagal:', uidErr); }
                 if(window.setupRealtimeListener) window.setupRealtimeListener();
                 if(window.listenForKelas) window.listenForKelas();
                 if(window.listenForPaket) window.listenForPaket();
@@ -5107,8 +5142,22 @@
             }
 
             // Login berhasil sebagai pengawas
-            window.currentUserRole = 'teacher';
-            window.currentPengawasRuang = ruang; // simpan info ruang yang dijaga
+            window.currentUserRole = 'pengawas';
+            window.currentPengawasRuang = ruang;
+
+            // ★ Simpan UID + role pengawas ke Firestore
+            try {
+                const uid = window.auth && window.auth.currentUser && window.auth.currentUser.uid;
+                if (uid && window.db) {
+                    setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'authorized_uids', uid), {
+                        role: 'pengawas',
+                        ruangId: ruang.id,
+                        ruangNama: ruang.nama,
+                        loginAt: Date.now()
+                    });
+                    window.currentUID = uid;
+                }
+            } catch(uidErr) { console.warn('[Auth] UID save:', uidErr); }
 
             if(window.setupRealtimeListener) window.setupRealtimeListener();
             if(window.listenForKelas) window.listenForKelas();
@@ -5840,6 +5889,15 @@
                 name: (currentStudent || {}).name,
                 date: new Date().toISOString()
             })); } catch(e) {}
+
+            // ★ Hapus UID siswa dari authorized_uids setelah ujian selesai
+            try {
+                const uid = window.currentUID || (window.auth && window.auth.currentUser && window.auth.currentUser.uid);
+                if (uid && window.db) {
+                    deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'authorized_uids', uid))
+                        .catch(() => {});
+                }
+            } catch(e) {}
 
             // ── PINDAH HALAMAN DULU — sebelum DOM manipulation apapun ──
             const dqModal = document.getElementById('modal-dq-final');
