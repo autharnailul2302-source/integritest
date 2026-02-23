@@ -1290,20 +1290,39 @@
         </div>
     </div>
     <!-- ══════════ MODAL DISKUALIFIKASI FINAL (otomatis redirect ke hasil) ══════════ -->
-    <div id="modal-dq-final" class="fixed inset-0 z-[1000] hidden" style="background:rgba(0,0,0,0.99)">
-        <div class="h-full flex flex-col items-center justify-center p-6 text-center">
-            <div class="w-36 h-36 rounded-full bg-red-700 border-8 border-red-500 flex items-center justify-center mb-8 shadow-2xl shadow-red-500/50">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-20 h-20 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+    <div id="modal-dq-final" class="fixed inset-0 z-[1000] hidden" style="background:rgba(0,0,0,0.97)">
+        <div class="h-full flex flex-col items-center justify-center px-5 py-8 text-center overflow-y-auto">
+
+            <!-- Ikon X merah -->
+            <div class="w-24 h-24 rounded-full bg-red-700 border-4 border-red-500 flex items-center justify-center mb-5 shadow-2xl shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
                 </svg>
             </div>
-            <h1 class="text-5xl md:text-6xl font-black text-red-500 uppercase tracking-widest mb-4">DISKUALIFIKASI</h1>
-            <p id="dq-name" class="text-white text-xl font-bold mb-2"></p>
-            <p class="text-gray-400 text-base mb-8">3 pelanggaran terdeteksi. Ujian dihentikan secara otomatis oleh sistem.</p>
-            <div class="bg-gray-900 border border-gray-700 rounded-xl p-4 max-w-md w-full mb-8">
-                <p class="text-gray-300 text-sm">Hasil ujian telah dikirim ke server dengan status <span class="text-red-400 font-bold">DISKUALIFIKASI</span>. Pengawas mendapat notifikasi secara langsung.</p>
+
+            <!-- Judul responsif — tidak terpotong di HP kecil -->
+            <h1 class="font-black text-red-500 uppercase mb-1 leading-tight px-2"
+                style="font-size:clamp(1.6rem,7vw,3.5rem);letter-spacing:0.04em;word-break:break-word;max-width:100%;">
+                DISKUALIFIKASI
+            </h1>
+            <p id="dq-name" class="text-white text-sm font-bold mb-5 opacity-70"></p>
+
+            <!-- Info box -->
+            <div class="bg-white/5 border border-red-900 rounded-2xl p-4 max-w-sm w-full mb-6">
+                <p class="text-gray-300 text-sm leading-relaxed">
+                    <span class="text-red-400 font-black">3 pelanggaran</span> terdeteksi.<br>
+                    Ujian dihentikan otomatis oleh sistem.<br>
+                    Pengawas mendapat notifikasi langsung.
+                </p>
             </div>
-            <p class="text-gray-500 text-sm">Mengarahkan ke halaman hasil dalam <span id="dq-cd" class="text-white font-bold text-xl">5</span> detik...</p>
+
+            <!-- Countdown -->
+            <p class="text-gray-500 text-xs mb-1">Menuju halaman hasil dalam</p>
+            <div class="flex items-baseline gap-2">
+                <span id="dq-cd" class="text-6xl font-black text-white tabular-nums">5</span>
+                <span class="text-gray-500 text-sm">detik</span>
+            </div>
+
         </div>
     </div>
 
@@ -4895,7 +4914,7 @@
                     return;
                 }
 
-                currentStudent = { name, cls, pkt };
+                currentStudent = { name, nisn: studentNisn, cls, pkt, room, paketId, paketNama: paket ? paket.nama : '' };
                 document.getElementById('header-name').innerText   = name;
                 document.getElementById('header-detail').innerText = `${cls} · ${paket ? paket.nama : 'Paket '+pkt}`;
 
@@ -5784,65 +5803,80 @@
             const mw = document.getElementById('modal-warning-student');
             if (mw) mw.classList.add('hidden');
 
+            // ── Hitung skor (safe: jaga dari array kosong) ──
+            const qList = currentQuestionList || [];
             let correctCount = 0;
-            currentQuestionList.forEach(q => {
+            qList.forEach(q => {
                 if (typeof q.correct === 'undefined') return;
                 if (userAnswers[q.id] === q.correct) correctCount++;
             });
-            const score = Math.round((correctCount / currentQuestionList.length) * 100);
+            const score = qList.length > 0 ? Math.round((correctCount / qList.length) * 100) : 0;
 
+            const _cs = currentStudent || {};
             const resultData = {
-                timestamp: Date.now(),
-                studentName: currentStudent.name,
-				studentNisn: currentStudent.nisn,
-                className: currentStudent.cls,
-                packetType: currentStudent.pkt,
-                score: score,
-                status: forced ? "DISKUALIFIKASI (Kecurangan)" : "SELESAI",
-                violations: forced ? 3 : violations,
+                timestamp:    Date.now(),
+                studentName:  _cs.name      || '-',
+                studentNisn:  _cs.nisn      || '-',
+                className:    _cs.cls       || '-',
+                packetType:   _cs.pkt       || '-',
+                paketId:      _cs.paketId   || '',
+                paketNama:    _cs.paketNama || '',
+                ruangUjian:   _cs.room      || '-',
+                sesiId:       window.currentSesiId   || 'default',
+                sesiName:     window.currentSesiName || '',
+                score:        score,
+                status:       forced ? "DISKUALIFIKASI (Kecurangan)" : "SELESAI",
+                violations:   forced ? 3 : violations,
                 violationLogs: violationLogs
             };
 
             if(window.saveExamResult) window.saveExamResult(resultData);
-            // ★ BARU: Tampilkan Skor Integritas di halaman hasil siswa
             setTimeout(() => {
                 if (window._patchResultPage) window._patchResultPage(forced ? 3 : violations, forced);
             }, 300);
-            // ★ BARU: Auto-refresh dashboard analitik jika sedang terbuka
             if (window._integrityAutoRefresh) window._integrityAutoRefresh();
 
-            localStorage.setItem('ukktkj_session_done', JSON.stringify({
-                name: currentStudent.name,
+            try { localStorage.setItem('ukktkj_session_done', JSON.stringify({
+                name: (currentStudent || {}).name,
                 date: new Date().toISOString()
-            }));
+            })); } catch(e) {}
 
-            const resultIcon = document.getElementById('result-icon-container');
-            const resultTitle = document.getElementById('result-title');
-            const resultMsg = document.getElementById('result-message');
-            const scoreEl = document.getElementById('final-score-display');
+            // ── PINDAH HALAMAN DULU — sebelum DOM manipulation apapun ──
+            const dqModal = document.getElementById('modal-dq-final');
+            if (dqModal) dqModal.classList.add('hidden');
+            document.getElementById('section-exam').classList.add('hidden-section');
+            document.getElementById('section-result').classList.remove('hidden-section');
+
+            // ── Isi UI halaman hasil (semua null-safe) ──
+            const resultIcon     = document.getElementById('result-icon-container');
+            const resultTitle    = document.getElementById('result-title');
+            const resultMsg      = document.getElementById('result-message');
+            const scoreEl        = document.getElementById('final-score-display');
             const motivationalEl = document.getElementById('motivational-message');
-            const btnReview = document.getElementById('btn-review');
-            
-            scoreEl.innerText = score;
+            const btnReview      = document.getElementById('btn-review');
+
+            if (scoreEl) scoreEl.innerText = score;
 
             if (forced) {
-                playAlarm();
-                
-                resultIcon.className = "w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse";
-                resultIcon.innerHTML = `<i data-lucide="alert-octagon" class="w-10 h-10"></i>`;
-                
-                resultTitle.innerText = "ANDA DIDISKUALIFIKASI";
-                resultTitle.className = "text-2xl font-bold text-red-600 mb-2";
-                
-                resultMsg.innerText = "Setiap kecurangan akan terdeteksi di sistem. Ingat, kejujuran adalah hal terpenting.";
-                resultMsg.className = "text-red-500 mb-6 font-bold text-lg";
-                
-                scoreEl.className = "text-5xl font-extrabold text-red-600";
-                
-                motivationalEl.innerHTML = `Sistem mencatat 3x pelanggaran. Kejujuran adalah hal terpenting dalam ujian ini.`;
-                motivationalEl.className = "mb-6 px-4 py-3 rounded-lg font-bold text-sm md:text-base border-l-4 bg-red-100 text-red-800 border-red-500";
-                
-                btnReview.style.display = 'none';
+                try { playAlarm(); } catch(e) {}
+                if (resultIcon) {
+                    resultIcon.className = "w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse";
+                    resultIcon.innerHTML = `<i data-lucide="alert-octagon" class="w-10 h-10"></i>`;
+                }
+                if (resultTitle) {
+                    resultTitle.innerText = "ANDA DIDISKUALIFIKASI";
+                    resultTitle.className = "text-2xl font-bold text-red-600 mb-2";
+                }
+                if (resultMsg) {
+                    resultMsg.innerText = "Setiap kecurangan akan terdeteksi. Kejujuran adalah yang terpenting.";
+                    resultMsg.className = "text-red-500 mb-6 font-bold text-lg";
+                }
+                if (scoreEl) scoreEl.className = "text-5xl font-extrabold text-red-600";
+                if (motivationalEl) {
+                    motivationalEl.innerHTML = "Sistem mencatat 3x pelanggaran. Kejujuran adalah hal terpenting dalam ujian ini.";
+                    motivationalEl.className = "mb-6 px-4 py-3 rounded-lg font-bold text-sm md:text-base border-l-4 bg-red-100 text-red-800 border-red-500";
+                }
+                if (btnReview) btnReview.style.display = 'none';
 
             } else {
                 resultIcon.className = "w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6";
@@ -5917,9 +5951,6 @@
             }
             
             if(typeof lucide !== 'undefined') lucide.createIcons();
-
-            document.getElementById('section-exam').classList.add('hidden-section');
-            document.getElementById('section-result').classList.remove('hidden-section');
         }
 
         window.updateDashboardTable = function(data) {
@@ -6038,16 +6069,15 @@
                 const row = `
                     <tr class="${rowClass} transition-colors">
                         <td class="px-6 py-4">
-                            <div>${date}</div>
+                            <div class="font-semibold text-gray-900">${item.studentName}</div>
                             ${sesiInfo}
                         </td>
-                        <td class="px-6 py-4 font-medium text-gray-900">${item.studentName}</td>
-                        <td class="px-6 py-4 text-gray-500">${item.studentNisn || '-'}</td>
-                        <td class="px-6 py-4 text-gray-500">${item.className}</td>
+                        <td class="px-6 py-4 text-gray-500 text-sm">${item.studentNisn || '-'}</td>
+                        <td class="px-6 py-4 text-gray-600 text-sm">${item.className || '-'}</td>
                         <td class="px-6 py-4"><span class="${ruangColor}">${ruangLabel}</span></td>
-                        <td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs font-bold ${pktColor}">Paket ${item.packetType}</span></td>
-                        <td class="px-6 py-4 text-center text-lg font-bold text-gray-800">${item.score}</td>
-                        <td class="px-6 py-4 ${statusColor}">${statusIcon} ${item.status}</td>
+                        <td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs font-bold ${pktColor}">${item.paketNama || ('Paket ' + item.packetType)}</span></td>
+                        <td class="px-6 py-4 text-center text-lg font-bold ${(item.score??-1)>=80?'text-emerald-600':(item.score??-1)>=60?'text-amber-500':'text-red-500'}">${item.score ?? '-'}</td>
+                        <td class="px-6 py-4"><span class="${statusColor}">${statusIcon} ${item.status}</span></td>
                         <td class="px-6 py-4 text-center">${violationDisplay}</td>
                         <td class="px-6 py-4 text-center">
                             ${(()=>{
