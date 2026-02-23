@@ -6013,6 +6013,8 @@
 
         window.updateDashboardTable = function(data) {
             dashboardData = data;
+            // Simpan semua data tanpa filter agar PDF rekap kelas selalu lengkap
+            window._allDashboardData = data;
             filterDashboardInternal();
         };
 
@@ -6258,16 +6260,50 @@
         function makeQRPlaceholder(seed) {
             const h = [...String(seed)].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
             const hex = Math.abs(h).toString(16).toUpperCase().padStart(8, '0');
-            return `<div style="display:inline-block;border:2px solid #065f46;padding:3px 4px;font-family:monospace;font-size:6.5px;line-height:1.3;color:#065f46;background:white;border-radius:3px">
+            return `<div style="display:inline-block;border:2px solid #2563eb;padding:4px 5px;font-family:monospace;font-size:6.5px;line-height:1.4;color:#2563eb;background:white;border-radius:4px">
                 <div>█▀▀█ ${hex.slice(0,2)} ▀</div>
                 <div>█ ▄ █ ${hex.slice(2,4)}</div>
                 <div>█▄▄█ ${hex.slice(4,6)} ▄</div>
                 <div>▄ ${hex.slice(6)} ▄▄</div>
-                <div style="font-size:5.5px;text-align:center;margin-top:1px;letter-spacing:0.5px">VERIFIED ✓</div>
+                <div style="font-size:5.5px;text-align:center;margin-top:2px;letter-spacing:0.5px;color:#1d4ed8;font-weight:700">VERIFIED ✓</div>
             </div>`;
         }
 
-        // Bangun halaman PDF per siswa
+        // ── DESIGN TOKENS (seragam dengan web: blue-600/indigo-700/slate-900) ──
+        const PDF_COLORS = {
+            primary:    '#2563eb',   // blue-600  — accent utama web
+            primaryDark:'#1d4ed8',   // blue-700
+            indigo:     '#4f46e5',   // indigo-600
+            indigoDark: '#3730a3',   // indigo-800
+            dark:       '#0f172a',   // slate-900
+            darkMid:    '#1e293b',   // slate-800
+            mid:        '#334155',   // slate-700
+            muted:      '#64748b',   // slate-500
+            subtle:     '#94a3b8',   // slate-400
+            border:     '#e2e8f0',   // slate-200
+            surface:    '#f8fafc',   // slate-50
+            white:      '#ffffff',
+            // Status colors
+            green:      '#16a34a',   // green-600
+            greenBg:    '#f0fdf4',
+            greenBorder:'#bbf7d0',
+            amber:      '#d97706',   // amber-600
+            amberBg:    '#fffbeb',
+            amberBorder:'#fde68a',
+            red:        '#dc2626',   // red-600
+            redBg:      '#fef2f2',
+            redBorder:  '#fecaca',
+        };
+
+        // Warna badge per status integritas
+        function getStatusPalette(score, isDQ) {
+            if (isDQ || score === 0)  return { accent: PDF_COLORS.red,   bg: PDF_COLORS.redBg,   border: PDF_COLORS.redBorder,   stripe: '#fee2e2' };
+            if (score === 100)        return { accent: PDF_COLORS.green,  bg: PDF_COLORS.greenBg, border: PDF_COLORS.greenBorder, stripe: '#dcfce7' };
+            if (score >= 70)          return { accent: PDF_COLORS.amber,  bg: PDF_COLORS.amberBg, border: PDF_COLORS.amberBorder, stripe: '#fef9c3' };
+            return                           { accent: PDF_COLORS.red,   bg: PDF_COLORS.redBg,   border: PDF_COLORS.redBorder,   stripe: '#fee2e2' };
+        }
+
+        // Bangun halaman PDF per siswa — redesign modern
         function buildStudentCard(d, idx, schoolName) {
             const isDQ = (d.status || '').includes('DISKUALIFIKASI');
             const intScore = calcIntegrityScore(d);
@@ -6276,147 +6312,186 @@
             const conclusion = getSystemConclusion(intScore, isDQ);
             const now = new Date().toLocaleString('id-ID');
             const ujianTime = d.timestamp ? new Date(d.timestamp).toLocaleString('id-ID') : '-';
-            const hdrColor = cat.headerColor;
-            const scoreColor = intScore === 100 ? '#059669' : intScore >= 70 ? '#d97706' : '#dc2626';
+            const pal = getStatusPalette(intScore, isDQ);
             const statusLabel = isDQ ? 'DISKUALIFIKASI' : (d.score >= 75 ? 'LULUS' : 'TIDAK LULUS');
-            const statusColor = isDQ ? '#dc2626' : (d.score >= 75 ? '#059669' : '#d97706');
+            const statusColor = isDQ ? PDF_COLORS.red : (d.score >= 75 ? PDF_COLORS.green : PDF_COLORS.amber);
 
-            // Log insiden dari violationLogs
+            // Divider pill untuk section header
+            const sectionHead = (icon, label) =>
+                `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                    <div style="width:3px;height:14px;border-radius:2px;background:${PDF_COLORS.primary}"></div>
+                    <div style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:${PDF_COLORS.muted}">${icon} ${label}</div>
+                </div>`;
+
+            // Log insiden
             const logs = d.violationLogs || [];
             const logHTML = logs.length === 0
-                ? `<tr><td colspan="2" style="padding:7px 12px;font-style:italic;color:#6b7280;font-size:11px">Tidak ada insiden yang tercatat — seluruh sesi ujian berjalan bersih.</td></tr>`
+                ? `<tr><td colspan="2" style="padding:10px 14px;font-style:italic;color:${PDF_COLORS.subtle};font-size:11px;text-align:center">
+                        Tidak ada insiden tercatat — sesi ujian berjalan bersih ✓
+                   </td></tr>`
                 : logs.map((l, li) => {
                     const t = l.time ? new Date(l.time).toLocaleTimeString('id-ID') : '-';
-                    return `<tr style="background:${li % 2 === 0 ? '#fff7ed' : '#fff'}">
-                        <td style="padding:5px 10px;font-size:11px;color:#92400e;font-weight:700;white-space:nowrap;width:110px">${t}</td>
-                        <td style="padding:5px 10px;font-size:11px;color:#78350f">${l.message || 'Aktivitas mencurigakan terdeteksi'} &nbsp;<span style="background:#fde68a;color:#92400e;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px">Teguran ${li + 1}</span></td>
+                    return `<tr style="background:${li%2===0?PDF_COLORS.surface:PDF_COLORS.white}">
+                        <td style="padding:7px 12px;font-size:10.5px;font-weight:700;color:${PDF_COLORS.primary};white-space:nowrap;width:115px;border-right:1px solid ${PDF_COLORS.border}">${t}</td>
+                        <td style="padding:7px 12px;font-size:10.5px;color:${PDF_COLORS.mid}">
+                            ${l.message || 'Aktivitas mencurigakan terdeteksi'}
+                            &nbsp;<span style="background:${PDF_COLORS.primary};color:white;font-size:8.5px;font-weight:700;padding:2px 7px;border-radius:20px">Teguran ${li+1}</span>
+                        </td>
                     </tr>`;
-                }).join('');
+                  }).join('');
 
-            // Catatan pengawas - custom note jika ada, atau kosong untuk diisi manual
+            // Catatan pengawas
             const customNote = d._customNote || '';
             const noteBody = customNote
-                ? `<div style="font-size:12px;color:#334155;line-height:1.7">${autoNote.note}<br><br><strong>Catatan Pengawas:</strong> ${customNote}</div>`
-                : `<div style="font-size:12px;color:#334155;line-height:1.7;margin-bottom:10px">${autoNote.note}</div>
-                   <div style="border:1px dashed #cbd5e1;border-radius:6px;padding:8px 12px;background:#fafafa;min-height:40px">
-                     <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Catatan Pengawas (isi manual sebelum dicetak)</div>
-                     <div style="border-bottom:1px solid #e2e8f0;margin-bottom:6px;padding-bottom:2px"></div>
-                     <div style="border-bottom:1px solid #e2e8f0;padding-bottom:2px"></div>
+                ? `<p style="font-size:12px;color:${PDF_COLORS.mid};line-height:1.7;margin:0 0 8px 0">${autoNote.note}</p>
+                   <p style="font-size:12px;color:${PDF_COLORS.darkMid};line-height:1.7;margin:0"><strong>Catatan Pengawas:</strong> ${customNote}</p>`
+                : `<p style="font-size:12px;color:${PDF_COLORS.mid};line-height:1.7;margin:0 0 12px 0">${autoNote.note}</p>
+                   <div style="border:1.5px dashed ${PDF_COLORS.border};border-radius:8px;padding:10px 14px;background:${PDF_COLORS.surface};min-height:44px">
+                     <div style="font-size:8.5px;color:${PDF_COLORS.subtle};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Catatan Pengawas (isi manual sebelum dicetak)</div>
+                     <div style="border-bottom:1px solid ${PDF_COLORS.border};margin-bottom:7px"></div>
+                     <div style="border-bottom:1px solid ${PDF_COLORS.border}"></div>
                    </div>`;
 
-            return `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:740px;margin:0 auto 0 auto;page-break-after:always;padding-bottom:8px">
+            // Mini score bar
+            const barWidth = Math.max(intScore, 3);
+            const barColor = pal.accent;
 
-                <!-- HEADER DOKUMEN -->
-                <div style="background:linear-gradient(135deg,${hdrColor} 0%,#0f172a 100%);color:white;padding:20px 26px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:flex-start">
-                    <div>
-                        <div style="font-size:9px;letter-spacing:3px;opacity:0.65;text-transform:uppercase;margin-bottom:5px">Laporan Karakter Akademik Digital</div>
-                        <div style="font-size:21px;font-weight:900;letter-spacing:-0.3px">IntegrityTest Report</div>
-                        <div style="font-size:11px;opacity:0.78;margin-top:3px">${schoolName}</div>
+            return `<div style="font-family:'Segoe UI',system-ui,Arial,sans-serif;max-width:720px;margin:0 auto;page-break-after:always;padding-bottom:8px;background:white;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
+
+                <!-- ══ HEADER ══ -->
+                <div style="background:linear-gradient(135deg,${PDF_COLORS.primaryDark} 0%,${PDF_COLORS.indigoDark} 50%,${PDF_COLORS.dark} 100%);padding:22px 28px;display:flex;justify-content:space-between;align-items:flex-start;position:relative;overflow:hidden">
+                    <!-- Subtle grid overlay -->
+                    <div style="position:absolute;inset:0;opacity:0.05;background-image:linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px);background-size:20px 20px"></div>
+                    <div style="position:relative">
+                        <div style="font-size:8.5px;letter-spacing:3px;opacity:0.5;text-transform:uppercase;margin-bottom:6px;color:white">Laporan Karakter Akademik Digital</div>
+                        <div style="font-size:22px;font-weight:900;letter-spacing:-0.5px;color:white;line-height:1">INTEGRITEST</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;font-weight:500">${schoolName}</div>
+                        <!-- Status pill -->
+                        <div style="display:inline-flex;align-items:center;gap:5px;margin-top:10px;background:${pal.accent};color:white;font-size:9px;font-weight:800;padding:4px 10px;border-radius:20px;letter-spacing:0.5px">
+                            ${isDQ ? '✕ DISKUALIFIKASI' : intScore===100 ? '✓ INTEGRITAS SEMPURNA' : intScore>=70 ? '⚠ PERLU PEMBINAAN' : '✕ PERLU EVALUASI'}
+                        </div>
                     </div>
-                    <div style="text-align:right;flex-shrink:0">
-                        <div style="font-size:9px;opacity:0.6;margin-bottom:3px">Diterbitkan: ${now}</div>
+                    <div style="position:relative;text-align:right;flex-shrink:0">
+                        <div style="font-size:8px;color:rgba(255,255,255,0.45);margin-bottom:6px">Diterbitkan: ${now}</div>
                         ${makeQRPlaceholder(d.studentNisn || d.studentName || idx)}
-                        <div style="font-size:7.5px;opacity:0.55;margin-top:3px">Verified by IntegrityTest Engine</div>
+                        <div style="font-size:7px;color:rgba(255,255,255,0.35);margin-top:4px">IntegrityTest Engine v2</div>
                     </div>
                 </div>
 
-                <!-- IDENTITAS SISWA -->
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;padding:14px 26px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                <!-- ══ IDENTITAS SISWA ══ -->
+                <div style="background:${PDF_COLORS.surface};border-bottom:1px solid ${PDF_COLORS.border};padding:16px 28px;display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px">
                     <div>
-                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">Nama Peserta Didik</div>
-                        <div style="font-size:15px;font-weight:800;color:#0f172a;margin-top:2px">${d.studentName || '-'}</div>
+                        <div style="font-size:8.5px;color:${PDF_COLORS.subtle};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Nama Peserta Didik</div>
+                        <div style="font-size:17px;font-weight:800;color:${PDF_COLORS.dark}">${d.studentName || '-'}</div>
                     </div>
                     <div>
-                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">NISN</div>
-                        <div style="font-size:13px;font-weight:600;color:#334155;margin-top:2px">${d.studentNisn || '-'}</div>
+                        <div style="font-size:8.5px;color:${PDF_COLORS.subtle};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">NISN</div>
+                        <div style="font-size:13px;font-weight:700;color:${PDF_COLORS.mid}">${d.studentNisn || '-'}</div>
                     </div>
                     <div>
-                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">Kelas</div>
-                        <div style="font-size:13px;font-weight:600;color:#334155;margin-top:2px">${d.className || '-'}</div>
+                        <div style="font-size:8.5px;color:${PDF_COLORS.subtle};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Kelas</div>
+                        <div style="font-size:13px;font-weight:700;color:${PDF_COLORS.mid}">${d.className || '-'}</div>
                     </div>
                     <div>
-                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ruang Ujian</div>
-                        <div style="font-size:13px;font-weight:600;color:#334155;margin-top:2px">${d.ruangUjian || '-'}</div>
+                        <div style="font-size:8.5px;color:${PDF_COLORS.subtle};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Ruang Ujian</div>
+                        <div style="font-size:13px;font-weight:700;color:${PDF_COLORS.mid}">${d.ruangUjian || '-'}</div>
                     </div>
                     <div>
-                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">Waktu Ujian</div>
-                        <div style="font-size:11px;font-weight:600;color:#475569;margin-top:2px">${ujianTime}</div>
+                        <div style="font-size:8.5px;color:${PDF_COLORS.subtle};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Waktu Ujian</div>
+                        <div style="font-size:11px;font-weight:600;color:${PDF_COLORS.muted}">${ujianTime}</div>
                     </div>
                     <div>
-                        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:1px">Paket Soal</div>
-                        <div style="font-size:13px;font-weight:600;color:#334155;margin-top:2px">Paket ${d.packetType || '-'}</div>
+                        <div style="font-size:8.5px;color:${PDF_COLORS.subtle};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Paket Soal</div>
+                        <div style="font-size:13px;font-weight:700;color:${PDF_COLORS.mid}">Paket ${d.packetType || '-'}</div>
                     </div>
                 </div>
 
-                <!-- INTEGRITY DASHBOARD -->
-                <div style="border:1px solid #e2e8f0;border-top:none;padding:16px 26px;background:white">
-                    <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;margin-bottom:12px">📊 Integrity Dashboard</div>
+                <!-- ══ SCORE CARDS ══ -->
+                <div style="padding:18px 28px;background:white;border-bottom:1px solid ${PDF_COLORS.border}">
+                    ${sectionHead('▦', 'Ringkasan Hasil Ujian')}
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
 
-                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:13px;text-align:center">
-                            <div style="font-size:9px;color:#3b82f6;font-weight:700;text-transform:uppercase;margin-bottom:3px">Nilai Akademik</div>
-                            <div style="font-size:30px;font-weight:900;color:#1d4ed8">${d.score ?? '-'}</div>
-                            <div style="font-size:9px;color:#93c5fd;margin-top:1px">dari 100 poin</div>
+                        <!-- Nilai Akademik -->
+                        <div style="border:1.5px solid ${PDF_COLORS.border};border-radius:12px;padding:14px;text-align:center;background:${PDF_COLORS.surface}">
+                            <div style="font-size:8.5px;color:${PDF_COLORS.primary};font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nilai Akademik</div>
+                            <div style="font-size:32px;font-weight:900;color:${PDF_COLORS.primaryDark};line-height:1">${d.score ?? '—'}</div>
+                            <div style="font-size:9px;color:${PDF_COLORS.subtle};margin-top:4px">dari 100 poin</div>
+                            <!-- mini bar -->
+                            <div style="margin-top:8px;height:3px;background:${PDF_COLORS.border};border-radius:2px;overflow:hidden">
+                                <div style="height:100%;width:${Math.max(d.score||0,2)}%;background:${PDF_COLORS.primary};border-radius:2px"></div>
+                            </div>
                         </div>
 
-                        <div style="background:${intScore===100?'#ecfdf5':intScore>=70?'#fffbeb':'#fef2f2'};border:1px solid ${intScore===100?'#6ee7b7':intScore>=70?'#fcd34d':'#fca5a5'};border-radius:10px;padding:13px;text-align:center">
-                            <div style="font-size:9px;color:${scoreColor};font-weight:700;text-transform:uppercase;margin-bottom:3px">Indeks Integritas</div>
-                            <div style="font-size:30px;font-weight:900;color:${scoreColor}">${intScore}</div>
-                            <div style="font-size:9px;color:${scoreColor};opacity:0.7;margin-top:1px">${intScore}% — ${cat.label.replace(/[🏆✅⚠️🚨❌⛔]/g,'').trim()}</div>
+                        <!-- Indeks Integritas -->
+                        <div style="border:1.5px solid ${pal.border};border-radius:12px;padding:14px;text-align:center;background:${pal.bg}">
+                            <div style="font-size:8.5px;color:${pal.accent};font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Indeks Integritas</div>
+                            <div style="font-size:32px;font-weight:900;color:${pal.accent};line-height:1">${intScore}</div>
+                            <div style="font-size:9px;color:${pal.accent};opacity:0.7;margin-top:4px">${intScore}%</div>
+                            <div style="margin-top:8px;height:3px;background:${pal.border};border-radius:2px;overflow:hidden">
+                                <div style="height:100%;width:${barWidth}%;background:${barColor};border-radius:2px"></div>
+                            </div>
                         </div>
 
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:13px;text-align:center">
-                            <div style="font-size:9px;color:#64748b;font-weight:700;text-transform:uppercase;margin-bottom:3px">Status Ujian</div>
-                            <div style="font-size:16px;font-weight:900;color:${statusColor};margin-top:5px">${statusLabel}</div>
-                            <div style="font-size:9px;color:#94a3b8;margin-top:4px">${d.violations||0} pelanggaran</div>
+                        <!-- Status -->
+                        <div style="border:1.5px solid ${PDF_COLORS.border};border-radius:12px;padding:14px;text-align:center;background:${PDF_COLORS.surface}">
+                            <div style="font-size:8.5px;color:${PDF_COLORS.muted};font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Status Ujian</div>
+                            <div style="font-size:14px;font-weight:900;color:${statusColor};margin-top:8px;line-height:1.2">${statusLabel}</div>
+                            <div style="margin-top:8px;font-size:9px;color:${PDF_COLORS.subtle}">${d.violations||0} pelanggaran</div>
                         </div>
 
-                        <div style="background:${hdrColor}15;border:2px solid ${hdrColor}50;border-radius:10px;padding:13px;text-align:center">
-                            <div style="font-size:9px;color:${hdrColor};font-weight:700;text-transform:uppercase;margin-bottom:3px">Predikat</div>
-                            <div style="font-size:13px;font-weight:900;color:${hdrColor};margin-top:4px;line-height:1.3">${cat.predikat}</div>
-                            <div style="font-size:8px;color:#64748b;margin-top:4px">${autoNote.kategori}</div>
+                        <!-- Predikat -->
+                        <div style="border:1.5px solid ${pal.border};border-radius:12px;padding:14px;text-align:center;background:${pal.accent};color:white">
+                            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;opacity:0.75">Predikat</div>
+                            <div style="font-size:13px;font-weight:900;line-height:1.3;margin-top:8px">${cat.predikat}</div>
+                            <div style="font-size:8.5px;margin-top:8px;opacity:0.7">${autoNote.kategori}</div>
                         </div>
+
                     </div>
                 </div>
 
-                <!-- LOG INSIDEN -->
-                <div style="border:1px solid #e2e8f0;border-top:none;padding:14px 26px;background:white">
-                    <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;margin-bottom:10px">🔍 Log Insiden & Aktivitas Sistem</div>
-                    <table style="width:100%;border-collapse:collapse;border:1px solid #fed7aa;border-radius:8px;overflow:hidden">
-                        <thead><tr style="background:#fff7ed">
-                            <th style="padding:6px 10px;text-align:left;font-size:9px;color:#92400e;font-weight:700;text-transform:uppercase;border-bottom:1px solid #fed7aa;width:120px">Waktu Kejadian</th>
-                            <th style="padding:6px 10px;text-align:left;font-size:9px;color:#92400e;font-weight:700;text-transform:uppercase;border-bottom:1px solid #fed7aa">Deskripsi Aktivitas Terdeteksi</th>
-                        </tr></thead>
-                        <tbody>${logHTML}</tbody>
-                    </table>
+                <!-- ══ LOG INSIDEN ══ -->
+                <div style="padding:18px 28px;background:white;border-bottom:1px solid ${PDF_COLORS.border}">
+                    ${sectionHead('◎', 'Log Insiden & Aktivitas Sistem')}
+                    <div style="border:1px solid ${PDF_COLORS.border};border-radius:10px;overflow:hidden">
+                        <table style="width:100%;border-collapse:collapse">
+                            <thead>
+                                <tr style="background:${PDF_COLORS.primaryDark}">
+                                    <th style="padding:8px 12px;text-align:left;font-size:9px;color:rgba(255,255,255,0.8);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;width:120px">Waktu Kejadian</th>
+                                    <th style="padding:8px 12px;text-align:left;font-size:9px;color:rgba(255,255,255,0.8);font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Deskripsi Aktivitas Terdeteksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>${logHTML}</tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <!-- CATATAN SISTEM + PENGAWAS -->
-                <div style="border:1px solid #e2e8f0;border-top:none;padding:14px 26px;background:white">
-                    <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;margin-bottom:10px">📝 Catatan Otomatis & Pengawas</div>
-                    <div style="border-left:4px solid ${hdrColor};padding:10px 14px;background:#f8fafc;border-radius:0 8px 8px 0;margin-bottom:10px">
+                <!-- ══ CATATAN PENGAWAS ══ -->
+                <div style="padding:18px 28px;background:white;border-bottom:1px solid ${PDF_COLORS.border}">
+                    ${sectionHead('✎', 'Catatan Otomatis & Pengawas')}
+                    <div style="border-left:3px solid ${PDF_COLORS.primary};padding:12px 16px;background:${PDF_COLORS.surface};border-radius:0 10px 10px 0">
                         ${noteBody}
                     </div>
                 </div>
 
-                <!-- KESIMPULAN SISTEM -->
-                <div style="border:1px solid #e2e8f0;border-top:none;padding:13px 26px;background:${intScore===100?'#ecfdf5':intScore>=70?'#fffbeb':'#fef2f2'}">
-                    <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:${hdrColor};margin-bottom:7px">🤖 Kesimpulan Sistem (Auto-Generated)</div>
-                    <div style="font-size:12px;color:#334155;line-height:1.7;font-style:italic">"${conclusion}"</div>
+                <!-- ══ KESIMPULAN SISTEM ══ -->
+                <div style="padding:16px 28px;background:${pal.bg};border-bottom:1px solid ${pal.border}">
+                    ${sectionHead('⬡', 'Kesimpulan Sistem (Auto-Generated)')}
+                    <div style="font-size:11.5px;color:${PDF_COLORS.mid};line-height:1.8;font-style:italic;border-left:3px solid ${pal.accent};padding-left:14px">"${conclusion}"</div>
                 </div>
 
-                <!-- FOOTER FILOSOFIS -->
-                <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 14px 14px;background:#0f172a;padding:13px 26px;display:flex;justify-content:space-between;align-items:center;gap:16px">
-                    <div style="font-size:9.5px;color:#94a3b8;font-style:italic;line-height:1.6;flex:1">
-                        "Hasil ujian adalah potret kompetensi kognitif, namun integritas adalah cermin kualitas diri. Skor akademik bisa diperbaiki, tetapi kejujuran adalah fondasi yang harus dijaga selamanya. Laporan ini diterbitkan bukan untuk menghukum, melainkan untuk mendukung tumbuh kembang karakter yang autentik."
+                <!-- ══ FOOTER ══ -->
+                <div style="background:${PDF_COLORS.dark};padding:14px 28px;display:flex;justify-content:space-between;align-items:center;gap:16px">
+                    <div style="font-size:9.5px;color:rgba(255,255,255,0.3);font-style:italic;line-height:1.65;flex:1;max-width:500px">
+                        "Hasil ujian adalah potret kompetensi kognitif, namun integritas adalah cermin kualitas diri. Laporan ini diterbitkan bukan untuk menghukum, melainkan untuk mendukung tumbuh kembang karakter yang autentik."
                     </div>
-                    <div style="text-align:right;white-space:nowrap;flex-shrink:0">
-                        <div style="font-size:9px;color:#64748b;font-weight:700">IntegrityTest Engine v2</div>
-                        <div style="font-size:8px;color:#475569;margin-top:1px">Dok. #${String(idx+1).padStart(4,'0')}-${(d.studentNisn||'0000').toString().slice(-4)}</div>
-                        <div style="font-size:8px;color:#334155;margin-top:2px">✅ Verified &amp; Auto-Generated</div>
+                    <div style="text-align:right;flex-shrink:0;border-left:1px solid rgba(255,255,255,0.08);padding-left:16px">
+                        <div style="font-size:10px;color:rgba(255,255,255,0.5);font-weight:700;letter-spacing:0.5px">INTEGRITEST</div>
+                        <div style="font-size:8px;color:rgba(255,255,255,0.25);margin-top:2px">Dok. #${String(idx+1).padStart(4,'0')}-${(d.studentNisn||'0000').toString().slice(-4)}</div>
+                        <div style="font-size:8px;color:${PDF_COLORS.primary};margin-top:3px;font-weight:600">✓ Verified &amp; Auto-Generated</div>
                     </div>
                 </div>
-                <div style="height:28px"></div>
+
+                <div style="height:32px"></div>
             </div>`;
         }
 
@@ -6733,7 +6808,10 @@
 
         // ── Export Laporan PDF Integritas ──
         window.generateIntegrityReport = function(singleId) {
-            const data = dashboardData || [];
+            // ── Sumber data: gunakan SEMUA data (tanpa filter ruang/sesi)
+            // agar rekap kelas selalu menampilkan keseluruhan siswa sekelas,
+            // bukan hanya siswa di ruang pengawas yang sedang login.
+            const data = window._allDashboardData || dashboardData || [];
             let finished = data.filter(d => d.status !== 'SEDANG MENGERJAKAN');
             if (singleId) finished = finished.filter(d => d.id === singleId);
             if (finished.length === 0) { alert('Belum ada data ujian selesai untuk diexport.'); return; }
@@ -6741,109 +6819,258 @@
             const withScores = finished.map(d => ({
                 ...d, integrityScore: calcIntegrityScore(d)
             })).filter(d => d.integrityScore !== null)
-              .sort((a, b) => b.integrityScore - a.integrityScore);
+              .sort((a, b) => {
+                  // Urutkan per kelas, lalu per nama
+                  const cls = (a.className||'').localeCompare(b.className||'');
+                  if (cls !== 0) return cls;
+                  return (a.studentName||'').localeCompare(b.studentName||'');
+              });
 
             const now = new Date().toLocaleString('id-ID');
             const schoolName = (document.getElementById('setting-sub-judul') || {}).value || 'Sistem Integritas Ujian Digital';
-            const avg    = withScores.length ? Math.round(withScores.reduce((s,d) => s + d.integrityScore, 0) / withScores.length) : 0;
-            const honest = withScores.filter(d => d.integrityScore === 100).length;
-            const dq     = withScores.filter(d => d.integrityScore === 0).length;
-            const perlu  = withScores.length - honest - dq;
 
-            // Ringkasan tabel
-            const summaryRows = withScores.map((d, i) => {
-                const cat = getIntegrityCategory(d.integrityScore);
-                const sc = d.integrityScore;
-                const isDQ = (d.status||'').includes('DISKUALIFIKASI');
-                return `<tr style="background:${isDQ?'#fef2f2':i%2===0?'#f8fafc':'white'}">
-                    <td style="padding:6px 10px;text-align:center;font-weight:700;color:#64748b">${i+1}</td>
-                    <td style="padding:6px 10px;font-weight:700;color:#0f172a">${d.studentName||'-'}</td>
-                    <td style="padding:6px 10px;color:#64748b">${d.studentNisn||'-'}</td>
-                    <td style="padding:6px 10px;color:#64748b">${d.className||'-'}</td>
-                    <td style="padding:6px 10px;color:#64748b">${d.ruangUjian||'-'}</td>
-                    <td style="padding:6px 10px;text-align:center;font-weight:700;font-size:14px">${d.score??'-'}</td>
-                    <td style="padding:6px 10px;text-align:center">${d.violations||0}</td>
-                    <td style="padding:6px 10px;text-align:center;font-weight:900;font-size:14px;color:${sc===100?'#059669':sc>=70?'#d97706':'#dc2626'}">${sc}</td>
-                    <td style="padding:6px 10px;font-size:11px">${cat.label}</td>
+            // ── Halaman per siswa (selalu ada, untuk semua mode) ──
+            const studentPages = withScores.map((d, i) => buildStudentCard(d, i, schoolName)).join('');
+
+            // ── Jika export satu siswa, langsung tampilkan tanpa rekap ──
+            if (singleId) {
+                const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+                <title>Laporan Siswa — ${withScores[0]?.studentName||''}</title>
+                <style>
+                    *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+                    body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:24px;background:#f1f5f9}
+                    @media print{body{background:white;padding:0}.no-print{display:none!important}div[style*="page-break-after:always"]{page-break-after:always}}
+                </style></head><body>
+                <div class="no-print" style="margin-bottom:20px;background:white;padding:14px 20px;border-radius:14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,0.06);border:1px solid #e2e8f0">
+                    <div style="width:3px;height:20px;border-radius:2px;background:#2563eb;margin-right:4px"></div>
+                    <div style="font-size:13px;font-weight:800;color:#0f172a;flex:1">INTEGRITEST &nbsp;<span style="font-weight:400;color:#64748b;font-size:11px">Laporan Siswa — ${withScores[0]?.studentName||''}</span></div>
+                    <button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:9px 20px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">🖨️ Cetak / Simpan PDF</button>
+                    <button onclick="window.close()" style="background:#f1f5f9;color:#334155;border:1.5px solid #e2e8f0;padding:9px 18px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">✕ Tutup</button>
+                </div>
+                ${studentPages}</body></html>`;
+                const win = window.open('', '_blank');
+                if (win) { win.document.write(html); win.document.close(); }
+                else { alert('Popup diblokir browser. Izinkan popup untuk tab ini lalu coba lagi.'); }
+                return;
+            }
+
+            // ── Rekap keseluruhan (header) ──
+            const totalAvg = withScores.length ? Math.round(withScores.reduce((s,d) => s + d.integrityScore, 0) / withScores.length) : 0;
+            const totalHonest = withScores.filter(d => d.integrityScore === 100).length;
+            const totalDQ     = withScores.filter(d => d.integrityScore === 0).length;
+            const totalPerlu  = withScores.length - totalHonest - totalDQ;
+
+            // ── Kelompokkan per kelas ──
+            const classMap = {};
+            withScores.forEach(d => {
+                const cls = d.className || 'Tanpa Kelas';
+                if (!classMap[cls]) classMap[cls] = [];
+                classMap[cls].push(d);
+            });
+            const classNames = Object.keys(classMap).sort();
+
+            // ── Bangun halaman rekap per kelas ──
+            function buildClassRecapPage(cls, siswaList) {
+                const avgCls   = Math.round(siswaList.reduce((s,d) => s + d.integrityScore, 0) / siswaList.length);
+                const honestC  = siswaList.filter(d => d.integrityScore === 100).length;
+                const dqC      = siswaList.filter(d => d.integrityScore === 0).length;
+                const perluC   = siswaList.length - honestC - dqC;
+                const barW = Math.max(avgCls, 2);
+                const barCol = avgCls >= 80 ? '#16a34a' : avgCls >= 60 ? '#d97706' : '#dc2626';
+                const rows = siswaList.map((d, i) => {
+                    const cat = getIntegrityCategory(d.integrityScore);
+                    const sc = d.integrityScore;
+                    const isDQ2 = (d.status||'').includes('DISKUALIFIKASI');
+                    const scColor = sc===100?'#16a34a':sc>=70?'#d97706':'#dc2626';
+                    return `<tr style="background:${isDQ2?'#fef2f2':i%2===0?'#f8fafc':'white'}">
+                        <td style="padding:7px 10px;text-align:center;font-weight:700;color:#94a3b8;font-size:11px">${i+1}</td>
+                        <td style="padding:7px 10px;font-weight:700;color:#0f172a;font-size:12px">${d.studentName||'-'}</td>
+                        <td style="padding:7px 10px;color:#64748b;font-size:11.5px">${d.studentNisn||'-'}</td>
+                        <td style="padding:7px 10px;color:#64748b;font-size:11.5px">${d.ruangUjian||'-'}</td>
+                        <td style="padding:7px 10px;text-align:center;font-weight:800;font-size:13px;color:#1d4ed8">${d.score??'—'}</td>
+                        <td style="padding:7px 10px;text-align:center;font-size:11.5px;color:#64748b">${d.violations||0}</td>
+                        <td style="padding:7px 10px;text-align:center;font-weight:900;font-size:13px;color:${scColor}">${sc}</td>
+                        <td style="padding:7px 10px;font-size:10.5px;color:#64748b">${cat.label.replace(/[🏆✅⚠️🚨❌⛔]/g,'').trim()}</td>
+                    </tr>`;
+                }).join('');
+                return `
+                <div style="background:white;border-radius:16px;overflow:hidden;margin-bottom:32px;box-shadow:0 2px 12px rgba(0,0,0,0.07);page-break-after:always">
+                    <!-- Header rekap kelas -->
+                    <div style="background:linear-gradient(135deg,#2563eb 0%,#4f46e5 60%,#1e293b 100%);padding:22px 28px;display:flex;justify-content:space-between;align-items:center;position:relative;overflow:hidden">
+                        <div style="position:absolute;inset:0;opacity:0.05;background-image:linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px);background-size:20px 20px"></div>
+                        <div style="position:relative">
+                            <div style="font-size:8.5px;letter-spacing:3px;opacity:0.5;text-transform:uppercase;color:white;margin-bottom:5px">Rekap Kelas — Dokumen Resmi</div>
+                            <div style="font-size:24px;font-weight:900;color:white;line-height:1">${cls}</div>
+                            <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:5px">${schoolName} · ${now}</div>
+                        </div>
+                        <div style="position:relative;text-align:center">
+                            <div style="font-size:52px;font-weight:900;color:white;line-height:1">${avgCls}</div>
+                            <div style="font-size:9px;color:rgba(255,255,255,0.55);margin-top:4px">Rata-rata Indeks Integritas</div>
+                            <div style="margin-top:6px;height:3px;background:rgba(255,255,255,0.2);border-radius:2px;overflow:hidden;width:80px;margin-left:auto;margin-right:auto">
+                                <div style="height:100%;width:${barW}%;background:${barCol};border-radius:2px"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Stat cards -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border-bottom:1px solid #e2e8f0">
+                        <div style="padding:14px 16px;text-align:center;border-right:1px solid #e2e8f0">
+                            <div style="font-size:8.5px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Total Peserta</div>
+                            <div style="font-size:30px;font-weight:900;color:#0f172a;margin-top:2px">${siswaList.length}</div>
+                        </div>
+                        <div style="padding:14px 16px;text-align:center;border-right:1px solid #e2e8f0;background:#f0fdf4">
+                            <div style="font-size:8.5px;color:#16a34a;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">✓ Sempurna</div>
+                            <div style="font-size:30px;font-weight:900;color:#16a34a;margin-top:2px">${honestC}</div>
+                        </div>
+                        <div style="padding:14px 16px;text-align:center;border-right:1px solid #e2e8f0;background:#fffbeb">
+                            <div style="font-size:8.5px;color:#d97706;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">⚠ Pembinaan</div>
+                            <div style="font-size:30px;font-weight:900;color:#d97706;margin-top:2px">${perluC}</div>
+                        </div>
+                        <div style="padding:14px 16px;text-align:center;background:#fef2f2">
+                            <div style="font-size:8.5px;color:#dc2626;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">✕ Diskualifikasi</div>
+                            <div style="font-size:30px;font-weight:900;color:#dc2626;margin-top:2px">${dqC}</div>
+                        </div>
+                    </div>
+                    <!-- Tabel siswa -->
+                    <div style="padding:20px 28px">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                            <div style="width:3px;height:14px;border-radius:2px;background:#2563eb"></div>
+                            <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#64748b">Daftar Siswa — ${cls} (${siswaList.length} siswa)</div>
+                        </div>
+                        <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+                            <table style="width:100%;border-collapse:collapse;font-size:12px">
+                                <thead><tr style="background:#1d4ed8;color:white">
+                                    <th style="padding:8px 10px;text-align:center;font-weight:700">No</th>
+                                    <th style="padding:8px 10px;text-align:left;font-weight:700">Nama Siswa</th>
+                                    <th style="padding:8px 10px;text-align:left;font-weight:700">NISN</th>
+                                    <th style="padding:8px 10px;text-align:left;font-weight:700">Ruang</th>
+                                    <th style="padding:8px 10px;text-align:center;font-weight:700">Nilai</th>
+                                    <th style="padding:8px 10px;text-align:center;font-weight:700">Pelang.</th>
+                                    <th style="padding:8px 10px;text-align:center;font-weight:700">Integritas</th>
+                                    <th style="padding:8px 10px;text-align:left;font-weight:700">Predikat</th>
+                                </tr></thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div style="padding:10px 28px;background:#0f172a;color:rgba(255,255,255,0.25);font-size:9px;font-style:italic;text-align:center">
+                        Formula: Skor = max(0, 100 − bobot_pelanggaran). Pindah tab 1×=−20, 2×=−60, ≥3×=Diskualifikasi. INTEGRITEST Engine v2.
+                    </div>
+                </div>`;
+            }
+
+            // ── Halaman ringkasan semua kelas (cover) ──
+            const coverClassRows = classNames.map((cls, ci) => {
+                const list = classMap[cls];
+                const avgC = Math.round(list.reduce((s,d)=>s+d.integrityScore,0)/list.length);
+                const dqC  = list.filter(d=>d.integrityScore===0).length;
+                const honC = list.filter(d=>d.integrityScore===100).length;
+                const avgColor = avgC>=80?'#16a34a':avgC>=60?'#d97706':'#dc2626';
+                return `<tr style="background:${ci%2===0?'#f8fafc':'white'}">
+                    <td style="padding:9px 14px;font-weight:700;color:#0f172a;font-size:13px">${cls}</td>
+                    <td style="padding:9px 14px;text-align:center;color:#64748b;font-size:12px">${list.length} siswa</td>
+                    <td style="padding:9px 14px;text-align:center">
+                        <span style="font-weight:800;font-size:14px;color:${avgColor}">${avgC}</span>
+                        <div style="margin-top:3px;height:3px;background:#e2e8f0;border-radius:2px;overflow:hidden;width:60px;margin-left:auto;margin-right:auto">
+                            <div style="height:100%;width:${Math.max(avgC,2)}%;background:${avgColor};border-radius:2px"></div>
+                        </div>
+                    </td>
+                    <td style="padding:9px 14px;text-align:center;color:#16a34a;font-weight:700;font-size:13px">${honC}</td>
+                    <td style="padding:9px 14px;text-align:center;color:#dc2626;font-weight:700;font-size:13px">${dqC}</td>
                 </tr>`;
             }).join('');
 
-            // Halaman per siswa
-            const studentPages = withScores.map((d, i) => buildStudentCard(d, i, schoolName)).join('');
+            const coverPage = `
+            <div style="background:white;border-radius:16px;overflow:hidden;margin-bottom:32px;box-shadow:0 2px 12px rgba(0,0,0,0.07);page-break-after:always">
+                <!-- Cover header -->
+                <div style="background:linear-gradient(135deg,#1d4ed8 0%,#4f46e5 55%,#0f172a 100%);padding:28px 32px;display:flex;justify-content:space-between;align-items:center;position:relative;overflow:hidden">
+                    <div style="position:absolute;inset:0;opacity:0.05;background-image:linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px);background-size:20px 20px"></div>
+                    <div style="position:relative">
+                        <div style="font-size:8.5px;letter-spacing:3px;opacity:0.45;text-transform:uppercase;color:white;margin-bottom:8px">Dokumen Resmi — Rekap Seluruh Kelas</div>
+                        <div style="font-size:28px;font-weight:900;color:white;letter-spacing:-0.5px;line-height:1">INTEGRITEST</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px">${schoolName} · Diterbitkan: ${now}</div>
+                        <div style="display:inline-flex;gap:10px;margin-top:12px">
+                            <div style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:9.5px;color:rgba(255,255,255,0.75);font-weight:600">${withScores.length} peserta</div>
+                            <div style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:9.5px;color:rgba(255,255,255,0.75);font-weight:600">${classNames.length} kelas</div>
+                        </div>
+                    </div>
+                    <div style="position:relative;text-align:center;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:16px;padding:18px 24px">
+                        <div style="font-size:54px;font-weight:900;color:white;line-height:1">${totalAvg}</div>
+                        <div style="font-size:9px;color:rgba(255,255,255,0.55);margin-top:6px">Rata-rata Indeks Integritas</div>
+                    </div>
+                </div>
+                <!-- Stat row -->
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border-bottom:1px solid #e2e8f0">
+                    <div style="padding:16px 18px;text-align:center;border-right:1px solid #e2e8f0">
+                        <div style="font-size:8.5px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Total Peserta</div>
+                        <div style="font-size:32px;font-weight:900;color:#0f172a;margin-top:4px">${withScores.length}</div>
+                    </div>
+                    <div style="padding:16px 18px;text-align:center;border-right:1px solid #e2e8f0;background:#f0fdf4">
+                        <div style="font-size:8.5px;color:#16a34a;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">✓ Integritas Sempurna</div>
+                        <div style="font-size:32px;font-weight:900;color:#16a34a;margin-top:4px">${totalHonest}</div>
+                    </div>
+                    <div style="padding:16px 18px;text-align:center;border-right:1px solid #e2e8f0;background:#fffbeb">
+                        <div style="font-size:8.5px;color:#d97706;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">⚠ Perlu Pembinaan</div>
+                        <div style="font-size:32px;font-weight:900;color:#d97706;margin-top:4px">${totalPerlu}</div>
+                    </div>
+                    <div style="padding:16px 18px;text-align:center;background:#fef2f2">
+                        <div style="font-size:8.5px;color:#dc2626;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">✕ Diskualifikasi</div>
+                        <div style="font-size:32px;font-weight:900;color:#dc2626;margin-top:4px">${totalDQ}</div>
+                    </div>
+                </div>
+                <!-- Tabel ringkasan kelas -->
+                <div style="padding:24px 32px">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+                        <div style="width:3px;height:14px;border-radius:2px;background:#2563eb"></div>
+                        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#64748b">Ringkasan per Kelas (${classNames.length} kelas)</div>
+                    </div>
+                    <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+                        <table style="width:100%;border-collapse:collapse;font-size:13px">
+                            <thead><tr style="background:#1d4ed8;color:white">
+                                <th style="padding:10px 14px;text-align:left;font-weight:700">Kelas</th>
+                                <th style="padding:10px 14px;text-align:center;font-weight:700">Jumlah Siswa</th>
+                                <th style="padding:10px 14px;text-align:center;font-weight:700">Rata-rata Integritas</th>
+                                <th style="padding:10px 14px;text-align:center;font-weight:700">Sempurna</th>
+                                <th style="padding:10px 14px;text-align:center;font-weight:700">Diskualifikasi</th>
+                            </tr></thead>
+                            <tbody>${coverClassRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="padding:12px 32px;background:#0f172a;color:rgba(255,255,255,0.2);font-size:9px;font-style:italic;text-align:center">
+                    Formula: Skor = max(0, 100 − bobot_pelanggaran). Pindah tab 1×=−20, 2×=−60, ≥3×=Diskualifikasi (0). INTEGRITEST Engine v2.
+                </div>
+            </div>`;
+
+            // ── Gabungkan: cover → rekap per kelas → laporan per siswa ──
+            const classRekapPages = classNames.map(cls => buildClassRecapPage(cls, classMap[cls])).join('');
 
             const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
-            <title>IntegrityTest Report — ${now}</title>
+            <title>INTEGRITEST Report — ${now}</title>
             <style>
                 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-                body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:24px;background:#f1f5f9;color:#1e293b}
+                body{font-family:'Segoe UI',system-ui,Arial,sans-serif;margin:0;padding:28px;background:#f1f5f9;color:#1e293b}
                 @media print{
-                    body{background:white;padding:0}
+                    body{background:#f1f5f9;padding:12px}
                     .no-print{display:none!important}
                     div[style*="page-break-after:always"]{page-break-after:always}
                 }
             </style></head><body>
 
             <!-- TOMBOL AKSI -->
-            <div class="no-print" style="margin-bottom:18px;background:white;padding:12px 18px;border-radius:12px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px #0001">
-                <button onclick="window.print()" style="background:#065f46;color:white;border:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">🖨️ Cetak / Simpan PDF</button>
-                <button onclick="window.close()" style="background:#334155;color:white;border:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">✕ Tutup</button>
-                <span style="font-size:11px;color:#64748b">IntegrityTest Report · ${withScores.length} peserta · ${now}</span>
+            <div class="no-print" style="margin-bottom:20px;background:white;padding:14px 20px;border-radius:14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,0.06);border:1px solid #e2e8f0">
+                <div style="width:3px;height:20px;border-radius:2px;background:#2563eb;margin-right:4px"></div>
+                <div style="font-size:13px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;flex:1">INTEGRITEST Report &nbsp;<span style="font-weight:400;color:#64748b;font-size:11px">· ${withScores.length} peserta · ${classNames.length} kelas · ${now}</span></div>
+                <button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:9px 20px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">🖨️ Cetak / Simpan PDF</button>
+                <button onclick="window.close()" style="background:#f1f5f9;color:#334155;border:1.5px solid #e2e8f0;padding:9px 18px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">✕ Tutup</button>
             </div>
 
-            <!-- HALAMAN 1: RINGKASAN KELAS -->
-            <div style="background:white;border-radius:16px;overflow:hidden;margin-bottom:32px;box-shadow:0 4px 20px #0001;page-break-after:always">
-                <div style="background:linear-gradient(135deg,#065f46,#0f172a);color:white;padding:22px 30px;display:flex;justify-content:space-between;align-items:center">
-                    <div>
-                        <div style="font-size:9px;letter-spacing:3px;opacity:0.6;text-transform:uppercase">Dokumen Resmi — Rekap Kelas</div>
-                        <div style="font-size:24px;font-weight:900;margin-top:4px">IntegrityTest Report</div>
-                        <div style="font-size:11px;opacity:0.75;margin-top:2px">${schoolName} · Diterbitkan: ${now}</div>
-                    </div>
-                    <div style="text-align:center">
-                        <div style="font-size:52px;font-weight:900;line-height:1">${avg}</div>
-                        <div style="font-size:10px;opacity:0.75">Rata-rata Indeks Integritas</div>
-                    </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border-bottom:1px solid #e2e8f0">
-                    <div style="padding:14px 18px;text-align:center;border-right:1px solid #e2e8f0">
-                        <div style="font-size:9px;color:#64748b;font-weight:700;text-transform:uppercase">Total Peserta</div>
-                        <div style="font-size:30px;font-weight:900;color:#0f172a">${withScores.length}</div>
-                    </div>
-                    <div style="padding:14px 18px;text-align:center;border-right:1px solid #e2e8f0;background:#ecfdf5">
-                        <div style="font-size:9px;color:#065f46;font-weight:700;text-transform:uppercase">🏆 Integritas Sempurna</div>
-                        <div style="font-size:30px;font-weight:900;color:#059669">${honest}</div>
-                    </div>
-                    <div style="padding:14px 18px;text-align:center;border-right:1px solid #e2e8f0;background:#fffbeb">
-                        <div style="font-size:9px;color:#92400e;font-weight:700;text-transform:uppercase">⚠️ Perlu Pembinaan</div>
-                        <div style="font-size:30px;font-weight:900;color:#d97706">${perlu}</div>
-                    </div>
-                    <div style="padding:14px 18px;text-align:center;background:#fef2f2">
-                        <div style="font-size:9px;color:#991b1b;font-weight:700;text-transform:uppercase">❌ Diskualifikasi</div>
-                        <div style="font-size:30px;font-weight:900;color:#dc2626">${dq}</div>
-                    </div>
-                </div>
-                <div style="padding:22px 30px">
-                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:12px">Rekap Seluruh Peserta</div>
-                    <table style="width:100%;border-collapse:collapse;font-size:12px">
-                        <thead><tr style="background:#065f46;color:white">
-                            <th style="padding:8px 10px;text-align:center">No</th>
-                            <th style="padding:8px 10px;text-align:left">Nama Siswa</th>
-                            <th style="padding:8px 10px;text-align:left">NISN</th>
-                            <th style="padding:8px 10px;text-align:left">Kelas</th>
-                            <th style="padding:8px 10px;text-align:left">Ruang</th>
-                            <th style="padding:8px 10px;text-align:center">Nilai</th>
-                            <th style="padding:8px 10px;text-align:center">Pelang.</th>
-                            <th style="padding:8px 10px;text-align:center">Integritas</th>
-                            <th style="padding:8px 10px;text-align:left">Predikat</th>
-                        </tr></thead>
-                        <tbody>${summaryRows}</tbody>
-                    </table>
-                </div>
-                <div style="padding:12px 30px;background:#0f172a;color:#64748b;font-size:9.5px;font-style:italic;text-align:center">
-                    Formula: Skor = max(0, 100 − (bobot_pelanggaran)). Pindah tab 1×=−20, 2×=−60, ≥3×=Diskualifikasi (0). Verified by IntegrityTest Engine v2.
-                </div>
-            </div>
+            <!-- HALAMAN COVER: RINGKASAN SEMUA KELAS -->
+            ${coverPage}
 
-            <!-- HALAMAN PER SISWA -->
+            <!-- HALAMAN REKAP PER KELAS -->
+            ${classRekapPages}
+
+            <!-- HALAMAN LAPORAN PER SISWA -->
             ${studentPages}
 
             </body></html>`;
