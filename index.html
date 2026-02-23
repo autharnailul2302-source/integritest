@@ -830,30 +830,57 @@
         window.isSiswa    = () => window.currentUserRole === 'siswa';
 
         window.setupRealtimeListener = () => {
-            if (!window.isFirebaseReady || !window.db) {
-                // Jangan loop selamanya jika offline
-                return;
-            }
+            if (!window.isFirebaseReady || !window.db) return;
+
             const q = query(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
-            let isInitialLoad = true;
+
+            // FIX 1: Tandai dokumen yang sudah ada saat listener pertama kali aktif.
+            // Dengan menyimpan set ID awal, kita bisa membedakan data LAMA vs data BARU
+            // sehingga alert hanya muncul untuk kejadian yang benar-benar baru terjadi,
+            // tapi tabel monitoring tetap langsung menampilkan SEMUA data (termasuk SEDANG MENGERJAKAN).
+            let knownIds = null;
 
             onSnapshot(q, (snapshot) => {
                 const results = [];
-                snapshot.forEach((doc) => {
-                    results.push({ id: doc.id, ...doc.data() });
+                snapshot.forEach((docSnap) => {
+                    results.push({ id: docSnap.id, ...docSnap.data() });
                 });
-                
-                if (!isInitialLoad && window.isStaff()) {
+
+                // Pertama kali snapshot tiba → catat semua ID yang sudah ada, jangan alert
+                if (knownIds === null) {
+                    knownIds = new Set(results.map(r => r.id));
+                } else if (window.isStaff()) {
+                    // FIX 2: Hanya alert untuk perubahan pada data di RUANG PENGAWAS SENDIRI.
+                    // Admin (tidak ada currentPengawasRuang) mendapat alert semua ruang.
+                    const pgRuang = window.currentPengawasRuang
+                        ? (window.currentPengawasRuang.nama || '').trim().toLowerCase()
+                        : null; // null = admin, tidak difilter
+
                     snapshot.docChanges().forEach((change) => {
                         if (change.type === "modified" || change.type === "added") {
                             const data = change.doc.data();
-                            if (data.violations > 0 || (data.status && data.status.includes("DISKUALIFIKASI"))) {
+                            const isNew = !knownIds.has(change.doc.id);
+                            knownIds.add(change.doc.id);
+
+                            // Cek apakah kejadian ini relevan untuk pengawas yang login
+                            if (pgRuang !== null) {
+                                // Pengawas: hanya alert jika siswa di ruangnya sendiri
+                                const siswaRuang = (data.ruangUjian || '').trim().toLowerCase();
+                                if (siswaRuang !== pgRuang) return; // ← beda ruang, skip
+                            }
+
+                            // Trigger alert hanya jika ada pelanggaran BARU (bukan data lama)
+                            const hasViolation = data.violations > 0 || (data.status && data.status.includes("DISKUALIFIKASI"));
+                            if (hasViolation && !isNew) {
+                                // modified dengan pelanggaran = siswa baru melanggar
+                                if(window.triggerCheatAlert) window.triggerCheatAlert(data);
+                            } else if (hasViolation && isNew && data.violations > 0) {
+                                // doc baru langsung punya violations (edge case re-login)
                                 if(window.triggerCheatAlert) window.triggerCheatAlert(data);
                             }
                         }
                     });
                 }
-                isInitialLoad = false;
 
                 results.sort((a, b) => b.timestamp - a.timestamp);
                 if(window.updateDashboardTable) window.updateDashboardTable(results);
@@ -6046,24 +6073,28 @@
             tbody.innerHTML = '';
 
             window.currentFilteredData = dashboardData.filter(item => {
+                // ── FIX: Siswa yang SEDANG MENGERJAKAN selalu tampil di monitoring
+                // agar guru/pengawas bisa memantau real-time.
+                // Filter sesi, paket, tanggal hanya berlaku untuk data yang sudah selesai.
+                const isLive = item.status === 'SEDANG MENGERJAKAN' || item.status.includes('MELANJUTKAN');
+
                 // ── Filter Sesi ──
                 let matchSesi = true;
-                if (filterSesi === 'active') {
-                    // Tampilkan hanya data sesi aktif
-                    const activeSesiId = window.currentSesiId || 'default';
-                    matchSesi = (item.sesiId === activeSesiId) || 
-                                (!item.sesiId && activeSesiId === 'default');
-                } else if (filterSesi !== 'all') {
-                    // Filter ke sesi spesifik berdasarkan ID
-                    matchSesi = item.sesiId === filterSesi;
+                if (!isLive) { // live siswa selalu lolos filter sesi
+                    if (filterSesi === 'active') {
+                        const activeSesiId = window.currentSesiId || 'default';
+                        matchSesi = (item.sesiId === activeSesiId) ||
+                                    (!item.sesiId && activeSesiId === 'default');
+                    } else if (filterSesi !== 'all') {
+                        matchSesi = item.sesiId === filterSesi;
+                    }
                 }
-                // filterSesi === 'all' → tampilkan semua
 
                 const matchPkt   = filterPkt === 'all' || item.packetType === filterPkt;
                 const matchCls   = filterCls === 'all' || item.className === filterCls;
                 const matchRuang = filterRuang === 'all' || (item.ruangUjian || '-').trim().toLowerCase() === filterRuang.trim().toLowerCase();
                 let matchDate = true;
-                if (filterDate) {
+                if (filterDate && !isLive) { // tanggal tidak memblokir siswa live
                     const itemDate = new Date(item.timestamp);
                     const y = itemDate.getFullYear();
                     const m = String(itemDate.getMonth() + 1).padStart(2, '0');
