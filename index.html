@@ -1909,6 +1909,24 @@
 
             <!-- PANEL 1: MONITORING NILAI -->
             <div id="panel-nilai">
+                <!-- INFO: Penjelasan Monitoring vs Analitik -->
+                <div class="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex flex-col md:flex-row md:items-center gap-2 md:gap-6 text-xs">
+                    <div class="flex items-start gap-2">
+                        <i data-lucide="eye" class="w-4 h-4 text-blue-500 shrink-0 mt-0.5"></i>
+                        <div>
+                            <span class="font-bold text-blue-800">Tab Monitoring (tab ini):</span>
+                            <span class="text-blue-600"> Menampilkan <strong>SEMUA siswa secara real-time</strong> — termasuk yang sedang mengerjakan. Data diperbarui otomatis. Gunakan untuk <em>memantau ujian berlangsung</em> dan export rekap.</span>
+                        </div>
+                    </div>
+                    <div class="hidden md:block w-px h-8 bg-blue-200 shrink-0"></div>
+                    <div class="flex items-start gap-2">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-indigo-500 shrink-0 mt-0.5"></i>
+                        <div>
+                            <span class="font-bold text-indigo-800">Tab Analitik:</span>
+                            <span class="text-indigo-600"> Hanya <strong>siswa yang sudah SELESAI/DQ</strong>. Dilengkapi grafik distribusi nilai, skor integritas per siswa, dan laporan PDF individual. Gunakan untuk <em>evaluasi pasca ujian</em>.</span>
+                        </div>
+                    </div>
+                </div>
                 <!-- MODIFIED: PENGATURAN TOKEN DAN DURASI -->
                 <div class="admin-only-el bg-white rounded-xl shadow-sm border p-6 mb-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-gray-600"></i> Pengaturan Ujian</h2>
@@ -2077,6 +2095,9 @@
                                 <button onclick="window.openSesiModal()" class="admin-only-el bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
                                     <i data-lucide="layers" class="w-4 h-4"></i> Kelola Sesi
                                 </button>
+                                <button onclick="window.showKelasStatistikModal()" class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition hover:scale-105">
+                                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Statistik Kelas
+                                </button>
                                 <button id="btn-reset-all" onclick="window.resetAllExamData()" class="admin-only-el bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition hover:scale-105"><i data-lucide="trash-2" class="w-4 h-4"></i> Reset Sesi Ini</button>
                                 <button onclick="window.exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-md transition hover:scale-105 hover:shadow-emerald-500/30">
                                     <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export Excel
@@ -2138,6 +2159,32 @@
                         </table>
                     </div>
                     <div id="pager-monitoring-wrap"></div>
+                </div>
+
+                <!-- ══ MODAL STATISTIK KELAS ══ -->
+                <div id="modal-kelas-statistik" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm hidden" onclick="if(event.target===this)window.closeKelasStatistikModal()">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+                        <div class="bg-gradient-to-r from-violet-700 to-indigo-700 px-6 py-4 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-white/15 p-2 rounded-lg"><i data-lucide="bar-chart-2" class="w-5 h-5 text-white"></i></div>
+                                <div>
+                                    <h3 class="text-white font-bold text-base">Statistik Nilai Per Kelas</h3>
+                                    <p class="text-violet-200 text-xs mt-0.5">Data real-time dari sesi aktif (siswa selesai ujian)</p>
+                                </div>
+                            </div>
+                            <button onclick="window.closeKelasStatistikModal()" class="text-white/70 hover:text-white transition-colors">
+                                <i data-lucide="x" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                        <div class="overflow-y-auto flex-1 p-6">
+                            <div id="kelas-statistik-content">
+                                <div class="text-center py-8 text-gray-400"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i><p>Memuat data...</p></div>
+                            </div>
+                        </div>
+                        <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
+                            <button onclick="window.closeKelasStatistikModal()" class="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold transition-colors">Tutup</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -4979,17 +5026,43 @@
                 violations    = 0;
 
                 // Simpan/resume sesi Firebase
+                // FIX DUPLIKAT: Cek dengan NISN *atau* nama+kelas jika NISN kosong
+                // dan hapus/update semua dokumen "ghost" (SEDANG MENGERJAKAN yang basi)
                 let existingActiveDocId = null;
+                let ghostDocsToDelete = [];
                 if (window.isFirebaseReady && window.db) {
                     try {
+                        const fp = (window.getDeviceFingerprint || getDeviceFingerprint)();
                         const qSnap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
                         qSnap.forEach(ds => {
                             const d = ds.data();
-                            const nisnMatch = d.studentNisn && studentNisn && d.studentNisn.toString().trim() === studentNisn.toString().trim();
-                            if (nisnMatch && !d.status.includes('SELESAI') && !d.status.includes('DISKUALIFIKASI')) {
-                                existingActiveDocId = ds.id; window.examStartTime = d.timestamp;
+                            // Cek apakah ini dokumen milik siswa yang sama
+                            const nisnMatch = d.studentNisn && studentNisn && 
+                                              d.studentNisn.toString().trim() === studentNisn.toString().trim();
+                            const nameMatch = !nisnMatch && 
+                                              d.studentName && d.studentName.toLowerCase() === name.toLowerCase() &&
+                                              d.className === cls;
+                            const isMine = nisnMatch || nameMatch;
+                            
+                            if (isMine && !d.status.includes('SELESAI') && !d.status.includes('DISKUALIFIKASI')) {
+                                if (!existingActiveDocId) {
+                                    // Ambil dokumen pertama sebagai yang akan dilanjutkan
+                                    existingActiveDocId = ds.id;
+                                    window.examStartTime = d.timestamp;
+                                } else {
+                                    // Duplikat "SEDANG MENGERJAKAN" — tandai untuk dihapus
+                                    ghostDocsToDelete.push(ds.id);
+                                }
                             }
                         });
+
+                        // Hapus dokumen ghost (duplikat SEDANG MENGERJAKAN)
+                        if (ghostDocsToDelete.length > 0) {
+                            console.log(`[FIX] Menghapus ${ghostDocsToDelete.length} dokumen ghost duplikat.`);
+                            await Promise.all(ghostDocsToDelete.map(gId =>
+                                deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', gId))
+                            ));
+                        }
                     } catch(_) {}
 
                     if (existingActiveDocId) {
@@ -5486,6 +5559,144 @@
         };
         window.exportToExcel = function() {
             exportToExcelInternal();
+        };
+
+        // ── STATISTIK KELAS MODAL ──────────────────────────────
+        window.showKelasStatistikModal = function() {
+            const modal = document.getElementById('modal-kelas-statistik');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            const data = (window.currentFilteredData || window._allDashboardData || [])
+                .filter(r => r.status !== 'SEDANG MENGERJAKAN' && !r.status.includes('MELANJUTKAN'));
+
+            const content = document.getElementById('kelas-statistik-content');
+            if (!content) return;
+
+            if (data.length === 0) {
+                content.innerHTML = `<div class="text-center py-12 text-gray-400">
+                    <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i>
+                    <p class="font-semibold">Belum ada data yang selesai ujian</p>
+                    <p class="text-xs mt-1">Statistik akan muncul setelah siswa menyelesaikan ujian.</p>
+                </div>`;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                return;
+            }
+
+            // Group by kelas
+            const byKelas = {};
+            data.forEach(r => {
+                const cls = r.className || 'Tidak Diketahui';
+                if (!byKelas[cls]) byKelas[cls] = [];
+                byKelas[cls].push(r);
+            });
+
+            // Hitung statistik keseluruhan
+            const allScores = data.map(r => typeof r.score === 'number' ? r.score : parseFloat(r.score)).filter(s => !isNaN(s));
+            const grandAvg = allScores.length ? (allScores.reduce((a,b)=>a+b,0)/allScores.length).toFixed(1) : '-';
+            const grandLulus = allScores.filter(s => s >= 75).length;
+            const grandPct = allScores.length ? Math.round((grandLulus/allScores.length)*100) : 0;
+            const grandDQ = data.filter(r => (r.status||'').includes('DISKUALIFIKASI')).length;
+
+            // Build HTML
+            let html = `
+                <!-- Summary cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-black text-blue-700">${data.length}</div>
+                        <div class="text-xs text-blue-500 font-semibold mt-1">Total Selesai</div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-black text-emerald-700">${grandAvg}</div>
+                        <div class="text-xs text-emerald-500 font-semibold mt-1">Rata-rata Nilai</div>
+                    </div>
+                    <div class="bg-violet-50 border border-violet-100 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-black text-violet-700">${grandPct}%</div>
+                        <div class="text-xs text-violet-500 font-semibold mt-1">Tingkat Lulus</div>
+                    </div>
+                    <div class="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-black text-red-600">${grandDQ}</div>
+                        <div class="text-xs text-red-400 font-semibold mt-1">Diskualifikasi</div>
+                    </div>
+                </div>
+
+                <!-- Per kelas -->
+                <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <i data-lucide="layers" class="w-4 h-4 text-violet-500"></i> Detail Per Kelas
+                </h4>
+                <div class="space-y-3">
+            `;
+
+            Object.entries(byKelas).sort().forEach(([kelas, rows]) => {
+                const scores = rows.map(r => typeof r.score === 'number' ? r.score : parseFloat(r.score)).filter(s => !isNaN(s));
+                const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '-';
+                const max = scores.length ? Math.max(...scores) : '-';
+                const min = scores.length ? Math.min(...scores) : '-';
+                const lulus = scores.filter(s => s >= 75).length;
+                const tLulus = scores.filter(s => s < 75).length;
+                const pct = scores.length ? Math.round((lulus/scores.length)*100) : 0;
+                const dq  = rows.filter(r => (r.status||'').includes('DISKUALIFIKASI')).length;
+                const pctColor = pct >= 75 ? 'text-emerald-600 bg-emerald-50' : pct >= 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
+                const avgColor = parseFloat(avg) >= 75 ? 'text-emerald-700' : parseFloat(avg) >= 60 ? 'text-amber-600' : 'text-red-600';
+                const barW = Math.max(4, pct);
+
+                html += `
+                <div class="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                    <div class="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-100">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="users" class="w-4 h-4 text-indigo-500"></i>
+                            <span class="font-bold text-gray-800 text-sm">${kelas}</span>
+                            <span class="text-xs text-gray-400 font-medium">${rows.length} peserta</span>
+                        </div>
+                        <span class="text-xs font-black px-3 py-1 rounded-full ${pctColor}">${pct}% Lulus</span>
+                    </div>
+                    <div class="px-5 py-3">
+                        <!-- Progress bar lulus -->
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                                <div class="h-2 rounded-full ${pct>=75?'bg-emerald-500':pct>=50?'bg-amber-400':'bg-red-400'} transition-all duration-500" style="width:${barW}%"></div>
+                            </div>
+                            <span class="text-xs text-gray-500 font-medium w-8">${pct}%</span>
+                        </div>
+                        <div class="grid grid-cols-3 md:grid-cols-6 gap-2 text-center text-xs">
+                            <div class="bg-gray-50 rounded-lg p-2">
+                                <div class="font-black ${avgColor} text-lg">${avg}</div>
+                                <div class="text-gray-400 mt-0.5">Rata-rata</div>
+                            </div>
+                            <div class="bg-emerald-50 rounded-lg p-2">
+                                <div class="font-black text-emerald-700 text-lg">${max}</div>
+                                <div class="text-emerald-400 mt-0.5">Tertinggi</div>
+                            </div>
+                            <div class="bg-red-50 rounded-lg p-2">
+                                <div class="font-black text-red-600 text-lg">${min}</div>
+                                <div class="text-red-300 mt-0.5">Terendah</div>
+                            </div>
+                            <div class="bg-blue-50 rounded-lg p-2">
+                                <div class="font-black text-blue-700 text-lg">${lulus}</div>
+                                <div class="text-blue-400 mt-0.5">Lulus</div>
+                            </div>
+                            <div class="bg-orange-50 rounded-lg p-2">
+                                <div class="font-black text-orange-600 text-lg">${tLulus}</div>
+                                <div class="text-orange-400 mt-0.5">Tidak Lulus</div>
+                            </div>
+                            <div class="bg-red-50 rounded-lg p-2">
+                                <div class="font-black text-red-700 text-lg">${dq}</div>
+                                <div class="text-red-400 mt-0.5">DQ</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            html += `</div>`;
+            content.innerHTML = html;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        window.closeKelasStatistikModal = function() {
+            const modal = document.getElementById('modal-kelas-statistik');
+            if (modal) modal.classList.add('hidden');
         };
 
         window.toggleReview = function() {
@@ -6177,7 +6388,32 @@
             const tbody = document.getElementById('dashboard-table-body');
             tbody.innerHTML = '';
 
-            window.currentFilteredData = dashboardData.filter(item => {
+            // ── DEDUPLICATION: 1 siswa = 1 entri di monitoring ──
+            // Jika ada duplikat (NISN sama atau nama+kelas sama), ambil dokumen terbaru.
+            // Dokumen yang status-nya SELESAI/DISKUALIFIKASI diprioritaskan di atas SEDANG MENGERJAKAN.
+            const dedupMap = new Map();
+            dashboardData.forEach(item => {
+                const key = item.studentNisn
+                    ? item.studentNisn.toString().trim()
+                    : `${(item.studentName||'').toLowerCase()}__${item.className||''}`;
+                
+                if (!dedupMap.has(key)) {
+                    dedupMap.set(key, item);
+                } else {
+                    const existing = dedupMap.get(key);
+                    const existFinished = existing.status.includes('SELESAI') || existing.status.includes('DISKUALIFIKASI');
+                    const newFinished   = item.status.includes('SELESAI') || item.status.includes('DISKUALIFIKASI');
+                    // Prioritas: SELESAI/DQ > MELANJUTKAN > SEDANG MENGERJAKAN; jika sama, ambil terbaru
+                    if (!existFinished && newFinished) {
+                        dedupMap.set(key, item);
+                    } else if (existFinished === newFinished && item.timestamp > existing.timestamp) {
+                        dedupMap.set(key, item);
+                    }
+                }
+            });
+            const dedupedData = Array.from(dedupMap.values());
+
+            window.currentFilteredData = dedupedData.filter(item => {
                 // ── FIX: Siswa yang SEDANG MENGERJAKAN selalu tampil di monitoring
                 // agar guru/pengawas bisa memantau real-time.
                 // Filter sesi, paket, tanggal hanya berlaku untuk data yang sudah selesai.
@@ -7608,10 +7844,16 @@
             XLSX.utils.book_append_sheet(wb, ws, 'Rekap Nilai');
 
             // ================================================================
-            // SHEET 2: ANALISIS PER KELAS
+            // SHEET 2: STATISTIK PER KELAS (baru, lebih detail)
+            // ================================================================
+            const wsKelas = buildKelasStatistikSheet(dataToExport);
+            if (wsKelas) XLSX.utils.book_append_sheet(wb, wsKelas, 'Statistik Per Kelas');
+
+            // ================================================================
+            // SHEET 3: ANALISIS PER KELAS (grafik data)
             // ================================================================
             const wsAnalysis = buildAnalysisSheet(dataToExport);
-            if (wsAnalysis) XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Analisis Per Kelas');
+            if (wsAnalysis) XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Distribusi Nilai');
 
             // ================================================================
             // SHEET 3: DETAIL PELANGGARAN
@@ -7623,56 +7865,244 @@
             XLSX.writeFile(wb, filename);
         }
 
-        function buildAnalysisSheet(data) {
+        function buildKelasStatistikSheet(data) {
             if (!data || data.length === 0) return null;
 
-            // Group by kelas
+            const finishedData = data.filter(r => r.status !== 'SEDANG MENGERJAKAN' && !r.status.includes('MELANJUTKAN'));
+            if (finishedData.length === 0) return null;
+
+            const now = new Date().toLocaleString('id-ID');
             const byKelas = {};
-            data.forEach(row => {
+            finishedData.forEach(row => {
                 const cls = row.className || 'Tidak Diketahui';
                 if (!byKelas[cls]) byKelas[cls] = [];
                 byKelas[cls].push(row);
             });
 
             const aoa = [
-                ['ANALISIS NILAI PER KELAS'],
-                [`Dicetak: ${new Date().toLocaleString('id-ID')}`],
+                ['STATISTIK NILAI UJIAN PER KELAS'],
+                [`Dicetak: ${now}`],
                 [''],
-                ['Kelas', 'Jumlah Peserta', 'Rata-rata Nilai', 'Nilai Tertinggi', 'Nilai Terendah', 'Lulus (≥75)', 'Tidak Lulus', '% Lulus'],
             ];
+
+            function sc_(ws, addr, style) { if (!ws[addr]) ws[addr] = {v:'',t:'s'}; ws[addr].s = style; }
+            function ca(r, c) { return XLSX.utils.encode_cell({r, c}); }
+
+            const merges = [
+                { s:{r:0,c:0}, e:{r:0,c:11} },
+                { s:{r:1,c:0}, e:{r:1,c:11} },
+            ];
+            let currentRow = 3; // 0-indexed
 
             Object.entries(byKelas).sort().forEach(([kelas, rows]) => {
                 const scores = rows.map(r => typeof r.score === 'number' ? r.score : parseFloat(r.score)).filter(s => !isNaN(s));
-                const avg    = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+                const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '-';
+                const max = scores.length ? Math.max(...scores) : '-';
+                const min = scores.length ? Math.min(...scores) : '-';
+                const lulus = scores.filter(s => s >= 75).length;
+                const tLulus = scores.filter(s => s < 75).length;
+                const pct = scores.length ? Math.round((lulus/scores.length)*100) : 0;
+                const dq = rows.filter(r => (r.status||'').includes('DISKUALIFIKASI')).length;
+                const avgViol = rows.length ? (rows.reduce((a,r)=>a+(r.violations||0),0)/rows.length).toFixed(2) : 0;
+
+                // Distribusi per kelas
+                const dist = [
+                    { label:'A (90-100)', cnt: scores.filter(s=>s>=90).length },
+                    { label:'B (80-89)',  cnt: scores.filter(s=>s>=80&&s<90).length },
+                    { label:'C (70-79)',  cnt: scores.filter(s=>s>=70&&s<80).length },
+                    { label:'D (60-69)',  cnt: scores.filter(s=>s>=60&&s<70).length },
+                    { label:'E (<60)',    cnt: scores.filter(s=>s<60).length },
+                ];
+
+                // Header kelas
+                aoa.push([`KELAS: ${kelas}`, '', '', '', '', '', '', '', '', '', '', '']);
+                merges.push({ s:{r:currentRow,c:0}, e:{r:currentRow,c:11} });
+                currentRow++;
+
+                // Sub-header ringkasan
+                aoa.push(['Peserta', 'Selesai', 'Rata-rata', 'Tertinggi', 'Terendah', 'Lulus (≥75)', 'Tidak Lulus', '% Lulus', 'DQ', 'Rata-rata Pelanggaran', '', '']);
+                currentRow++;
+
+                // Data ringkasan
+                aoa.push([rows.length, rows.filter(r=>r.status==='SELESAI').length, parseFloat(avg), max, min, lulus, tLulus, `${pct}%`, dq, parseFloat(avgViol), '', '']);
+                currentRow++;
+
+                // Distribusi
+                aoa.push(['Predikat', 'Jumlah', '% dari kelas', '', '', '', '', '', '', '', '', '']);
+                currentRow++;
+                dist.forEach(d => {
+                    const dpct = scores.length ? Math.round((d.cnt/scores.length)*100) : 0;
+                    aoa.push([d.label, d.cnt, `${dpct}%`, '', '', '', '', '', '', '', '', '']);
+                    currentRow++;
+                });
+
+                aoa.push(['']); currentRow++;
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = Array(12).fill({wch:14});
+            ws['!cols'][0] = {wch:20};
+            ws['!merges'] = merges;
+
+            // Apply styles for title
+            for (let c = 0; c <= 11; c++) {
+                sc_(ws, ca(0,c), { font:{bold:true,sz:15,color:{rgb:'1E3A5F'}}, fill:{fgColor:{rgb:'DBEAFE'}}, alignment:{horizontal:'center'} });
+                sc_(ws, ca(1,c), { font:{sz:9,color:{rgb:'6B7280'}}, fill:{fgColor:{rgb:'EFF6FF'}}, alignment:{horizontal:'center'} });
+            }
+            ws['!rows'] = [];
+            ws['!rows'][0] = { hpt: 30 };
+
+            return ws;
+        }
+
+        function buildAnalysisSheet(data) {
+            if (!data || data.length === 0) return null;
+
+            // ── Hanya data yang sudah selesai untuk analisis ──
+            const finishedData = data.filter(r => r.status !== 'SEDANG MENGERJAKAN' && !r.status.includes('MELANJUTKAN'));
+
+            // Group by kelas
+            const byKelas = {};
+            finishedData.forEach(row => {
+                const cls = row.className || 'Tidak Diketahui';
+                if (!byKelas[cls]) byKelas[cls] = [];
+                byKelas[cls].push(row);
+            });
+
+            const now = new Date().toLocaleString('id-ID');
+            const aoa = [
+                ['ANALISIS STATISTIK NILAI UJIAN PER KELAS'],
+                [`Dicetak: ${now}`],
+                [`Total Data: ${finishedData.length} peserta (sudah selesai)`],
+                [''],
+                ['Kelas', 'Peserta', 'Rata-rata', 'Tertinggi', 'Terendah', 'Lulus (≥75)', 'Tidak Lulus', '% Lulus', 'DQ', 'Rata-rata Pelanggaran'],
+            ];
+
+            const classRows = [];
+            Object.entries(byKelas).sort().forEach(([kelas, rows]) => {
+                const scores = rows.map(r => typeof r.score === 'number' ? r.score : parseFloat(r.score)).filter(s => !isNaN(s));
+                const avg    = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '-';
                 const max    = scores.length ? Math.max(...scores) : '-';
                 const min    = scores.length ? Math.min(...scores) : '-';
                 const lulus  = scores.filter(s => s >= 75).length;
                 const tLulus = scores.filter(s => s < 75).length;
                 const pct    = scores.length ? Math.round((lulus/scores.length)*100) : 0;
-                aoa.push([kelas, rows.length, avg, max, min, lulus, tLulus, `${pct}%`]);
+                const dq     = rows.filter(r => (r.status||'').includes('DISKUALIFIKASI')).length;
+                const avgViol = rows.length ? (rows.reduce((a,r)=>a+(r.violations||0),0)/rows.length).toFixed(1) : 0;
+                const rowData = [kelas, rows.length, parseFloat(avg), max, min, lulus, tLulus, `${pct}%`, dq, parseFloat(avgViol)];
+                aoa.push(rowData);
+                classRows.push({ pct, avg: parseFloat(avg), dq });
             });
 
             // Baris total
             aoa.push(['']);
-            const allScores = data.map(r => typeof r.score === 'number' ? r.score : parseFloat(r.score)).filter(s => !isNaN(s));
+            const allScores = finishedData.map(r => typeof r.score === 'number' ? r.score : parseFloat(r.score)).filter(s => !isNaN(s));
             const totalLulus = allScores.filter(s => s >= 75).length;
+            const totalDQ = finishedData.filter(r => (r.status||'').includes('DISKUALIFIKASI')).length;
+            const grandAvg = allScores.length ? (allScores.reduce((a,b)=>a+b,0)/allScores.length).toFixed(1) : 0;
+            const grandAvgViol = finishedData.length ? (finishedData.reduce((a,r)=>a+(r.violations||0),0)/finishedData.length).toFixed(1) : 0;
             aoa.push([
-                'TOTAL / KESELURUHAN',
-                data.length,
-                allScores.length ? Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length) : 0,
+                'GRAND TOTAL',
+                finishedData.length,
+                parseFloat(grandAvg),
                 allScores.length ? Math.max(...allScores) : '-',
                 allScores.length ? Math.min(...allScores) : '-',
                 totalLulus,
                 allScores.filter(s => s < 75).length,
                 allScores.length ? `${Math.round((totalLulus/allScores.length)*100)}%` : '-',
+                totalDQ,
+                parseFloat(grandAvgViol),
             ]);
 
-            const ws = XLSX.utils.aoa_to_sheet(aoa);
-            ws['!cols'] = [{wch:18},{wch:16},{wch:16},{wch:16},{wch:16},{wch:12},{wch:12},{wch:10}];
-            ws['!merges'] = [
-                { s:{r:0,c:0}, e:{r:0,c:7} },
-                { s:{r:1,c:0}, e:{r:1,c:7} },
+            // ── Distribusi Nilai ──
+            aoa.push(['']);
+            aoa.push(['DISTRIBUSI NILAI (KESELURUHAN)']);
+            aoa.push(['Rentang', 'Predikat', 'Jumlah Siswa', 'Persentase']);
+            const distrib = [
+                { label:'90 - 100', pred:'A (Sangat Baik)',  filter: s => s >= 90 },
+                { label:'80 - 89',  pred:'B (Baik)',          filter: s => s >= 80 && s < 90 },
+                { label:'70 - 79',  pred:'C (Cukup)',         filter: s => s >= 70 && s < 80 },
+                { label:'60 - 69',  pred:'D (Kurang)',        filter: s => s >= 60 && s < 70 },
+                { label:'< 60',     pred:'E (Sangat Kurang)', filter: s => s < 60  },
             ];
+            distrib.forEach(d => {
+                const cnt = allScores.filter(d.filter).length;
+                const pct = allScores.length ? Math.round((cnt/allScores.length)*100) : 0;
+                aoa.push([d.label, d.pred, cnt, `${pct}%`]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = [{wch:20},{wch:10},{wch:12},{wch:12},{wch:12},{wch:13},{wch:13},{wch:10},{wch:6},{wch:18}];
+            ws['!merges'] = [
+                { s:{r:0,c:0}, e:{r:0,c:9} },
+                { s:{r:1,c:0}, e:{r:1,c:9} },
+                { s:{r:2,c:0}, e:{r:2,c:9} },
+            ];
+
+            // Helper style cells
+            function sc_(ws, addr, style) {
+                if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+                ws[addr].s = style;
+            }
+            function ca(r, c) { return XLSX.utils.encode_cell({r, c}); }
+
+            const sTitle = { font:{bold:true,sz:14,color:{rgb:'1E3A5F'}}, fill:{fgColor:{rgb:'DBEAFE'}}, alignment:{horizontal:'center'} };
+            const sSub   = { font:{sz:10,color:{rgb:'6B7280'}}, fill:{fgColor:{rgb:'EFF6FF'}}, alignment:{horizontal:'center'} };
+            const sHead  = { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1E40AF'}}, alignment:{horizontal:'center',wrapText:true},
+                             border:{top:{style:'thin',color:{rgb:'93C5FD'}},bottom:{style:'thin',color:{rgb:'93C5FD'}},left:{style:'thin',color:{rgb:'93C5FD'}},right:{style:'thin',color:{rgb:'93C5FD'}}} };
+            const sTotal = { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1D4ED8'}}, alignment:{horizontal:'center'} };
+            const sDHead = { font:{bold:true,sz:11,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'7C3AED'}}, alignment:{horizontal:'center'} };
+            const sDSub  = { font:{bold:true,sz:9,color:{rgb:'FFFFFF'}},  fill:{fgColor:{rgb:'7C3AED'}}, alignment:{horizontal:'center'} };
+
+            // Title rows
+            for (let c = 0; c <= 9; c++) {
+                sc_(ws, ca(0,c), sTitle);
+                sc_(ws, ca(1,c), sSub);
+                sc_(ws, ca(2,c), sSub);
+            }
+            // Header row (row 4)
+            for (let c = 0; c <= 9; c++) sc_(ws, ca(4,c), sHead);
+
+            // Data rows
+            const dataStartR = 5;
+            classRows.forEach((cr, i) => {
+                const r = dataStartR + i;
+                const baseEven = { font:{sz:10}, fill:{fgColor:{rgb:'F0F9FF'}}, alignment:{horizontal:'center'}, border:{bottom:{style:'thin',color:{rgb:'E5E7EB'}}} };
+                const baseOdd  = { font:{sz:10}, alignment:{horizontal:'center'}, border:{bottom:{style:'thin',color:{rgb:'E5E7EB'}}} };
+                const base = i%2===0 ? baseEven : baseOdd;
+                for (let c = 0; c <= 9; c++) {
+                    let s = JSON.parse(JSON.stringify(base));
+                    if (c === 0) s.alignment = { horizontal:'left' };
+                    // % Lulus (c=7): warna sesuai pct
+                    if (c === 7) {
+                        s.font = { bold:true, sz:10, color:{ rgb: cr.pct>=75 ? '16A34A' : cr.pct>=50 ? 'D97706' : 'DC2626' } };
+                    }
+                    // Rata-rata (c=2): warna
+                    if (c === 2) {
+                        s.font = { bold:true, sz:10, color:{ rgb: cr.avg>=80 ? '16A34A' : cr.avg>=60 ? 'D97706' : 'DC2626' } };
+                    }
+                    // DQ (c=8): merah jika ada
+                    if (c === 8 && cr.dq > 0) {
+                        s.font = { bold:true, sz:10, color:{ rgb:'DC2626' } };
+                    }
+                    sc_(ws, ca(r, c), s);
+                }
+            });
+
+            // Grand total row
+            const totalR = dataStartR + classRows.length + 1; // +1 for empty row
+            for (let c = 0; c <= 9; c++) sc_(ws, ca(totalR, c), sTotal);
+
+            // Distribusi section header
+            const distribTitleR = totalR + 2;
+            for (let c = 0; c <= 9; c++) sc_(ws, ca(distribTitleR, c), sDHead);
+            const distribHeadR = distribTitleR + 1;
+            for (let c = 0; c <= 3; c++) sc_(ws, ca(distribHeadR, c), sDSub);
+
+            ws['!rows'] = [];
+            ws['!rows'][0] = { hpt: 28 };
+            ws['!rows'][4] = { hpt: 22 };
+
             return ws;
         }
 
