@@ -640,6 +640,51 @@
             if (fileInput) fileInput.value = '';
         };
 
+        // ── TIPE SOAL TOGGLE ──────────────────────────────────────
+        window.setQuestionType = function(tipe) {
+            document.getElementById('q-tipe').value = tipe;
+            const singleWrap   = document.getElementById('q-correct-single-wrap');
+            const multiWrap    = document.getElementById('q-correct-multiple-wrap');
+            const tfWrap       = document.getElementById('q-correct-truefalse-wrap');
+            const singleBtn    = document.getElementById('q-tipe-single-btn');
+            const multiBtn     = document.getElementById('q-tipe-multiple-btn');
+            const tfBtn        = document.getElementById('q-tipe-truefalse-btn');
+            const hint         = document.getElementById('q-tipe-hint');
+            const optSection   = document.getElementById('q-options-section');
+            const tfInfo       = document.getElementById('q-truefalse-info');
+
+            const inactiveClass = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+
+            // Reset all
+            singleWrap.classList.add('hidden');
+            multiWrap.classList.add('hidden');
+            tfWrap.classList.add('hidden');
+            singleBtn.className = inactiveClass;
+            multiBtn.className  = inactiveClass;
+            tfBtn.className     = inactiveClass;
+            if (optSection) optSection.classList.remove('hidden');
+            if (tfInfo) tfInfo.classList.add('hidden');
+
+            if (tipe === 'multiple') {
+                multiWrap.classList.remove('hidden');
+                multiBtn.className = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                hint.textContent = 'Jawaban ganda: siswa harus memilih SEMUA pilihan yang benar.';
+                hint.className   = 'text-xs text-emerald-600 mt-2';
+            } else if (tipe === 'truefalse') {
+                tfWrap.classList.remove('hidden');
+                tfBtn.className = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-amber-500 bg-amber-50 text-amber-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                hint.textContent = 'Benar/Salah: siswa memilih apakah pernyataan benar atau salah.';
+                hint.className   = 'text-xs text-amber-600 mt-2';
+                if (optSection) optSection.classList.add('hidden');
+                if (tfInfo) tfInfo.classList.remove('hidden');
+            } else {
+                singleWrap.classList.remove('hidden');
+                singleBtn.className = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                hint.textContent = 'Pilihan tunggal: hanya 1 jawaban benar.';
+                hint.className   = 'text-xs text-gray-400 mt-2';
+            }
+        };
+
         window.openQuestionModal = (id = null) => {
             const modal = document.getElementById('modal-question');
             const form  = document.getElementById('form-question');
@@ -649,6 +694,12 @@
             document.getElementById('q-aktif').checked = true;
             document.getElementById('q-aktif-label').textContent = 'Aktif';
             document.getElementById('q-aktif-label').className = 'text-sm font-bold text-green-600';
+            // Reset tipe ke single
+            window.setQuestionType('single');
+            // Uncheck semua kunci ganda
+            document.querySelectorAll('#q-correct-multi-checks input[type=checkbox]').forEach(c => c.checked = false);
+            // Uncheck kunci benar/salah
+            document.querySelectorAll('input[name="correct-tf"]').forEach(r => r.checked = false);
 
             // Set paket context
             const paket = window.allPaketDB.find(p => p.id === window.activePaketId);
@@ -670,8 +721,21 @@
                 document.getElementById('modal-q-title').textContent = 'Edit Soal';
                 const q = window.allQuestionsDB.find(x => x.id === id);
                 if (q) {
-                    document.getElementById('q-correct').value = q.correct;
-                    document.getElementById('q-text').value    = q.text || '';
+                    // Set tipe soal
+                    const tipe = q.tipe || 'single';
+                    window.setQuestionType(tipe);
+                    if (tipe === 'multiple' && Array.isArray(q.correct)) {
+                        document.querySelectorAll('#q-correct-multi-checks input[type=checkbox]').forEach(c => {
+                            c.checked = q.correct.includes(parseInt(c.value));
+                        });
+                    } else if (tipe === 'truefalse') {
+                        const tfVal = q.correct === true || q.correct === 'true' ? 'true' : 'false';
+                        const tfRadio = document.querySelector(`input[name="correct-tf"][value="${tfVal}"]`);
+                        if (tfRadio) tfRadio.checked = true;
+                    } else {
+                        document.getElementById('q-correct').value = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+                    }
+                    document.getElementById('q-text').value = q.text || '';
                     const isAktif = q.aktif !== false;
                     document.getElementById('q-aktif').checked = isAktif;
                     document.getElementById('q-aktif-label').textContent = isAktif ? 'Aktif' : 'Nonaktif';
@@ -807,9 +871,23 @@
             const id      = document.getElementById('q-id').value;
             const paketId = document.getElementById('q-packet').value;
             const text    = document.getElementById('q-text').value;
-            const correct = parseInt(document.getElementById('q-correct').value);
+            const tipe    = document.getElementById('q-tipe').value || 'single';
             const image   = document.getElementById('q-image-data').value || '';
             const aktif   = document.getElementById('q-aktif').checked;
+
+            // Derive correct answer(s)
+            let correct;
+            if (tipe === 'multiple') {
+                const checked = Array.from(document.querySelectorAll('#q-correct-multi-checks input[type=checkbox]:checked')).map(c => parseInt(c.value));
+                if (checked.length === 0) return alert("Jawaban ganda: centang minimal 1 jawaban yang benar!");
+                correct = checked.sort();
+            } else if (tipe === 'truefalse') {
+                const tfRadio = document.querySelector('input[name="correct-tf"]:checked');
+                if (!tfRadio) return alert("Pilih kunci jawaban: BENAR atau SALAH!");
+                correct = tfRadio.value === 'true'; // boolean
+            } else {
+                correct = parseInt(document.getElementById('q-correct').value);
+            }
 
             // Derive packet letter from paket data
             const paket = window.allPaketDB.find(p => p.id === paketId);
@@ -826,9 +904,9 @@
             });
 
             if (!text && !image) return alert("Soal harus memiliki teks pertanyaan atau gambar soal!");
-            if (options.every(o => !o) && optionImages.every(i => !i)) return alert("Minimal satu pilihan jawaban harus diisi!");
+            if (tipe !== 'truefalse' && options.every(o => !o) && optionImages.every(i => !i)) return alert("Minimal satu pilihan jawaban harus diisi!");
 
-            const data = { paketId, packet, text, options, optionImages, correct, image, token, aktif, updatedAt: Date.now() };
+            const data = { paketId, packet, text, options, optionImages, correct, tipe, image, token, aktif, updatedAt: Date.now() };
 
             try {
                 if (id) {
@@ -972,6 +1050,8 @@
         /* ===== ANTI-CHEAT ENGINE STYLES ===== */
         #watermark-canvas { pointer-events: none; }
         #modal-warning-student, #modal-dq-final { backdrop-filter: blur(6px); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
         /* ===== HP KENTANG MODE (low-end device) ===== */
         /* Diterapkan otomatis via JS bila device lambat */
@@ -1517,6 +1597,17 @@
                 </div>
             </div>
 
+            <!-- Notifikasi fullscreen untuk desktop -->
+            <div class="bg-blue-600 rounded-2xl px-4 py-3 flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <i data-lucide="maximize" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="text-white text-xs font-black leading-tight">Ujian akan otomatis masuk mode Layar Penuh</p>
+                    <p class="text-blue-200 text-[10px] mt-0.5">Klik mata pelajaran di atas untuk memulai. Jangan tutup / keluar dari layar penuh selama ujian.</p>
+                </div>
+            </div>
+
         </div>
     </div>    <!-- SECTION: EXAM -->
     <div id="section-exam" class="hidden-section min-h-screen bg-slate-100 flex flex-col no-copy relative overflow-hidden">
@@ -1617,36 +1708,104 @@
 
                 <div class="px-6 py-5 space-y-5">
 
-                    <!-- SECTION 1: STATUS & KUNCI -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <!-- Status aktif -->
+                    <!-- SECTION 1: STATUS, TIPE & KUNCI -->
+                    <div class="grid grid-cols-1 gap-4">
+                        <!-- Tipe Soal -->
                         <div class="bg-gray-50 rounded-xl border p-4">
                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                                <i data-lucide="eye" class="w-3.5 h-3.5"></i> Status Soal
+                                <i data-lucide="layers" class="w-3.5 h-3.5"></i> Tipe Soal
                             </p>
-                            <label class="flex items-center gap-3 cursor-pointer">
-                                <div class="relative shrink-0">
-                                    <input type="checkbox" id="q-aktif" class="sr-only peer" checked>
-                                    <div class="w-12 h-6 bg-gray-300 rounded-full peer peer-checked:bg-green-500 transition-colors"></div>
-                                    <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-6"></div>
-                                </div>
-                                <span id="q-aktif-label" class="text-sm font-bold text-green-600">Aktif</span>
-                            </label>
-                            <p class="text-xs text-gray-400 mt-2">Soal nonaktif tidak muncul di ujian siswa.</p>
+                            <div class="flex gap-2">
+                                <button type="button" id="q-tipe-single-btn" onclick="window.setQuestionType('single')"
+                                    class="flex-1 py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    <i data-lucide="circle-dot" class="w-4 h-4"></i> Pilihan Tunggal
+                                </button>
+                                <button type="button" id="q-tipe-multiple-btn" onclick="window.setQuestionType('multiple')"
+                                    class="flex-1 py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    <i data-lucide="check-square" class="w-4 h-4"></i> Jawaban Ganda
+                                </button>
+                                <button type="button" id="q-tipe-truefalse-btn" onclick="window.setQuestionType('truefalse')"
+                                    class="flex-1 py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    <i data-lucide="toggle-left" class="w-4 h-4"></i> Benar / Salah
+                                </button>
+                            </div>
+                            <input type="hidden" id="q-tipe" value="single">
+                            <p id="q-tipe-hint" class="text-xs text-gray-400 mt-2">Pilihan tunggal: hanya 1 jawaban benar.</p>
                         </div>
-                        <!-- Kunci jawaban -->
-                        <div class="bg-gray-50 rounded-xl border p-4">
-                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                                <i data-lucide="check-square" class="w-3.5 h-3.5"></i> Kunci Jawaban
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- Status aktif -->
+                            <div class="bg-gray-50 rounded-xl border p-4">
+                                <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i> Status Soal
+                                </p>
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <div class="relative shrink-0">
+                                        <input type="checkbox" id="q-aktif" class="sr-only peer" checked>
+                                        <div class="w-12 h-6 bg-gray-300 rounded-full peer peer-checked:bg-green-500 transition-colors"></div>
+                                        <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-6"></div>
+                                    </div>
+                                    <span id="q-aktif-label" class="text-sm font-bold text-green-600">Aktif</span>
+                                </label>
+                                <p class="text-xs text-gray-400 mt-2">Soal nonaktif tidak muncul di ujian siswa.</p>
+                            </div>
+                            <!-- Kunci jawaban (single) -->
+                            <div id="q-correct-single-wrap" class="bg-gray-50 rounded-xl border p-4">
+                                <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                                    <i data-lucide="check-square" class="w-3.5 h-3.5"></i> Kunci Jawaban
+                                </p>
+                                <select id="q-correct" class="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white">
+                                    <option value="0">A (Pilihan ke-1)</option>
+                                    <option value="1">B (Pilihan ke-2)</option>
+                                    <option value="2">C (Pilihan ke-3)</option>
+                                    <option value="3">D (Pilihan ke-4)</option>
+                                    <option value="4">E (Pilihan ke-5)</option>
+                                </select>
+                                <p class="text-xs text-gray-400 mt-2">Pilih jawaban yang benar.</p>
+                            </div>
+                        </div>
+                        <!-- Kunci jawaban (multiple) -->
+                        <div id="q-correct-multiple-wrap" class="hidden bg-emerald-50 rounded-xl border border-emerald-200 p-4">
+                            <p class="text-xs font-bold text-emerald-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                                <i data-lucide="check-square" class="w-3.5 h-3.5"></i> Kunci Jawaban Ganda
+                                <span class="ml-auto text-[10px] font-normal text-emerald-500">Centang semua jawaban yang benar</span>
                             </p>
-                            <select id="q-correct" class="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white" required>
-                                <option value="0">A (Pilihan ke-1)</option>
-                                <option value="1">B (Pilihan ke-2)</option>
-                                <option value="2">C (Pilihan ke-3)</option>
-                                <option value="3">D (Pilihan ke-4)</option>
-                                <option value="4">E (Pilihan ke-5)</option>
-                            </select>
-                            <p class="text-xs text-gray-400 mt-2">Pilih jawaban yang benar.</p>
+                            <div id="q-correct-multi-checks" class="flex flex-wrap gap-2">
+                                <label class="flex items-center gap-2 px-3 py-2 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 transition-all has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                    <input type="checkbox" name="correct-multi[]" value="0" class="w-4 h-4 accent-emerald-600"> <span class="font-bold text-sm text-gray-700">A</span>
+                                </label>
+                                <label class="flex items-center gap-2 px-3 py-2 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 transition-all has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                    <input type="checkbox" name="correct-multi[]" value="1" class="w-4 h-4 accent-emerald-600"> <span class="font-bold text-sm text-gray-700">B</span>
+                                </label>
+                                <label class="flex items-center gap-2 px-3 py-2 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 transition-all has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                    <input type="checkbox" name="correct-multi[]" value="2" class="w-4 h-4 accent-emerald-600"> <span class="font-bold text-sm text-gray-700">C</span>
+                                </label>
+                                <label class="flex items-center gap-2 px-3 py-2 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 transition-all has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                    <input type="checkbox" name="correct-multi[]" value="3" class="w-4 h-4 accent-emerald-600"> <span class="font-bold text-sm text-gray-700">D</span>
+                                </label>
+                                <label class="flex items-center gap-2 px-3 py-2 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-emerald-400 transition-all has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                    <input type="checkbox" name="correct-multi[]" value="4" class="w-4 h-4 accent-emerald-600"> <span class="font-bold text-sm text-gray-700">E</span>
+                                </label>
+                            </div>
+                            <p class="text-xs text-emerald-600 mt-2 font-medium">⚠️ Siswa harus memilih SEMUA jawaban yang benar untuk mendapat poin penuh.</p>
+                        </div>
+
+                        <!-- Kunci jawaban (benar/salah) -->
+                        <div id="q-correct-truefalse-wrap" class="hidden bg-amber-50 rounded-xl border border-amber-200 p-4">
+                            <p class="text-xs font-bold text-amber-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                                <i data-lucide="toggle-left" class="w-3.5 h-3.5"></i> Kunci Jawaban
+                                <span class="ml-auto text-[10px] font-normal text-amber-500">Pilih mana yang benar</span>
+                            </p>
+                            <div class="flex gap-3">
+                                <label id="q-tf-benar-label" class="flex-1 flex items-center justify-center gap-2 py-3 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-green-400 transition-all font-bold text-gray-600 has-[:checked]:border-green-500 has-[:checked]:bg-green-50 has-[:checked]:text-green-700">
+                                    <input type="radio" name="correct-tf" value="true" id="q-tf-benar" class="sr-only">
+                                    <span class="text-xl">✓</span> BENAR
+                                </label>
+                                <label id="q-tf-salah-label" class="flex-1 flex items-center justify-center gap-2 py-3 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-red-400 transition-all font-bold text-gray-600 has-[:checked]:border-red-500 has-[:checked]:bg-red-50 has-[:checked]:text-red-700">
+                                    <input type="radio" name="correct-tf" value="false" id="q-tf-salah" class="sr-only">
+                                    <span class="text-xl">✗</span> SALAH
+                                </label>
+                            </div>
+                            <p class="text-xs text-amber-600 mt-2 font-medium">Pilih apakah pernyataan di atas adalah BENAR atau SALAH.</p>
                         </div>
                     </div>
 
@@ -1689,7 +1848,7 @@
                     </div>
 
                     <!-- SECTION 4: PILIHAN JAWABAN -->
-                    <div>
+                    <div id="q-options-section">
                         <div class="flex items-center justify-between mb-2">
                             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
                                 <i data-lucide="list" class="w-3.5 h-3.5"></i> Pilihan Jawaban
@@ -1700,6 +1859,15 @@
                         </div>
                         <p class="text-xs text-gray-400 mb-3">Teks boleh kosong jika pilihan berupa gambar saja. Pastikan kunci jawaban sudah dipilih di atas.</p>
                         <div id="q-options-container" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Info box untuk tipe benar/salah (menggantikan pilihan jawaban) -->
+                    <div id="q-truefalse-info" class="hidden bg-amber-50 rounded-xl border border-amber-200 p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                            <p class="text-sm font-bold text-amber-800">Soal Benar / Salah</p>
+                        </div>
+                        <p class="text-xs text-amber-700 leading-relaxed">Tipe soal ini otomatis menampilkan dua pilihan: <strong>✓ BENAR</strong> dan <strong>✗ SALAH</strong>. Tidak perlu mengisi pilihan jawaban secara manual — cukup tulis pernyataannya di atas dan pilih kunci jawaban yang tepat.</p>
                     </div>
 
                 </div>
@@ -3676,44 +3844,44 @@
         <!-- MOBILE BOTTOM NAV — hanya tampil di HP (md ke atas disembunyikan) -->
         <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-2xl shadow-black/10">
             <!-- Safe area untuk iPhone dengan home indicator -->
-            <div class="flex items-stretch h-16 px-1" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
+            <div class="flex items-stretch h-16 px-1 overflow-x-auto scrollbar-hide" style="padding-bottom: env(safe-area-inset-bottom, 0px); -webkit-overflow-scrolling: touch; scrollbar-width: none;">
                 <button onclick="window.switchDashTab('welcome')" id="mob-tab-welcome"
-                    class="admin-only-tab flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="home" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">BERANDA</span>
                 </button>
                 <button onclick="window.switchDashTab('nilai')" id="mob-tab-nilai"
-                    class="flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 bg-blue-50 text-blue-600">
+                    class="min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">NILAI</span>
                 </button>
                 <button onclick="window.switchDashTab('kelas')" id="mob-tab-kelas"
-                    class="admin-only-tab flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="school" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">KELAS</span>
                 </button>
                 <button onclick="window.switchDashTab('soal')" id="mob-tab-soal"
-                    class="admin-only-tab flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="layers" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">SOAL</span>
                 </button>
                 <button onclick="window.switchDashTab('ruang')" id="mob-tab-ruang"
-                    class="admin-only-tab flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="door-open" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">RUANG</span>
                 </button>
                 <button onclick="window.switchDashTab('jadwal')" id="mob-tab-jadwal"
-                    class="admin-only-tab flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="calendar-clock" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">JADWAL</span>
                 </button>
                 <button onclick="window.switchDashTab('analitik')" id="mob-tab-analitik"
-                    class="flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    class="min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="shield-check" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">ANALITIK</span>
                 </button>
                 <button onclick="window.switchDashTab('tampilan')" id="mob-tab-tampilan"
-                    class="admin-only-tab flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="palette" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">SETTING</span>
                 </button>
@@ -5631,23 +5799,54 @@
             container.innerHTML = pageItems.map((q, idx) => {
                 const globalIdx = sliceStart + idx;
                 const isAktif   = q.aktif !== false;
-                const optionsHtml = (q.options || []).map((opt, i) => {
-                    const isCorrect = i === q.correct;
+                const isMultiple = q.tipe === 'multiple';
+                const isTrueFalse = q.tipe === 'truefalse';
+                const optionsHtml = isTrueFalse
+                    ? `<div class="flex gap-2">
+                            <div class="flex items-center gap-2 px-4 py-2 rounded-lg ${q.correct === true || q.correct === 'true' ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-100'}">
+                                <span class="w-6 h-6 rounded-full ${q.correct === true || q.correct === 'true' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'} text-xs font-bold flex items-center justify-center">✓</span>
+                                <span class="text-sm font-semibold ${q.correct === true || q.correct === 'true' ? 'text-green-700' : 'text-gray-500'}">BENAR ${q.correct === true || q.correct === 'true' ? '<span class="text-xs text-green-500">✓ Kunci</span>' : ''}</span>
+                            </div>
+                            <div class="flex items-center gap-2 px-4 py-2 rounded-lg ${q.correct === false || q.correct === 'false' ? 'bg-red-50 border border-red-200' : 'bg-gray-50 border border-gray-100'}">
+                                <span class="w-6 h-6 rounded-full ${q.correct === false || q.correct === 'false' ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'} text-xs font-bold flex items-center justify-center">✗</span>
+                                <span class="text-sm font-semibold ${q.correct === false || q.correct === 'false' ? 'text-red-700' : 'text-gray-500'}">SALAH ${q.correct === false || q.correct === 'false' ? '<span class="text-xs text-red-500">✓ Kunci</span>' : ''}</span>
+                            </div>
+                       </div>`
+                    : (q.options || []).map((opt, i) => {
+                    const isCorrect = isMultiple
+                        ? (Array.isArray(q.correct) && q.correct.includes(i))
+                        : i === (Array.isArray(q.correct) ? q.correct[0] : q.correct);
                     return `<div class="flex items-start gap-2 py-1.5 px-3 rounded-lg ${isCorrect ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-100'}">
-                        <span class="shrink-0 w-6 h-6 rounded-full ${isCorrect ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'} text-xs font-bold flex items-center justify-center">${labels[i]||i}</span>
+                        <span class="shrink-0 w-6 h-6 rounded-${isMultiple ? 'md' : 'full'} ${isCorrect ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'} text-xs font-bold flex items-center justify-center">${labels[i]||i}</span>
                         <span class="text-sm ${isCorrect ? 'text-green-800 font-semibold' : 'text-gray-700'} flex-1">${opt || '<em class="text-gray-400 text-xs">Gambar</em>'}</span>
                         ${isCorrect ? '<span class="text-xs font-bold text-green-600 shrink-0">✓ Kunci</span>' : ''}
                     </div>`;
                 }).join('');
                 const imgHtml = q.image ? `<div class="mt-3"><img src="${q.image}" class="max-h-32 rounded-xl border object-contain bg-gray-50 p-1"></div>` : '';
 
+                // Build kunci label for card header
+                const kunciLabel = isTrueFalse
+                    ? (q.correct === true || q.correct === 'true' ? '✓ Benar' : '✗ Salah')
+                    : isMultiple && Array.isArray(q.correct)
+                        ? q.correct.map(i => labels[i]||i).join(', ')
+                        : labels[Array.isArray(q.correct) ? q.correct[0] : q.correct] || q.correct;
+
+                const tipeBadge = isTrueFalse
+                    ? `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">B/S</span>`
+                    : isMultiple
+                        ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Ganda</span>`
+                        : '';
+
                 return `
                 <div class="bg-white rounded-2xl border shadow-sm overflow-hidden ${!isAktif ? 'opacity-60' : ''}" id="soal-card-${q.id}">
                     <div class="flex items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-gray-50 transition-colors" onclick="window.toggleSoalCard('${q.id}')">
                         <span class="text-xs font-bold text-gray-300 w-7 shrink-0 text-center">${globalIdx+1}</span>
                         <div class="flex-1 min-w-0">
-                            <p class="text-sm font-semibold text-gray-800 truncate">${q.text || '<em class="text-gray-400 font-normal">Soal Gambar</em>'}</p>
-                            <p class="text-xs text-gray-400 mt-0.5">${(q.options||[]).length} pilihan • Kunci: ${labels[q.correct]||q.correct}</p>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <p class="text-sm font-semibold text-gray-800 truncate">${q.text || '<em class="text-gray-400 font-normal">Soal Gambar</em>'}</p>
+                                ${tipeBadge}
+                            </div>
+                            <p class="text-xs text-gray-400 mt-0.5">${(q.options||[]).length} pilihan • Kunci: ${kunciLabel}</p>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
                             <label class="flex items-center gap-1.5 cursor-pointer" onclick="event.stopPropagation()">
@@ -5670,7 +5869,7 @@
                             ${imgHtml}
                         </div>
                         <div>
-                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Pilihan Jawaban</p>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Pilihan Jawaban ${isMultiple ? '<span class="text-emerald-600">(Jawaban Ganda — ✓ = Kunci)</span>' : isTrueFalse ? '<span class="text-amber-600">(Benar/Salah)</span>' : ''}</p>
                             <div class="space-y-1.5">${optionsHtml}</div>
                         </div>
                     </div>
@@ -6022,6 +6221,14 @@
                 document.getElementById('section-welcome').classList.add('hidden-section');
                 document.getElementById('section-exam').classList.remove('hidden-section');
 
+                // ── Paksa fullscreen saat ujian dimulai ──
+                try {
+                    const el = document.documentElement;
+                    if (el.requestFullscreen) await el.requestFullscreen().catch(() => {});
+                    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+                } catch(fsErr) { console.log("[FS] startExam:", fsErr); }
+
                 window.renderWatermark(name);
                 startExamLogic();
 
@@ -6153,7 +6360,8 @@
 
                 document.getElementById('section-login').classList.add('hidden-section');
                 document.getElementById('section-dashboard').classList.remove('hidden-section');
-                window.switchDashTab('welcome');
+                // Delay kecil agar DOM selesai render (terutama di HP)
+                requestAnimationFrame(() => { window.switchDashTab('welcome'); });
 
                 const teacherInput = document.getElementById('teacher-token-input');
                 if(teacherInput) teacherInput.value = window.currentExamToken;
@@ -6307,7 +6515,10 @@
                 }
             }
 
-            const answeredCount = Object.keys(userAnswers).length;
+            const answeredCount = Object.keys(userAnswers).filter(k => {
+                const v = userAnswers[k];
+                return !(Array.isArray(v) && v.length === 0);
+            }).length;
             const total = currentQuestionList.length;
             
             let msg = "Apakah Anda yakin ingin menyelesaikan ujian?";
@@ -6384,6 +6595,7 @@
 
                 document.getElementById('section-login').classList.add('hidden-section');
                 document.getElementById('section-dashboard').classList.remove('hidden-section');
+                requestAnimationFrame(() => { window.switchDashTab('welcome'); });
 
                 const teacherInput = document.getElementById('teacher-token-input');
                 if (teacherInput) teacherInput.value = window.currentExamToken;
@@ -6691,41 +6903,95 @@
             const container = document.getElementById('question-area');
             const total = currentQuestionList.length;
             const labels = ['A','B','C','D','E'];
+            const isMultiple = q.tipe === 'multiple';
+            const isTrueFalse = q.tipe === 'truefalse';
 
             let optionsHTML = '';
-            q.options.forEach((opt, optIdx) => {
-                const isSelected  = userAnswers[q.id] === optIdx;
-                const activeClass = isSelected
-                    ? "border-blue-500 bg-blue-50 ring-2 ring-blue-400"
-                    : "border-gray-200 hover:bg-gray-50 hover:border-gray-300";
 
-                const indicatorClass = isSelected
-                    ? "w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center shrink-0 text-white font-bold text-sm shadow"
-                    : "w-7 h-7 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0 text-gray-400 font-bold text-sm";
+            if (isTrueFalse) {
+                // Render dua tombol besar: BENAR dan SALAH
+                const userAns = userAnswers[q.id]; // true, false, or undefined
+                const benarSel = userAns === true;
+                const salahSel = userAns === false;
 
-                const optImg = (q.optionImages && q.optionImages[optIdx]) ? q.optionImages[optIdx] : '';
-                const imgHtml = optImg
-                    ? `<img src="${optImg}" alt="Gambar pilihan ${labels[optIdx]}" class="mt-2 max-h-28 rounded-lg border object-contain bg-white w-full" onerror="this.style.display='none'">`
-                    : '';
+                const benarClass = benarSel
+                    ? "flex-1 flex flex-col items-center justify-center gap-2 p-6 rounded-2xl border-2 border-green-500 bg-green-50 ring-2 ring-green-400 cursor-pointer transition-all"
+                    : "flex-1 flex flex-col items-center justify-center gap-2 p-6 rounded-2xl border-2 border-gray-200 bg-white hover:bg-green-50 hover:border-green-300 cursor-pointer transition-all";
+                const salahClass = salahSel
+                    ? "flex-1 flex flex-col items-center justify-center gap-2 p-6 rounded-2xl border-2 border-red-500 bg-red-50 ring-2 ring-red-400 cursor-pointer transition-all"
+                    : "flex-1 flex flex-col items-center justify-center gap-2 p-6 rounded-2xl border-2 border-gray-200 bg-white hover:bg-red-50 hover:border-red-300 cursor-pointer transition-all";
 
-                // Layout: jika ada gambar → vertikal, jika tidak → horizontal
-                const innerLayout = optImg
-                    ? `<div class="flex flex-col w-full">
-                            <div class="flex items-center gap-3">
-                                <div class="${indicatorClass}">${labels[optIdx]}</div>
-                                ${opt ? `<span class="text-gray-700 text-sm md:text-base font-medium">${opt}</span>` : ''}
+                optionsHTML = `
+                    <div class="flex gap-4 mt-2">
+                        <div class="${benarClass}" onclick="saveAnswer('${q.id}', true, false, false, this)">
+                            <div class="w-14 h-14 rounded-full flex items-center justify-center ${benarSel ? 'bg-green-500' : 'bg-gray-100'}">
+                                <svg class="w-8 h-8 ${benarSel ? 'text-white' : 'text-gray-400'}" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                             </div>
-                            ${imgHtml}
-                       </div>`
-                    : `<div class="${indicatorClass}">${labels[optIdx]}</div>
-                       <span class="text-gray-700 text-base md:text-lg ml-3">${opt}</span>`;
-
-                optionsHTML += `
-                    <label class="flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all mb-3 ${activeClass}" onclick="saveAnswer('${q.id}', ${optIdx}, this)">
-                        ${innerLayout}
-                    </label>
+                            <span class="font-black text-xl ${benarSel ? 'text-green-700' : 'text-gray-500'}">BENAR</span>
+                        </div>
+                        <div class="${salahClass}" onclick="saveAnswer('${q.id}', false, false, false, this)">
+                            <div class="w-14 h-14 rounded-full flex items-center justify-center ${salahSel ? 'bg-red-500' : 'bg-gray-100'}">
+                                <svg class="w-8 h-8 ${salahSel ? 'text-white' : 'text-gray-400'}" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </div>
+                            <span class="font-black text-xl ${salahSel ? 'text-red-700' : 'text-gray-500'}">SALAH</span>
+                        </div>
+                    </div>
                 `;
-            });
+            } else {
+                // For multiple choice, userAnswers[q.id] is an array; for single it's an index
+                q.options.forEach((opt, optIdx) => {
+                    let isSelected;
+                    if (isMultiple) {
+                        const ans = userAnswers[q.id];
+                        isSelected = Array.isArray(ans) && ans.includes(optIdx);
+                    } else {
+                        isSelected = userAnswers[q.id] === optIdx;
+                    }
+
+                    const activeClass = isSelected
+                        ? (isMultiple ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-400" : "border-blue-500 bg-blue-50 ring-2 ring-blue-400")
+                        : "border-gray-200 hover:bg-gray-50 hover:border-gray-300";
+
+                    const indicatorClass = isSelected
+                        ? (isMultiple
+                            ? "w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0 text-white font-bold text-sm shadow"
+                            : "w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center shrink-0 text-white font-bold text-sm shadow")
+                        : (isMultiple
+                            ? "w-7 h-7 rounded-lg border-2 border-gray-300 flex items-center justify-center shrink-0 text-gray-400 font-bold text-sm"
+                            : "w-7 h-7 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0 text-gray-400 font-bold text-sm");
+
+                    const checkIcon = isSelected && isMultiple ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>` : labels[optIdx];
+
+                    const optImg = (q.optionImages && q.optionImages[optIdx]) ? q.optionImages[optIdx] : '';
+                    const imgHtml = optImg
+                        ? `<img src="${optImg}" alt="Gambar pilihan ${labels[optIdx]}" class="mt-2 max-h-28 rounded-lg border object-contain bg-white w-full" onerror="this.style.display='none'">`
+                        : '';
+
+                    const innerLayout = optImg
+                        ? `<div class="flex flex-col w-full">
+                                <div class="flex items-center gap-3">
+                                    <div class="${indicatorClass}">${checkIcon}</div>
+                                    ${opt ? `<span class="text-gray-700 text-sm md:text-base font-medium">${opt}</span>` : ''}
+                                </div>
+                                ${imgHtml}
+                           </div>`
+                        : `<div class="${indicatorClass}">${checkIcon}</div>
+                           <span class="text-gray-700 text-base md:text-lg ml-3">${opt}</span>`;
+
+                    optionsHTML += `
+                        <label class="flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all mb-3 ${activeClass}" onclick="saveAnswer('${q.id}', ${optIdx}, ${isMultiple}, false, this)">
+                            ${innerLayout}
+                        </label>
+                    `;
+                });
+            }
+
+            // Badge tipe soal
+            const tipeBadge = isTrueFalse
+                ? `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Benar / Salah</span>`
+                : isMultiple
+                    ? `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Jawaban Ganda</span>`
+                    : '';
 
             // Gambar soal
             const qImgHtml = q.image
@@ -6739,15 +7005,31 @@
                 ? `<p class="text-lg md:text-xl text-gray-800 font-medium leading-relaxed">${q.text}</p>`
                 : '';
 
+            const hintBox = isMultiple
+                ? `<div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-3">
+                        <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <p class="text-xs text-emerald-700 font-semibold">Pilih semua jawaban yang benar (bisa lebih dari satu)</p>
+                   </div>`
+                : isTrueFalse
+                    ? `<div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3">
+                            <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <p class="text-xs text-amber-700 font-semibold">Apakah pernyataan di atas BENAR atau SALAH?</p>
+                       </div>`
+                    : '';
+
             const html = `
                 <div class="bg-white rounded-xl shadow-sm border p-6 md:p-8 animate-fade-in">
                     <div class="flex flex-col gap-4">
                         <div class="flex justify-between items-start border-b pb-4 mb-2">
-                            <span class="bg-slate-100 text-slate-600 px-3 py-1 rounded text-sm font-bold">Soal No. ${currentQuestionIndex + 1}</span>
+                            <div class="flex items-center flex-wrap gap-1">
+                                <span class="bg-slate-100 text-slate-600 px-3 py-1 rounded text-sm font-bold">Soal No. ${currentQuestionIndex + 1}</span>
+                                ${tipeBadge}
+                            </div>
                             <span class="text-xs text-gray-400">Dari ${total} soal</span>
                         </div>
                         ${questionText}
                         ${qImgHtml}
+                        ${hintBox}
                         <div class="space-y-1 option-group" id="opts-${q.id}">
                             ${optionsHTML}
                         </div>
@@ -6799,8 +7081,23 @@
             }
         }
 
-        window.saveAnswer = function(qId, optIdx, element) {
-            userAnswers[qId] = optIdx;
+        window.saveAnswer = function(qId, optIdx, isMultiple, isTrueFalse, element) {
+            if (isTrueFalse !== undefined && isTrueFalse === false && typeof optIdx === 'boolean') {
+                // truefalse: optIdx is actually the boolean value (true/false)
+                userAnswers[qId] = optIdx;
+            } else if (isMultiple) {
+                // Toggle: add or remove from array
+                if (!Array.isArray(userAnswers[qId])) userAnswers[qId] = [];
+                const arr = userAnswers[qId];
+                const pos = arr.indexOf(optIdx);
+                if (pos === -1) arr.push(optIdx);
+                else arr.splice(pos, 1);
+                // If empty array, remove key so sidebar shows unanswered
+                if (arr.length === 0) delete userAnswers[qId];
+                else userAnswers[qId] = arr;
+            } else {
+                userAnswers[qId] = optIdx;
+            }
             renderQuestion();
         };
 
@@ -6810,7 +7107,9 @@
             grid.innerHTML = '';
             
             currentQuestionList.forEach((q, idx) => {
-                const isAnswered = userAnswers[q.id] !== undefined;
+                const ans = userAnswers[q.id];
+                const isAnswered = ans !== undefined
+                    && !(Array.isArray(ans) && ans.length === 0);
                 const isActive = idx === currentQuestionIndex;
                 
                 let btnClass = "h-10 w-full rounded font-bold text-sm flex items-center justify-center transition-colors ";
@@ -6858,6 +7157,18 @@
             // --- NEW: TOLERANSI ROTASI LAYAR ---
             // Saat HP diputar (resize), matikan deteksi blur sebentar
             window.addEventListener("resize", handleResizeToleransi);
+
+            // ── FULLSCREEN CHANGE: paksa kembali fullscreen jika siswa keluar (Esc) ──
+            function handleFullscreenChange() {
+                const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+                if (!isFs && !isWarningActive) {
+                    // Tampilkan peringatan terlebih dahulu, lalu saat klik "lanjut" fullscreen diminta lagi
+                    registerViolation("Anda keluar dari layar penuh (Fullscreen)!");
+                }
+            }
+            document.addEventListener("fullscreenchange", handleFullscreenChange);
+            document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+            document.addEventListener("msfullscreenchange", handleFullscreenChange);
             
             document.addEventListener("contextmenu", e => e.preventDefault());
 
@@ -7091,13 +7402,12 @@
             if (modal) modal.classList.add('hidden');
             document.getElementById('ws-cd-wrapper').classList.remove('hidden');
             isWarningActive = false;
-            // Paksa kembali ke fullscreen setelah tutup peringatan
+            // Selalu paksa kembali ke fullscreen saat siswa klik lanjut
             try {
                 const el = document.documentElement;
-                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                    if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
-                    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-                }
+                if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+                else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                else if (el.msRequestFullscreen) el.msRequestFullscreen();
             } catch(e) {}
             if (violations >= 3) _showDQModal();
         };
@@ -7156,12 +7466,32 @@
             const mw = document.getElementById('modal-warning-student');
             if (mw) mw.classList.add('hidden');
 
+            // Keluar dari fullscreen saat ujian selesai (agar halaman hasil bisa dilihat normal)
+            try {
+                if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+                else if (document.webkitExitFullscreen && document.webkitFullscreenElement) document.webkitExitFullscreen();
+            } catch(e) {}
+
             // ── Hitung skor (safe: jaga dari array kosong) ──
             const qList = currentQuestionList || [];
             let correctCount = 0;
             qList.forEach(q => {
                 if (typeof q.correct === 'undefined') return;
-                if (userAnswers[q.id] === q.correct) correctCount++;
+                const isMultiple = q.tipe === 'multiple';
+                const isTrueFalse = q.tipe === 'truefalse';
+                if (isTrueFalse) {
+                    const correctBool = q.correct === true || q.correct === 'true';
+                    if (userAnswers[q.id] === correctBool) correctCount++;
+                } else if (isMultiple && Array.isArray(q.correct)) {
+                    // Multiple: siswa harus memilih SEMUA jawaban benar, tidak lebih tidak kurang
+                    const userAns = Array.isArray(userAnswers[q.id]) ? [...userAnswers[q.id]].sort() : [];
+                    const corrArr = [...q.correct].sort();
+                    if (userAns.length === corrArr.length && userAns.every((v, i) => v === corrArr[i])) correctCount++;
+                } else {
+                    // Single
+                    const correctIdx = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+                    if (userAnswers[q.id] === correctIdx) correctCount++;
+                }
             });
             // Gunakan nilaiMaksimal dari paket (default 100 jika tidak diset)
             const _paketData = (window.allPaketDB || []).find(p => p.id === (currentStudent || {}).paketId);
@@ -7275,21 +7605,62 @@
 
                 const reviewListEl = document.getElementById('review-list');
                 reviewListEl.innerHTML = '';
+                const labels = ['A','B','C','D','E'];
                 
                 currentQuestionList.forEach((q, idx) => {
-                    if (!q || !q.options) return;
+                    if (!q || !q.options && q.tipe !== 'truefalse') return;
+                    const isMultiple = q.tipe === 'multiple';
+                    const isTrueFalse = q.tipe === 'truefalse';
+                    const userAnsRaw = userAnswers[q.id];
+                    const isSkipped = userAnsRaw === undefined || (Array.isArray(userAnsRaw) && userAnsRaw.length === 0);
 
-                    const userAnsIdx = userAnswers[q.id];
-                    const isCorrect = userAnsIdx === q.correct;
-                    const isSkipped = userAnsIdx === undefined;
+                    let isCorrect;
+                    if (isTrueFalse) {
+                        const correctBool = q.correct === true || q.correct === 'true';
+                        isCorrect = !isSkipped && userAnsRaw === correctBool;
+                    } else if (isMultiple && Array.isArray(q.correct)) {
+                        const userArr = Array.isArray(userAnsRaw) ? [...userAnsRaw].sort() : [];
+                        const corrArr = [...q.correct].sort();
+                        isCorrect = !isSkipped && userArr.length === corrArr.length && userArr.every((v, i) => v === corrArr[i]);
+                    } else {
+                        const correctIdx = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+                        isCorrect = userAnsRaw === correctIdx;
+                    }
                     
-                    let statusClass = isCorrect ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200";
-                    let icon = isCorrect ? `<i data-lucide="check" class="text-green-600 w-5 h-5"></i>` : `<i data-lucide="x" class="text-red-600 w-5 h-5"></i>`;
-                    
-                    let userAnsText = isSkipped ? "<span class='text-gray-500 italic'>Tidak dijawab</span>" : q.options[userAnsIdx];
-                    if (userAnsIdx !== undefined && !userAnsText) userAnsText = "Opsi Tidak Valid";
+                    let statusClass = isCorrect ? "bg-green-50 border-green-200" : (isSkipped ? "bg-gray-50 border-gray-200" : "bg-red-50 border-red-200");
+                    let icon = isCorrect
+                        ? `<i data-lucide="check" class="text-green-600 w-5 h-5"></i>`
+                        : (isSkipped ? `<i data-lucide="minus" class="text-gray-400 w-5 h-5"></i>` : `<i data-lucide="x" class="text-red-600 w-5 h-5"></i>`);
 
-                    let correctAnsText = q.options[q.correct] || "Kunci Jawaban Tidak Valid";
+                    // User answer text
+                    let userAnsText;
+                    if (isSkipped) {
+                        userAnsText = "<span class='text-gray-500 italic'>Tidak dijawab</span>";
+                    } else if (isTrueFalse) {
+                        userAnsText = userAnsRaw === true ? '✓ BENAR' : '✗ SALAH';
+                    } else if (isMultiple && Array.isArray(userAnsRaw)) {
+                        userAnsText = userAnsRaw.sort().map(i => `<span class="font-bold">${labels[i] || i}</span>: ${q.options[i] || ''}` ).join(', ');
+                    } else {
+                        userAnsText = q.options[userAnsRaw] || "Opsi Tidak Valid";
+                    }
+
+                    // Correct answer text
+                    let correctAnsText;
+                    if (isTrueFalse) {
+                        const correctBool = q.correct === true || q.correct === 'true';
+                        correctAnsText = correctBool ? '✓ BENAR' : '✗ SALAH';
+                    } else if (isMultiple && Array.isArray(q.correct)) {
+                        correctAnsText = q.correct.map(i => `<span class="font-bold">${labels[i] || i}</span>: ${q.options[i] || ''}`).join(', ');
+                    } else {
+                        const ci = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+                        correctAnsText = q.options[ci] || "Kunci Jawaban Tidak Valid";
+                    }
+
+                    const tipeBadge = isTrueFalse
+                        ? `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold ml-1">B/S</span>`
+                        : isMultiple
+                            ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-1">Ganda</span>`
+                            : '';
 
                     const reviewItem = `
                         <div class="p-4 rounded-lg border ${statusClass}">
@@ -7297,17 +7668,16 @@
                                 <div class="mt-1 min-w-[20px]">${icon}</div>
                                 <div class="w-full">
                                     <p class="font-semibold text-gray-800 mb-2 text-sm md:text-base">
-                                        <span class="text-gray-500 mr-1">${idx + 1}.</span> ${q.text}
+                                        <span class="text-gray-500 mr-1">${idx + 1}.</span> ${q.text || '(Soal bergambar)'}${tipeBadge}
                                     </p>
-                                    
                                     <div class="mt-3 text-sm space-y-1">
                                         <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
-                                            <span class="font-bold text-gray-600 w-24">Jawabanmu:</span>
-                                            <span class="${isCorrect ? 'text-green-700 font-medium' : 'text-red-600 font-medium'}">${userAnsText}</span>
+                                            <span class="font-bold text-gray-600 w-24 shrink-0">Jawabanmu:</span>
+                                            <span class="${isCorrect ? 'text-green-700 font-medium' : (isSkipped ? 'text-gray-500' : 'text-red-600 font-medium')}">${userAnsText}</span>
                                         </div>
                                         ${!isCorrect ? `
                                         <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
-                                            <span class="font-bold text-gray-600 w-24">Kunci:</span>
+                                            <span class="font-bold text-gray-600 w-24 shrink-0">Kunci:</span>
                                             <span class="text-green-700 font-bold">${correctAnsText}</span>
                                         </div>` : ''}
                                     </div>
