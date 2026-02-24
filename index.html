@@ -6086,7 +6086,7 @@
             ctx.fillStyle = '#1e3a5f';
             ctx.font = `bold ${Math.round(18 * scale)}px Arial`;
             ctx.textAlign = 'center';
-            const text = `${name} • SI UJIAN TKJ • SMKN 1 BRONDONG`;
+            const text = `${name} • INTEGRITEST • SMKN 1 BRONDONG`;
             ctx.save();
             ctx.translate(W / 2, H / 2);
             ctx.rotate(-28 * Math.PI / 180);
@@ -8276,89 +8276,68 @@
 
             const wb = XLSX.utils.book_new();
 
-            // === Sheet 1: PG (Pilihan Ganda) ===
-            const headerPG = [['packet','type','bobot','question','question_image','option_a','image_a','option_b','image_b','option_c','image_c','option_d','image_d','option_e','image_e','correct']];
-            const contohPG = [
-                ['A','pg','','Apa kepanjangan dari TKJ?','','Teknik Komputer dan Jaringan','','Teknologi Komunikasi Jaringan','','Teknik Komunikasi dan Jaringan','','Teknologi Komputer dan Jaringan','','','','A'],
-                ['A','pg','5','Protokol untuk mengirim email adalah...','','SMTP','','HTTP','','FTP','','SSH','','DNS','','A'],
-                ['B','pg','','Perhatikan topologi jaringan berikut!','https://drive.google.com/file/d/GANTI_ID_SOAL/view','Star','','Bus','','Ring','','Mesh','','','','A'],
+            // Sheet 1: Template kosong
+            const header = [['packet','question','question_image','option_a','image_a','option_b','image_b','option_c','image_c','option_d','image_d','option_e','image_e','correct']];
+            const contoh = [
+                ['A','Apa kepanjangan dari TKJ?','','Teknik Komputer dan Jaringan','','Teknologi Komunikasi Jaringan','','Teknik Komunikasi dan Jaringan','','Teknologi Komputer dan Jaringan','','','','A'],
+                ['A','Protokol untuk mengirim email adalah...','','SMTP','','HTTP','','FTP','','SSH','','DNS','','A'],
+                ['B','Perhatikan topologi jaringan berikut!','https://drive.google.com/file/d/GANTI_ID_GAMBAR_SOAL/view','Star','','Bus','','Ring','','Mesh','','','','A'],
+                ['C','Pilih gambar yang menunjukkan kabel UTP!','','','https://drive.google.com/file/d/GANTI_ID_GAMBAR_A/view','','https://drive.google.com/file/d/GANTI_ID_GAMBAR_B/view','','','','','','','','A'],
             ];
-            const wsPG = XLSX.utils.aoa_to_sheet([...headerPG, ...contohPG]);
-            wsPG['!cols'] = [{wch:8},{wch:8},{wch:8},{wch:50},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:10}];
-            XLSX.utils.book_append_sheet(wb, wsPG, 'PG (Pilihan Ganda)');
+            const wsData = [...header, ...contoh];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-            // === Sheet 2: MC (Multiple Choice) ===
-            const headerMC = [['packet','type','bobot','question','question_image','option_a','image_a','option_b','image_b','option_c','image_c','option_d','image_d','option_e','image_e','mc_correct']];
-            const contohMC = [
-                ['A','mc','','Pilih SEMUA protokol yang digunakan untuk email!','','SMTP','','HTTP','','POP3','','IMAP','','FTP','','A,C,D'],
-                ['A','mc','10','Komponen jaringan yang berfungsi memperkuat sinyal adalah...','','Hub','','Switch','','Repeater','','Access Point','','','','C,D'],
+            // Set lebar kolom
+            ws['!cols'] = [
+                {wch:8},{wch:50},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:10}
             ];
-            const wsMC = XLSX.utils.aoa_to_sheet([...headerMC, ...contohMC]);
-            wsMC['!cols'] = [{wch:8},{wch:8},{wch:8},{wch:50},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:15}];
-            XLSX.utils.book_append_sheet(wb, wsMC, 'MC (Multiple Choice)');
 
-            // === Sheet 3: Esai ===
-            const headerEsai = [['packet','type','bobot','essay_mode','question','question_image','essay_key','essay_rubric']];
-            const contohEsai = [
-                ['A','essay','20','ai','Jelaskan perbedaan topologi Star dan Bus, serta kelebihan masing-masing!','','Topologi Star: semua perangkat terhubung ke hub/switch sentral. Kelebihan: mudah troubleshoot, kerusakan satu node tidak mengganggu lainnya. Topologi Bus: semua perangkat terhubung ke satu kabel utama. Kelebihan: hemat kabel, instalasi sederhana.','- Pengertian Star benar (25 poin)
-- Pengertian Bus benar (25 poin)
-- Kelebihan Star minimal 1 (25 poin)
-- Kelebihan Bus minimal 1 (25 poin)'],
-                ['A','essay','15','manual','Apa yang dimaksud IP Address? Berikan contoh IP kelas C!','','IP Address adalah alamat unik yang diberikan ke setiap perangkat dalam jaringan untuk identifikasi dan komunikasi. Contoh kelas C: 192.168.1.1','- Definisi IP Address benar dan lengkap (50 poin)
-- Contoh IP kelas C valid (50 poin)'],
-            ];
-            const wsEsai = XLSX.utils.aoa_to_sheet([...headerEsai, ...contohEsai]);
-            wsEsai['!cols'] = [{wch:8},{wch:8},{wch:8},{wch:12},{wch:55},{wch:45},{wch:65},{wch:65}];
-            XLSX.utils.book_append_sheet(wb, wsEsai, 'Esai');
+            XLSX.utils.book_append_sheet(wb, ws, 'Template Soal');
 
-            // === Sheet 4: Petunjuk ===
+            // Sheet 2: Petunjuk
             const petunjuk = [
-                ['PETUNJUK PENGISIAN TEMPLATE SOAL INTEGRITEST'],[''],
-                ['=== KOLOM WAJIB (SEMUA TIPE) ==='],
-                ['Kolom','Nilai yang Valid','Keterangan'],
-                ['packet','A / B / C','Paket soal (huruf kapital)'],
-                ['type','pg / mc / essay','Tipe soal — lihat penjelasan di bawah'],
-                ['bobot','angka, misal: 5','[Opsional] Poin soal ini. Kosong = otomatis dari paket'],
-                ['question','teks bebas','Teks pertanyaan. Boleh kosong jika soal berupa gambar saja'],
-                ['question_image','URL Google Drive','[Opsional] URL gambar soal'],
+                ['PETUNJUK PENGISIAN TEMPLATE SOAL (dengan dukungan gambar)'],
                 [''],
-                ['=== PILIHAN GANDA (type=pg) ==='],
-                ['option_a, option_b, option_c, option_d','teks','Teks tiap pilihan (a-d wajib, e opsional)'],
-                ['image_a ... image_e','URL Drive','[Opsional] Gambar tiap pilihan'],
-                ['correct','A / B / C / D / E','Satu huruf kapital — jawaban benar'],
+                ['Kolom','Keterangan','Contoh'],
+                ['packet','Paket soal: A, B, atau C','A'],
+                ['question','Teks pertanyaan (boleh kosong jika soal hanya berupa gambar)','Perhatikan gambar topologi berikut!'],
+                ['question_image','[OPSIONAL] URL gambar soal dari Google Drive atau URL langsung','https://drive.google.com/file/d/ID_FILE/view'],
+                ['option_a','Teks pilihan jawaban A (boleh kosong jika pilihan berupa gambar)','Star Topology'],
+                ['image_a','[OPSIONAL] URL gambar untuk pilihan A','https://drive.google.com/file/d/ID_FILE_A/view'],
+                ['option_b','Teks pilihan jawaban B','Bus Topology'],
+                ['image_b','[OPSIONAL] URL gambar untuk pilihan B',''],
+                ['option_c','Teks pilihan jawaban C','Ring Topology'],
+                ['image_c','[OPSIONAL] URL gambar untuk pilihan C',''],
+                ['option_d','Teks pilihan jawaban D','Mesh Topology'],
+                ['image_d','[OPSIONAL] URL gambar untuk pilihan D',''],
+                ['option_e','Teks pilihan jawaban E (opsional)',''],
+                ['image_e','[OPSIONAL] URL gambar untuk pilihan E',''],
+                ['correct','Huruf jawaban benar: A, B, C, D, atau E (WAJIB huruf kapital)','A'],
                 [''],
-                ['=== MULTIPLE CHOICE (type=mc) ==='],
-                ['option_a s/d option_e','teks','Sama seperti PG'],
-                ['mc_correct','A,C,D','Huruf dipisah koma tanpa spasi — semua jawaban benar'],
-                ['Catatan MC','','Penilaian proporsional: betul semua=nilai penuh, betul sebagian=nilai sebanding'],
-                [''],
-                ['=== ESAI (type=essay) ==='],
-                ['essay_mode','ai / manual','ai=dikoreksi AI otomatis | manual=guru koreksi sendiri'],
-                ['essay_key','teks bebas','Kunci jawaban ideal / poin utama yang harus ada (WAJIB untuk AI)'],
-                ['essay_rubric','teks bebas','[Opsional] Rubrik penilaian per aspek, misal: - Poin A (40p)
-- Poin B (60p)'],
-                [''],
-                ['=== CARA LINK GOOGLE DRIVE ==='],
+                ['CARA MENDAPATKAN LINK GOOGLE DRIVE:'],
                 ['1. Upload gambar ke Google Drive'],
-                ['2. Klik kanan -> Bagikan -> ubah ke Siapa pun yang memiliki link'],
-                ['3. Salin link dan paste di kolom gambar yang sesuai'],
-                ['Sistem otomatis mengkonversi format link Drive'],
+                ['2. Klik kanan file gambar → pilih "Bagikan" atau "Share"'],
+                ['3. Ubah akses menjadi "Siapa pun yang memiliki link"'],
+                ['4. Salin link dan paste di kolom question_image atau image_a/b/c/d/e'],
+                ['5. Sistem akan otomatis mengkonversi link ke format yang bisa ditampilkan'],
                 [''],
-                ['=== CATATAN PENTING ==='],
-                ['- Isi masing-masing tipe soal di sheet yang sesuai (PG di sheet PG, dst)'],
-                ['- Semua tipe bisa digabung jika diisi di sheet yang benar'],
-                ['- Hapus baris contoh sebelum diimport'],
-                ['- Simpan dalam format .xlsx'],
+                ['CATATAN PENTING:'],
+                ['- Kolom gambar semuanya OPSIONAL, boleh dikosongkan'],
+                ['- question + question_image tidak boleh keduanya kosong'],
+                ['- Minimal 4 pilihan jawaban (A-D) harus ada, option_e opsional'],
+                ['- correct HARUS huruf kapital: A, B, C, D, atau E'],
+                ['- Paket harus huruf kapital: A, B, atau C'],
             ];
             const wsPetunjuk = XLSX.utils.aoa_to_sheet(petunjuk);
-            wsPetunjuk['!cols'] = [{wch:30},{wch:25},{wch:65}];
+            wsPetunjuk['!cols'] = [{wch:12},{wch:50},{wch:40}];
             XLSX.utils.book_append_sheet(wb, wsPetunjuk, 'Petunjuk');
 
-            XLSX.writeFile(wb, 'Template_Soal_INTEGRITEST.xlsx');
+            XLSX.writeFile(wb, 'Template_Soal_SIUJIAN.xlsx');
         };
+
         // ---------- DOWNLOAD TEMPLATE WORD (sebagai HTML yang dibuka Word) ----------
         window.downloadWordTemplate = function() {
-            const doc = `
+            const html = `
 <html xmlns:o='urn:schemas-microsoft-com:office:office'
       xmlns:w='urn:schemas-microsoft-com:office:word'
       xmlns='http://www.w3.org/TR/REC-html40'>
@@ -8366,51 +8345,34 @@
 <meta charset='utf-8'>
 <title>Template Soal INTEGRITEST</title>
 <style>
-body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #1f2937; }
-h1 { font-size: 14pt; color: #1d4ed8; margin-bottom: 4px; }
-h2 { font-size: 12pt; color: #374151; margin-top: 18px; margin-bottom: 6px; border-bottom: 2px solid #e5e7eb; padding-bottom: 4px; }
-h3 { font-size: 11pt; color: #6b7280; margin-top: 12px; margin-bottom: 4px; }
-table { border-collapse: collapse; width: 100%; margin-bottom: 16px; font-size: 9.5pt; }
-th { background: #1d4ed8; color: white; padding: 7px 8px; border: 1px solid #1e40af; font-size: 9pt; text-align: left; white-space: nowrap; }
-td { padding: 6px 8px; border: 1px solid #d1d5db; vertical-align: top; }
-tr:nth-child(even) td { background: #eff6ff; }
-.note { background: #fef3c7; border: 2px solid #f59e0b; padding: 10px 14px; margin: 10px 0; border-radius: 4px; font-size: 9.5pt; }
-.note-green { background: #f0fdf4; border: 2px solid #22c55e; padding: 10px 14px; margin: 10px 0; border-radius: 4px; font-size: 9.5pt; }
-.note-purple { background: #faf5ff; border: 2px solid #a855f7; padding: 10px 14px; margin: 10px 0; border-radius: 4px; font-size: 9.5pt; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: bold; font-size: 8.5pt; }
-.badge-blue { background: #dbeafe; color: #1d4ed8; }
-.badge-yellow { background: #fef9c3; color: #92400e; }
-.badge-purple { background: #f3e8ff; color: #7c3aed; }
+body { font-family: Arial, sans-serif; font-size: 11pt; }
+h1 { font-size: 14pt; color: #1d4ed8; }
+h2 { font-size: 12pt; color: #374151; }
+table { border-collapse: collapse; width: 100%; }
+th { background: #1d4ed8; color: white; padding: 8px; border: 1px solid #93c5fd; font-size: 10pt; }
+td { padding: 8px; border: 1px solid #d1d5db; font-size: 10pt; vertical-align: top; }
+tr:nth-child(even) { background: #eff6ff; }
+.note { background: #fef3c7; border: 1px solid #f59e0b; padding: 10px; margin: 10px 0; border-radius: 4px; }
 .correct { color: #16a34a; font-weight: bold; }
-.header-row th { background: #1e3a8a; }
-.th-mc { background: #854d0e; }
-.th-essay { background: #6d28d9; }
 </style>
 </head>
 <body>
-<h1>&#128196; Template Soal — INTEGRITEST</h1>
-<p style="color:#6b7280;font-size:9pt;margin-top:0">Versi 2.0 — Mendukung Pilihan Ganda (PG), Multiple Choice (MC), dan Esai</p>
-
+<h1>Template Soal - INTEGRITEST</h1>
 <div class="note">
-<strong>&#9888; PETUNJUK UMUM:</strong><br>
-&#8226; <b>Jangan ubah nama kolom</b> pada baris pertama setiap tabel<br>
-&#8226; Kolom <b>packet</b>: A, B, atau C (huruf kapital)<br>
-&#8226; Kolom <b>type</b>: isi <b>pg</b> untuk Pilihan Ganda, <b>mc</b> untuk Multiple Choice, <b>essay</b> untuk Esai<br>
-&#8226; Kolom <b>bobot</b>: angka poin soal (kosongkan = otomatis dihitung dari nilai maks paket)<br>
-&#8226; Kolom gambar (question_image, image_a, dst): URL Google Drive &mdash; kosongkan jika tidak pakai gambar<br>
-&#8226; Simpan file dalam format <b>.docx</b> sebelum diimport ke sistem
+<strong>&#9888; PETUNJUK PENTING:</strong><br>
+&bull; Jangan ubah nama kolom pada baris pertama tabel<br>
+&bull; Kolom <b>packet</b>: isi dengan A, B, atau C (huruf kapital)<br>
+&bull; Kolom <b>correct</b>: isi dengan huruf kapital A, B, C, D, atau E<br>
+&bull; Kolom gambar (<b>question_image, image_a, image_b</b> dst): isi URL Google Drive &mdash; klik kanan file di Drive &rarr; Bagikan &rarr; Salin link<br>
+&bull; Kolom gambar boleh dikosongkan (opsional)<br>
+&bull; Soal boleh hanya berupa gambar tanpa teks, atau gambar + teks<br>
+&bull; Simpan file dalam format .docx sebelum diimport
 </div>
 
-<!-- ============================= SECTION 1: PG ============================= -->
-<h2>&#128221; BAGIAN 1: Pilihan Ganda (PG) — Satu Jawaban Benar</h2>
-<div class="note-green">
-<b>Cara mengisi kolom <i>correct</i>:</b> Isi satu huruf kapital jawaban benar: <b>A</b>, <b>B</b>, <b>C</b>, <b>D</b>, atau <b>E</b>
-</div>
+<h2>Tabel Soal (isi di bawah baris header)</h2>
 <table>
-<tr class="header-row">
+<tr>
 <th>packet</th>
-<th>type</th>
-<th>bobot</th>
 <th>question</th>
 <th>question_image</th>
 <th>option_a</th>
@@ -8426,28 +8388,19 @@ tr:nth-child(even) td { background: #eff6ff; }
 <th>correct</th>
 </tr>
 <tr>
-<td>A</td><td>pg</td><td></td>
-<td>Apa kepanjangan dari TKJ?</td><td></td>
+<td>A</td>
+<td>Apa kepanjangan dari TKJ?</td>
+<td></td>
 <td>Teknik Komputer dan Jaringan</td><td></td>
 <td>Teknologi Komunikasi Jaringan</td><td></td>
 <td>Teknik Komunikasi dan Jaringan</td><td></td>
 <td>Teknologi Komputer dan Jaringan</td><td></td>
-<td></td><td></td>
+<td>Teknik Komputer dan Jasa</td><td></td>
 <td class="correct">A</td>
 </tr>
 <tr>
-<td>A</td><td>pg</td><td>5</td>
-<td>Protokol untuk mengirim email adalah...</td><td></td>
-<td>SMTP</td><td></td>
-<td>HTTP</td><td></td>
-<td>FTP</td><td></td>
-<td>SSH</td><td></td>
-<td>DNS</td><td></td>
-<td class="correct">A</td>
-</tr>
-<tr>
-<td>B</td><td>pg</td><td></td>
-<td>Perhatikan topologi jaringan berikut!</td>
+<td>B</td>
+<td>Perhatikan topologi jaringan berikut ini!</td>
 <td>https://drive.google.com/file/d/GANTI_ID_GAMBAR_SOAL/view</td>
 <td>Star Topology</td><td></td>
 <td>Bus Topology</td><td></td>
@@ -8456,169 +8409,58 @@ tr:nth-child(even) td { background: #eff6ff; }
 <td></td><td></td>
 <td class="correct">A</td>
 </tr>
-</table>
-<p><i>Tambahkan baris soal PG di bawah contoh. Hapus baris contoh sebelum diimport.</i></p>
-
-<!-- ============================= SECTION 2: MC ============================= -->
-<h2>&#9745; BAGIAN 2: Multiple Choice (MC) — Boleh Lebih dari Satu Jawaban Benar</h2>
-<div class="note" style="background:#fffbeb;border-color:#d97706">
-<b>Cara mengisi kolom <i>mc_correct</i>:</b> Isi huruf-huruf jawaban yang benar, dipisah koma tanpa spasi.<br>
-Contoh: <b>A,C,D</b> artinya pilihan A, C, dan D semuanya benar.<br>
-Penilaian proporsional: betul semua = nilai penuh, betul sebagian = nilai sebanding, ada yang salah = dikurangi.
-</div>
-<table>
 <tr>
-<th class="th-mc">packet</th>
-<th class="th-mc">type</th>
-<th class="th-mc">bobot</th>
-<th class="th-mc">question</th>
-<th class="th-mc">question_image</th>
-<th class="th-mc">option_a</th>
-<th class="th-mc">image_a</th>
-<th class="th-mc">option_b</th>
-<th class="th-mc">image_b</th>
-<th class="th-mc">option_c</th>
-<th class="th-mc">image_c</th>
-<th class="th-mc">option_d</th>
-<th class="th-mc">image_d</th>
-<th class="th-mc">option_e</th>
-<th class="th-mc">image_e</th>
-<th class="th-mc">mc_correct</th>
-</tr>
-<tr>
-<td>A</td><td>mc</td><td></td>
-<td>Pilih SEMUA protokol yang digunakan untuk email!</td><td></td>
-<td>SMTP</td><td></td>
-<td>HTTP</td><td></td>
-<td>POP3</td><td></td>
-<td>IMAP</td><td></td>
-<td>FTP</td><td></td>
-<td class="correct">A,C,D</td>
-</tr>
-<tr>
-<td>A</td><td>mc</td><td>10</td>
-<td>Komponen jaringan yang berfungsi memperkuat sinyal adalah...</td><td></td>
-<td>Hub</td><td></td>
-<td>Switch</td><td></td>
-<td>Repeater</td><td></td>
-<td>Access Point</td><td></td>
+<td>C</td>
+<td>Pilih gambar yang menunjukkan kabel UTP!</td>
+<td></td>
+<td></td><td>https://drive.google.com/file/d/ID_GAMBAR_A/view</td>
+<td></td><td>https://drive.google.com/file/d/ID_GAMBAR_B/view</td>
+<td></td><td>https://drive.google.com/file/d/ID_GAMBAR_C/view</td>
+<td></td><td>https://drive.google.com/file/d/ID_GAMBAR_D/view</td>
 <td></td><td></td>
-<td class="correct">C,D</td>
+<td class="correct">A</td>
 </tr>
 </table>
-<p><i>Tambahkan baris soal MC di bawah contoh. Gunakan kolom mc_correct (BUKAN correct).</i></p>
-
-<!-- ============================= SECTION 3: ESAI ============================= -->
-<h2>&#9997; BAGIAN 3: Esai — Jawaban Panjang, Dikoreksi AI atau Guru</h2>
-<div class="note-purple">
-<b>Kolom essay_mode:</b> isi <b>ai</b> untuk koreksi otomatis oleh AI, atau <b>manual</b> untuk koreksi oleh guru.<br>
-<b>Kolom essay_key:</b> WAJIB diisi — tulis jawaban ideal atau poin-poin utama yang harus ada dalam jawaban siswa.<br>
-<b>Kolom essay_rubric:</b> [Opsional] Tulis rubrik penilaian per aspek, misal: - Poin A (40 poin) / - Poin B (60 poin)
-</div>
-<table>
-<tr>
-<th class="th-essay">packet</th>
-<th class="th-essay">type</th>
-<th class="th-essay">bobot</th>
-<th class="th-essay">essay_mode</th>
-<th class="th-essay">question</th>
-<th class="th-essay">question_image</th>
-<th class="th-essay">essay_key</th>
-<th class="th-essay">essay_rubric</th>
-</tr>
-<tr>
-<td>A</td><td>essay</td><td>20</td><td>ai</td>
-<td>Jelaskan perbedaan antara topologi Star dan Bus, serta sebutkan kelebihan masing-masing!</td><td></td>
-<td>Topologi Star: semua perangkat terhubung ke hub/switch sentral. Kelebihan: mudah troubleshoot, kerusakan satu node tidak mengganggu lainnya. Topologi Bus: semua perangkat ke kabel utama. Kelebihan: hemat kabel, instalasi sederhana.</td>
-<td>- Pengertian Star benar (25 poin)&#10;- Pengertian Bus benar (25 poin)&#10;- Kelebihan Star minimal 1 (25 poin)&#10;- Kelebihan Bus minimal 1 (25 poin)</td>
-</tr>
-<tr>
-<td>A</td><td>essay</td><td>15</td><td>manual</td>
-<td>Apa yang dimaksud dengan IP Address? Berikan contoh IP Address kelas C!</td><td></td>
-<td>IP Address adalah alamat unik yang diberikan kepada setiap perangkat dalam jaringan komputer untuk identifikasi dan komunikasi. Contoh kelas C: 192.168.1.1</td>
-<td>- Definisi IP Address benar dan lengkap (50 poin)&#10;- Contoh IP kelas C valid (50 poin)</td>
-</tr>
-</table>
-<p><i>Tambahkan baris soal Esai di bawah contoh.</i></p>
-
-<!-- ============================= CARA LINK DRIVE ============================= -->
-<h2>&#128247; Cara Mendapatkan Link Google Drive untuk Gambar</h2>
-<ol style="font-size:10pt;line-height:1.7">
-<li>Upload gambar ke Google Drive</li>
-<li>Klik kanan file gambar &rarr; pilih <b>"Bagikan"</b></li>
-<li>Ubah akses menjadi <b>"Siapa pun yang memiliki link"</b></li>
-<li>Klik <b>"Salin link"</b> dan paste di kolom gambar yang sesuai</li>
-<li>Sistem akan otomatis mengkonversi link ke format yang bisa ditampilkan</li>
-</ol>
-
+<br>
+<p><i>Tambahkan soal baru dengan menambah baris di bawah contoh di atas. Hapus baris contoh sebelum diimport jika tidak diperlukan.</i></p>
 </body></html>`;
 
-            const blob = new Blob(['﻿', doc], { type: 'application/msword' });
+            const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Template_Soal_INTEGRITEST.doc';
+            a.download = 'Template_Soal_SIUJIAN.doc';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         };
+
         // ---------- HELPER: Build preview table HTML ----------
         function buildPreviewTable(questions) {
             if (!questions || questions.length === 0) return '<p class="p-4 text-gray-400">Tidak ada soal valid yang terdeteksi.</p>';
-            const labels = ['A','B','C','D','E'];
             const rows = questions.slice(0, 10).map((q, i) => {
-                const hasQImg   = q.image ? '🖼️ ' : '';
+                const hasQImg  = q.image ? '🖼️' : '';
                 const hasOptImg = (q.optionImages || []).some(x => x) ? '🖼️' : '';
-                const pktColor  = q.packet==='A'?'bg-blue-100 text-blue-700':q.packet==='B'?'bg-purple-100 text-purple-700':'bg-orange-100 text-orange-700';
-                const qType     = q.type || 'pg';
-                const typeBadge = qType === 'essay'
-                    ? '<span class="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Esai</span>'
-                    : qType === 'mc'
-                    ? '<span class="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold">MC</span>'
-                    : '<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] font-bold">PG</span>';
-
-                let kunciCell;
-                if (qType === 'essay') {
-                    kunciCell = `<span class="text-purple-500 text-xs italic">Esai</span>`;
-                } else if (qType === 'mc') {
-                    kunciCell = `<span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-bold">${(q.mcCorrect||[]).map(i=>labels[i]||i).join(',')}</span>`;
-                } else {
-                    kunciCell = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">${labels[q.correct] || q.correct}</span>`;
-                }
-
-                const bobotCell = q.bobot !== undefined
-                    ? `<span class="text-green-600 font-bold text-xs">${q.bobot}p</span>`
-                    : '<span class="text-gray-300 text-xs">auto</span>';
-
+                const pktColor = q.packet==='A'?'bg-blue-100 text-blue-700':q.packet==='B'?'bg-purple-100 text-purple-700':'bg-orange-100 text-orange-700';
                 return `<tr class="${i%2===0?'bg-white':'bg-gray-50'}">
-                    <td class="px-3 py-2 text-center font-bold text-xs text-gray-400">${i+1}</td>
+                    <td class="px-3 py-2 text-center font-bold text-xs">${i+1}</td>
                     <td class="px-3 py-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-bold ${pktColor}">${q.packet}</span></td>
-                    <td class="px-3 py-2">${typeBadge}</td>
-                    <td class="px-3 py-2 text-xs text-gray-700 max-w-xs truncate">${hasQImg}${q.text || '<em class="text-gray-400">hanya gambar</em>'}</td>
-                    <td class="px-3 py-2 text-xs text-gray-400 text-center">${qType !== 'essay' ? (q.options||[]).length+' '+hasOptImg : '—'}</td>
-                    <td class="px-3 py-2 text-center">${kunciCell}</td>
-                    <td class="px-3 py-2 text-center">${bobotCell}</td>
+                    <td class="px-3 py-2 text-xs text-gray-700 max-w-xs truncate">${hasQImg} ${q.text || '<em class="text-gray-400">hanya gambar</em>'}</td>
+                    <td class="px-3 py-2 text-xs text-gray-500 text-center">${q.options.length} ${hasOptImg}</td>
+                    <td class="px-3 py-2 text-center"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">${['A','B','C','D','E'][q.correct]}</span></td>
                 </tr>`;
             }).join('');
-            const extra = questions.length > 10 ? `<tr><td colspan="7" class="px-3 py-2 text-center text-gray-400 text-xs">... dan ${questions.length-10} soal lainnya</td></tr>` : '';
+            const extra = questions.length > 10 ? `<tr><td colspan="5" class="px-3 py-2 text-center text-gray-400 text-xs">... dan ${questions.length-10} soal lainnya</td></tr>` : '';
             return `<table class="w-full text-sm">
                 <thead class="bg-gray-100 text-gray-700 text-xs font-bold">
-                    <tr>
-                        <th class="px-3 py-2">#</th>
-                        <th class="px-3 py-2">Paket</th>
-                        <th class="px-3 py-2">Tipe</th>
-                        <th class="px-3 py-2 text-left">Pertanyaan</th>
-                        <th class="px-3 py-2 text-center">Opsi</th>
-                        <th class="px-3 py-2 text-center">Kunci</th>
-                        <th class="px-3 py-2 text-center">Bobot</th>
-                    </tr>
+                    <tr><th class="px-3 py-2">#</th><th class="px-3 py-2">Paket</th><th class="px-3 py-2 text-left">Pertanyaan</th><th class="px-3 py-2 text-center">Opsi</th><th class="px-3 py-2">Kunci</th></tr>
                 </thead>
                 <tbody>${rows}${extra}</tbody>
             </table>`;
         }
 
-        // ---------- HELPER: Parse rows jadi format soal (PG, MC, Esai) ----------
+        // ---------- HELPER: Parse rows jadi format soal (dengan dukungan gambar) ----------
         function parseRows(rows) {
             const questions  = [];
             const correctMap = { A:0, B:1, C:2, D:3, E:4 };
@@ -8627,76 +8469,44 @@ Penilaian proporsional: betul semua = nilai penuh, betul sebagian = nilai seband
 
                 const packet  = g(['packet','Packet','PACKET']).toUpperCase();
                 const text    = g(['question','Question','QUESTION','pertanyaan','soal']);
-                const qType   = g(['type','Type','TYPE','tipe']).toLowerCase() || 'pg';
-                const bobotRaw= g(['bobot','Bobot','BOBOT','weight','poin']);
-                const bobot   = bobotRaw !== '' ? parseFloat(bobotRaw) : undefined;
+                const optA    = g(['option_a','Option_A','option_A','a','A','pilihan_a']);
+                const optB    = g(['option_b','Option_B','option_B','b','B','pilihan_b']);
+                const optC    = g(['option_c','Option_C','option_C','c','C','pilihan_c']);
+                const optD    = g(['option_d','Option_D','option_D','d','D','pilihan_d']);
+                const optE    = g(['option_e','Option_E','option_E','e','E','pilihan_e']);
+                const correct = g(['correct','Correct','CORRECT','kunci','jawaban']).toUpperCase();
 
-                // Gambar soal
-                const qImg    = g(['question_image','image','gambar_soal','img']);
+                // Gambar soal & gambar tiap opsi (URL Google Drive atau URL biasa)
+                const qImg  = g(['question_image','image','gambar_soal','img']);
+                const imgA  = g(['image_a','img_a','gambar_a']);
+                const imgB  = g(['image_b','img_b','gambar_b']);
+                const imgC  = g(['image_c','img_c','gambar_c']);
+                const imgD  = g(['image_d','img_d','gambar_d']);
+                const imgE  = g(['image_e','img_e','gambar_e']);
 
                 if (!packet || !['A','B','C'].includes(packet)) return;
-                if (!text && !qImg) return;
-
-                // ── ESAI ──
-                if (qType === 'essay') {
-                    const essayKey    = g(['essay_key','kunci_esai','key']);
-                    const essayRubric = g(['essay_rubric','rubrik','rubric']);
-                    const essayMode   = g(['essay_mode','mode']).toLowerCase() || 'ai';
-                    const q = {
-                        packet, text, type: 'essay', essayKey, essayRubric,
-                        essayMode: ['ai','manual'].includes(essayMode) ? essayMode : 'ai',
-                        image: window.convertGDriveUrl(qImg),
-                        options: [], optionImages: [], correct: 0, mcCorrect: [],
-                        createdAt: Date.now()
-                    };
-                    if (bobot !== undefined) q.bobot = bobot;
-                    questions.push(q);
-                    return;
-                }
-
-                // ── PG & MC: ambil pilihan jawaban ──
-                const optA = g(['option_a','Option_A','a','A','pilihan_a']);
-                const optB = g(['option_b','Option_B','b','B','pilihan_b']);
-                const optC = g(['option_c','Option_C','c','C','pilihan_c']);
-                const optD = g(['option_d','Option_D','d','D','pilihan_d']);
-                const optE = g(['option_e','Option_E','e','E','pilihan_e']);
-                const imgA = g(['image_a','img_a','gambar_a']);
-                const imgB = g(['image_b','img_b','gambar_b']);
-                const imgC = g(['image_c','img_c','gambar_c']);
-                const imgD = g(['image_d','img_d','gambar_d']);
-                const imgE = g(['image_e','img_e','gambar_e']);
-
+                if (!text && !qImg) return;  // Boleh hanya gambar tanpa teks
                 if (!optA || !optB || !optC || !optD) return;
+                if (!(correct in correctMap)) return;
 
                 const options      = [optA, optB, optC, optD];
-                const optionImages = [window.convertGDriveUrl(imgA), window.convertGDriveUrl(imgB), window.convertGDriveUrl(imgC), window.convertGDriveUrl(imgD)];
+                const optionImages = [
+                    window.convertGDriveUrl(imgA),
+                    window.convertGDriveUrl(imgB),
+                    window.convertGDriveUrl(imgC),
+                    window.convertGDriveUrl(imgD),
+                ];
                 if (optE) { options.push(optE); optionImages.push(window.convertGDriveUrl(imgE)); }
 
-                // ── MULTIPLE CHOICE ──
-                if (qType === 'mc') {
-                    const mcCorrectRaw = g(['mc_correct','MC_correct','mc_correct','jawaban_mc']).toUpperCase();
-                    const mcCorrect = mcCorrectRaw.split(',').map(s => correctMap[s.trim()]).filter(v => v !== undefined);
-                    if (mcCorrect.length === 0) return; // harus ada kunci
-                    const q = {
-                        packet, text, type: 'mc', mcCorrect, correct: 0,
-                        options, optionImages, image: window.convertGDriveUrl(qImg),
-                        createdAt: Date.now()
-                    };
-                    if (bobot !== undefined) q.bobot = bobot;
-                    questions.push(q);
-                    return;
-                }
-
-                // ── PILIHAN GANDA (default) ──
-                const correct = g(['correct','Correct','CORRECT','kunci','jawaban']).toUpperCase();
-                if (!(correct in correctMap)) return;
-                const q = {
-                    packet, text, type: 'pg', correct: correctMap[correct], mcCorrect: [],
-                    options, optionImages, image: window.convertGDriveUrl(qImg),
+                questions.push({
+                    packet,
+                    text,
+                    image: window.convertGDriveUrl(qImg),
+                    options,
+                    optionImages,
+                    correct: correctMap[correct],
                     createdAt: Date.now()
-                };
-                if (bobot !== undefined) q.bobot = bobot;
-                questions.push(q);
+                });
             });
             return questions;
         }
