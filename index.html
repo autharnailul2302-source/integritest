@@ -169,6 +169,15 @@
                     if (window.listenForActiveSesi) window.listenForActiveSesi();
                     // FIX: Kelas harus dimuat untuk SEMUA user (siswa butuh dropdown kelas saat login)
                     if (window.listenForKelas) window.listenForKelas();
+                    // FIX KRITIS: Paket harus dimuat untuk SEMUA user — tanpa ini allPaketDB kosong untuk siswa
+                    // sehingga welcome page selalu kosong atau fallback ke Paket A hardcode
+                    if (window.listenForPaket) window.listenForPaket();
+                    // Jadwal ujian otomatis
+                    if (window.listenForJadwal) window.listenForJadwal();
+                    setTimeout(() => {
+                        if (window.startJadwalScheduler) window.startJadwalScheduler();
+                        if (window.initJadwalForm) window.initJadwalForm();
+                    }, 1000);
                 }, 500);
                 
                 if (window.isStaff()) {
@@ -242,6 +251,8 @@
                 if(durationInput && document.activeElement !== durationInput) durationInput.value = window.currentExamDuration;
                 if(minDurationInput && document.activeElement !== minDurationInput) minDurationInput.value = window.currentMinExamDuration;
                 if(cooldownInput && document.activeElement !== cooldownInput) cooldownInput.value = window.deviceCooldownHours;
+                // Selalu update tampilan token di panel pengawas
+                if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
 
                 // Terapkan pengaturan tampilan — selalu apply termasuk saat semua field dikosongkan
                 if (latestTime > 0) {
@@ -835,6 +846,28 @@
         window.isPengawas = () => window.currentUserRole === 'pengawas';
         window.isStaff    = () => ['admin','pengawas'].includes(window.currentUserRole);
         window.isSiswa    = () => window.currentUserRole === 'siswa';
+
+        // ── UPDATE TOKEN DISPLAY DI UI PENGAWAS ───────────────────────────
+        window.updatePengawasTokenDisplay = function() {
+            const container = document.getElementById('pengawas-token-list');
+            if (!container) return;
+            const paketAktif = (window.allPaketDB || []).filter(p => p.aktif !== false);
+            if (paketAktif.length === 0) {
+                const globalToken = window.currentExamToken || '—';
+                container.innerHTML = '<div class="flex items-center gap-3 bg-white border border-amber-200 rounded-xl px-4 py-2.5"><span class="font-mono font-black text-2xl tracking-[0.25em] text-amber-800">' + globalToken + '</span><span class="text-[10px] text-amber-400 font-semibold">(Token Global)</span></div>';
+                return;
+            }
+            const tokenMap = {};
+            paketAktif.forEach(function(p) {
+                const t = (p.token || window.currentExamToken || '—').toUpperCase();
+                if (!tokenMap[t]) tokenMap[t] = [];
+                tokenMap[t].push(p.nama || ('Paket ' + (p.jenis || '?')));
+            });
+            container.innerHTML = Object.entries(tokenMap).map(function(entry) {
+                const token = entry[0], namaList = entry[1];
+                return '<div class="flex flex-col items-center bg-white border-2 border-amber-300 rounded-xl px-5 py-3 min-w-[140px]"><span class="font-mono font-black text-2xl tracking-[0.25em] text-amber-800">' + token + '</span><span class="text-[10px] text-amber-500 font-semibold mt-1 text-center leading-tight">' + namaList.join(', ') + '</span></div>';
+            }).join('');
+        };
 
         window.setupRealtimeListener = () => {
             if (!window.isFirebaseReady || !window.db) return;
@@ -1754,6 +1787,19 @@
                     <input type="number" id="paket-jumlah-soal" placeholder="Contoh: 20" min="1" class="w-full px-4 py-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-blue-50 focus:bg-blue-50 font-bold text-gray-800">
                     <p class="text-xs text-gray-400 mt-1">Kosongkan = tampilkan semua soal dalam paket. Isi angka untuk membatasi jumlah soal yang diambil secara acak.</p>
                 </div>
+                <!-- Nilai Maksimal -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                        <i data-lucide="trophy" class="w-4 h-4 text-emerald-500"></i> Nilai Maksimal
+                    </label>
+                    <input type="number" id="paket-nilai-maks" placeholder="Default: 100" min="1" max="10000" class="w-full px-4 py-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-400 text-sm bg-emerald-50 focus:bg-emerald-50 font-bold text-gray-800">
+                    <div class="mt-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                        <p class="text-xs text-gray-500 font-semibold mb-1">💡 Cara penghitungan nilai:</p>
+                        <p class="text-xs text-gray-500">Nilai = (Jawaban Benar ÷ Total Soal) × Nilai Maksimal</p>
+                        <p class="text-xs text-gray-400 mt-1">Contoh: 40 soal, nilai maks 100 → tiap soal bernilai <strong>2,5 poin</strong>. Jika benar 30 soal → nilai = (30÷40)×100 = <strong>75</strong></p>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">Kosongkan = nilai maksimal 100 (default).</p>
+                </div>
                 <!-- Status -->
                 <div class="flex items-center justify-between bg-gray-50 rounded-xl border px-4 py-3">
                     <div>
@@ -1912,6 +1958,9 @@
             
             <!-- TABS DASHBOARD — Desktop: horizontal pill tabs | Mobile: dihapus (pakai bottom nav) -->
             <div class="hidden md:flex gap-2 mb-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5">
+                <button onclick="window.switchDashTab('welcome')" id="tab-dash-welcome" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
+                    <i data-lucide="home" class="w-4 h-4"></i><span class="hidden lg:inline">Beranda</span>
+                </button>
                 <button onclick="window.switchDashTab('nilai')" id="tab-dash-nilai" class="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-blue-600 text-white font-bold text-sm transition-all">
                     <i data-lucide="bar-chart-2" class="w-4 h-4"></i><span class="hidden lg:inline">Monitoring</span> Nilai
                 </button>
@@ -1927,13 +1976,271 @@
                 <button onclick="window.switchDashTab('analitik')" id="tab-dash-analitik" class="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
                     <i data-lucide="shield-check" class="w-4 h-4"></i><span class="hidden lg:inline">Analitik</span><span class="lg:hidden">Analitik</span>
                 </button>
+                <button onclick="window.switchDashTab('jadwal')" id="tab-dash-jadwal" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
+                    <i data-lucide="calendar-clock" class="w-4 h-4"></i><span class="hidden lg:inline">Jadwal</span>
+                </button>
                 <button onclick="window.switchDashTab('tampilan')" id="tab-dash-tampilan" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
                     <i data-lucide="palette" class="w-4 h-4"></i><span class="hidden lg:inline">Setting</span> Tampilan
                 </button>
             </div>
 
+            <!-- PANEL 0: BERANDA / WELCOME ADMIN -->
+            <div id="panel-welcome" class="hidden-section admin-only-panel">
+
+                <!-- Hero Card -->
+                <div class="relative overflow-hidden rounded-3xl mb-6 p-8 md:p-10" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 50%,#6366f1 100%);">
+                    <!-- Background decorations -->
+                    <div class="pointer-events-none absolute -top-16 -right-16 w-64 h-64 rounded-full" style="background:rgba(255,255,255,0.05)"></div>
+                    <div class="pointer-events-none absolute -bottom-10 -left-10 w-48 h-48 rounded-full" style="background:rgba(255,255,255,0.04)"></div>
+                    <div class="pointer-events-none absolute top-4 right-32 w-20 h-20 rounded-full" style="background:rgba(255,255,255,0.06)"></div>
+                    <div class="relative z-10 flex flex-col md:flex-row md:items-center gap-6">
+                        <div class="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center shrink-0" style="background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2)">
+                            <i data-lucide="shield-check" class="w-8 h-8 md:w-10 md:h-10 text-white"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-xs font-bold px-3 py-1 rounded-full text-blue-100 border border-blue-300/30" style="background:rgba(255,255,255,0.1)">Platform CBT Terpadu</span>
+                            </div>
+                            <h1 class="text-2xl md:text-4xl font-black text-white leading-tight mb-2">Selamat Datang di <span style="color:#93c5fd">INTEGRITEST</span></h1>
+                            <p class="text-blue-100 text-sm md:text-base leading-relaxed max-w-2xl">Sistem Computer Based Test (CBT) modern dengan keamanan integritas ujian terdepan. Dirancang khusus untuk pengelolaan ujian sekolah yang efisien, transparan, dan dapat dipercaya.</p>
+                        </div>
+                        <div class="shrink-0 hidden md:flex flex-col items-end gap-2">
+                            <div class="text-right">
+                                <p class="text-blue-200 text-xs font-semibold uppercase tracking-widest">Versi</p>
+                                <p class="text-white font-black text-2xl">2025</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Apa itu INTEGRITEST -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#dbeafe"><i data-lucide="info" class="w-5 h-5 text-blue-600"></i></div>
+                        <h2 class="text-lg font-black text-gray-800">Apa itu INTEGRITEST?</h2>
+                    </div>
+                    <p class="text-gray-600 text-sm leading-relaxed mb-4">
+                        <strong class="text-gray-800">INTEGRITEST</strong> adalah platform ujian berbasis komputer (<em>Computer Based Test</em>) yang dikembangkan untuk memfasilitasi penyelenggaraan ujian sekolah secara digital — mulai dari manajemen soal, pelaksanaan ujian real-time, hingga analisis hasil ujian dan integritas siswa secara menyeluruh.
+                    </p>
+                    <p class="text-gray-600 text-sm leading-relaxed">
+                        Nama <strong class="text-blue-700">INTEGRI</strong>TEST berasal dari kata <em>Integritas</em> + <em>Test</em>, mencerminkan komitmen platform ini terhadap kejujuran dan keadilan dalam setiap proses ujian.
+                    </p>
+                </div>
+
+                <!-- Fitur Unggulan -->
+                <div class="mb-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#dcfce7"><i data-lucide="zap" class="w-5 h-5 text-emerald-600"></i></div>
+                        <h2 class="text-lg font-black text-gray-800">Fitur Lengkap dalam Satu Platform</h2>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#eff6ff"><i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-600"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Monitoring Real-Time</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Pantau progres seluruh siswa secara langsung — siapa yang sudah selesai, sedang mengerjakan, atau belum login.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#f0fdf4"><i data-lucide="shield-alert" class="w-5 h-5 text-emerald-600"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Anti-Kecurangan Otomatis</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Deteksi perpindahan tab, minimalisasi layar, dan pelanggaran lainnya secara otomatis dengan sistem skor integritas.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#fff7ed"><i data-lucide="layers" class="w-5 h-5 text-orange-500"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Bank Soal Multi-Paket</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Kelola soal dalam paket A, B, C, atau non-paket. Upload massal via Excel/Word. Soal diacak otomatis per siswa.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#fdf4ff"><i data-lucide="calendar-clock" class="w-5 h-5 text-purple-600"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Jadwal Otomatis</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Atur jadwal ujian per hari dan sesi. Token aktif dan nonaktif otomatis sesuai waktu yang dijadwalkan.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#f0f9ff"><i data-lucide="users" class="w-5 h-5 text-cyan-600"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Multi-Role & Multi-Ruang</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Admin koordinator dan pengawas ruang dengan akses berbeda. Setiap pengawas hanya melihat siswa di ruangnya.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#fff1f2"><i data-lucide="file-text" class="w-5 h-5 text-rose-500"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Laporan PDF Otomatis</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Cetak laporan integritas individual siswa lengkap dengan log pelanggaran, skor, predikat, dan kesimpulan otomatis.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#f0fdf4"><i data-lucide="cloud" class="w-5 h-5 text-green-600"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Cloud Real-Time (Firebase)</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Data tersimpan di cloud Firebase. Jawaban siswa terkirim real-time, aman meski koneksi terputus sesaat.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#fffbeb"><i data-lucide="smartphone" class="w-5 h-5 text-amber-500"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Responsif di Semua Perangkat</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Tampilan optimal di HP, tablet, maupun komputer. Admin bisa monitoring dari smartphone kapan saja.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#f0f9ff"><i data-lucide="trophy" class="w-5 h-5 text-blue-500"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Nilai Fleksibel per Paket</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Atur nilai maksimal per paket soal. Sistem menghitung otomatis nilai tiap soal dan total nilai akhir siswa.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Keunggulan vs CBT Lain -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#fef9c3"><i data-lucide="award" class="w-5 h-5 text-yellow-600"></i></div>
+                        <h2 class="text-lg font-black text-gray-800">Keunggulan INTEGRITEST vs CBT Lainnya</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm border-separate border-spacing-0">
+                            <thead>
+                                <tr>
+                                    <th class="text-left px-4 py-3 bg-gray-50 rounded-tl-xl text-gray-600 font-bold text-xs border-b border-gray-100">Fitur</th>
+                                    <th class="px-4 py-3 bg-blue-600 text-white font-bold text-xs text-center">INTEGRITEST</th>
+                                    <th class="px-4 py-3 bg-gray-100 text-gray-500 font-bold text-xs text-center rounded-tr-xl">CBT Umum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Anti-kecurangan real-time</td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Otomatis</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Terbatas</td>
+                                </tr>
+                                <tr class="border-b border-gray-50 bg-gray-50/50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Skor integritas siswa</td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Monitoring real-time multi-ruang</td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Jarang</td>
+                                </tr>
+                                <tr class="border-b border-gray-50 bg-gray-50/50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Jadwal ujian otomatis</td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Laporan integritas PDF</td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Otomatis</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
+                                </tr>
+                                <tr class="border-b border-gray-50 bg-gray-50/50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Nilai maksimal fleksibel per paket</td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Jarang</td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Upload soal via Excel/Word</td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Terbatas</td>
+                                </tr>
+                                <tr class="bg-gray-50/50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs rounded-bl-xl">Responsif di HP & PC</td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Penuh</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs rounded-br-xl">Sebagian</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Panduan Penggunaan -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#ede9fe"><i data-lucide="book-open" class="w-5 h-5 text-purple-600"></i></div>
+                        <h2 class="text-lg font-black text-gray-800">Panduan Singkat Penggunaan</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex gap-4 items-start">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-black text-sm text-white" style="background:linear-gradient(135deg,#2563eb,#6366f1)">1</div>
+                            <div>
+                                <p class="font-bold text-gray-800 text-sm">Buat Kelas & Ruang Ujian</p>
+                                <p class="text-gray-500 text-xs mt-0.5 leading-relaxed">Masuk ke tab <strong>Kelas</strong> untuk mendaftarkan kelas peserta. Lalu ke tab <strong>Ruang</strong> untuk membuat ruang ujian dan menugaskan pengawas ke tiap ruang.</p>
+                            </div>
+                        </div>
+                        <div class="w-px h-4 bg-gradient-to-b from-blue-200 to-indigo-200 ml-4"></div>
+                        <div class="flex gap-4 items-start">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-black text-sm text-white" style="background:linear-gradient(135deg,#2563eb,#6366f1)">2</div>
+                            <div>
+                                <p class="font-bold text-gray-800 text-sm">Buat Paket Soal</p>
+                                <p class="text-gray-500 text-xs mt-0.5 leading-relaxed">Di tab <strong>Soal → Paket</strong>, buat paket ujian baru (isi nama, mapel, token, jumlah soal, nilai maksimal, dan kelas yang mengerjakan). Paket bisa dibedakan A/B/C untuk mengurangi contekan.</p>
+                            </div>
+                        </div>
+                        <div class="w-px h-4 bg-gradient-to-b from-blue-200 to-indigo-200 ml-4"></div>
+                        <div class="flex gap-4 items-start">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-black text-sm text-white" style="background:linear-gradient(135deg,#2563eb,#6366f1)">3</div>
+                            <div>
+                                <p class="font-bold text-gray-800 text-sm">Input / Upload Soal</p>
+                                <p class="text-gray-500 text-xs mt-0.5 leading-relaxed">Tambahkan soal secara manual satu per satu, atau upload massal via file <strong>Excel (.xlsx)</strong> maupun <strong>Word (.docx)</strong> sesuai template yang tersedia. Soal bisa disertai gambar.</p>
+                            </div>
+                        </div>
+                        <div class="w-px h-4 bg-gradient-to-b from-blue-200 to-indigo-200 ml-4"></div>
+                        <div class="flex gap-4 items-start">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-black text-sm text-white" style="background:linear-gradient(135deg,#2563eb,#6366f1)">4</div>
+                            <div>
+                                <p class="font-bold text-gray-800 text-sm">Atur Jadwal (Opsional)</p>
+                                <p class="text-gray-500 text-xs mt-0.5 leading-relaxed">Gunakan tab <strong>Jadwal</strong> untuk menjadwalkan ujian per sesi. Sistem akan otomatis mengaktifkan token ujian tepat waktu dan menonaktifkannya saat sesi selesai.</p>
+                            </div>
+                        </div>
+                        <div class="w-px h-4 bg-gradient-to-b from-blue-200 to-indigo-200 ml-4"></div>
+                        <div class="flex gap-4 items-start">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-black text-sm text-white" style="background:linear-gradient(135deg,#2563eb,#6366f1)">5</div>
+                            <div>
+                                <p class="font-bold text-gray-800 text-sm">Bagikan Token ke Siswa</p>
+                                <p class="text-gray-500 text-xs mt-0.5 leading-relaxed">Sampaikan token ujian kepada siswa. Siswa login dengan nama, NISN, kelas, ruang, dan token. Sistem langsung menampilkan paket ujian yang sesuai kelasnya.</p>
+                            </div>
+                        </div>
+                        <div class="w-px h-4 bg-gradient-to-b from-blue-200 to-indigo-200 ml-4"></div>
+                        <div class="flex gap-4 items-start">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-black text-sm text-white" style="background:linear-gradient(135deg,#2563eb,#6366f1)">6</div>
+                            <div>
+                                <p class="font-bold text-gray-800 text-sm">Monitor & Evaluasi Hasil</p>
+                                <p class="text-gray-500 text-xs mt-0.5 leading-relaxed">Pantau ujian real-time di tab <strong>Monitoring Nilai</strong>. Setelah ujian selesai, analisis distribusi nilai dan skor integritas di tab <strong>Analitik</strong>. Export hasil ke CSV atau cetak laporan PDF.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Access Buttons -->
+                <div class="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border border-blue-100 p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#dbeafe"><i data-lucide="rocket" class="w-5 h-5 text-blue-600"></i></div>
+                        <h2 class="text-base font-black text-gray-800">Mulai Sekarang</h2>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <button onclick="window.switchDashTab('nilai')" class="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-blue-100 hover:border-blue-400 hover:shadow-md transition-all active:scale-95">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:#eff6ff"><i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-600"></i></div>
+                            <span class="text-xs font-bold text-gray-700">Monitoring</span>
+                        </button>
+                        <button onclick="window.switchDashTab('soal')" class="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-orange-100 hover:border-orange-400 hover:shadow-md transition-all active:scale-95">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:#fff7ed"><i data-lucide="layers" class="w-5 h-5 text-orange-500"></i></div>
+                            <span class="text-xs font-bold text-gray-700">Kelola Soal</span>
+                        </button>
+                        <button onclick="window.switchDashTab('jadwal')" class="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-purple-100 hover:border-purple-400 hover:shadow-md transition-all active:scale-95">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:#fdf4ff"><i data-lucide="calendar-clock" class="w-5 h-5 text-purple-600"></i></div>
+                            <span class="text-xs font-bold text-gray-700">Jadwal</span>
+                        </button>
+                        <button onclick="window.switchDashTab('analitik')" class="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-emerald-100 hover:border-emerald-400 hover:shadow-md transition-all active:scale-95">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:#f0fdf4"><i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i></div>
+                            <span class="text-xs font-bold text-gray-700">Analitik</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
             <!-- PANEL 1: MONITORING NILAI -->
             <div id="panel-nilai">
+                <!-- TOKEN INFO CARD — hanya muncul untuk pengawas, tersembunyi untuk admin -->
+                <div id="pengawas-token-card" class="hidden mb-4 bg-amber-50 border border-amber-300 rounded-xl px-5 py-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="bg-amber-500 p-1.5 rounded-lg">
+                            <i data-lucide="key" class="w-4 h-4 text-white"></i>
+                        </div>
+                        <p class="text-xs font-bold text-amber-600 uppercase tracking-wider">Token Ujian Siswa</p>
+                        <p class="text-[10px] text-amber-400 ml-auto">Sampaikan ke siswa agar bisa masuk ujian</p>
+                    </div>
+                    <div id="pengawas-token-list" class="flex flex-wrap gap-3"></div>
+                </div>
                 <!-- INFO: Penjelasan Monitoring vs Analitik -->
                 <div class="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex flex-col md:flex-row md:items-center gap-2 md:gap-6 text-xs">
                     <div class="flex items-start gap-2">
@@ -3051,6 +3358,116 @@
             </div>
             <!-- ══ END PANEL ANALITIK ══ -->
 
+            <!-- ══════════════════════════════════════════════════════ -->
+            <!-- PANEL: JADWAL UJIAN OTOMATIS                          -->
+            <!-- ══════════════════════════════════════════════════════ -->
+            <div id="panel-jadwal" class="hidden-section admin-only-panel">
+                <div class="bg-white rounded-xl shadow-sm border p-6 mb-6">
+                    <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <i data-lucide="calendar-clock" class="w-6 h-6 text-violet-600"></i>
+                                Jadwal Ujian Otomatis
+                            </h2>
+                            <p class="text-gray-500 text-sm mt-1">Atur jadwal ujian per hari & sesi. Token aktif otomatis sesuai jam yang ditentukan, dan mati otomatis saat waktu habis.</p>
+                        </div>
+                        <div id="jadwal-scheduler-status" class="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-xl text-sm font-bold shrink-0">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block"></span>
+                            Scheduler Aktif
+                        </div>
+                    </div>
+
+                    <!-- INFO BOX -->
+                    <div class="bg-violet-50 border border-violet-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+                        <i data-lucide="info" class="w-5 h-5 text-violet-600 shrink-0 mt-0.5"></i>
+                        <div class="text-sm text-violet-800">
+                            <strong>Cara kerja:</strong> Setiap sesi yang sudah dijadwalkan akan <strong>otomatis aktif</strong> tepat pada jam mulai, dan <strong>otomatis nonaktif</strong> saat jam selesai. Sistem mengecek jadwal setiap menit. Pastikan waktu perangkat admin sudah tepat.
+                        </div>
+                    </div>
+
+                    <!-- FORM TAMBAH JADWAL -->
+                    <div class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
+                        <h3 class="font-bold text-gray-700 mb-4 flex items-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4 text-violet-600"></i> Tambah Jadwal Sesi</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Paket Soal dari database (UTAMA) -->
+                            <div class="md:col-span-2 lg:col-span-1">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Paket Soal <span class="text-red-500">*</span></label>
+                                <select id="jdwl-paket" onchange="window.onJadwalPaketChange()" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                                    <option value="">— Pilih Paket Soal —</option>
+                                </select>
+                            </div>
+                            <!-- Info Kelas otomatis dari paket -->
+                            <div class="md:col-span-2 lg:col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Kelas <span class="text-gray-400 font-normal">(otomatis dari paket)</span></label>
+                                <div id="jdwl-kelas-info" class="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-400 italic min-h-[38px] flex items-center flex-wrap gap-1">
+                                    Pilih paket soal terlebih dahulu...
+                                </div>
+                                <input type="hidden" id="jdwl-kelas">
+                            </div>
+                            <!-- Nama Sesi: auto-generate atau custom -->
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Nama Sesi <span class="text-red-500">*</span> <span class="text-gray-400 font-normal">(otomatis, bisa diubah)</span></label>
+                                <input type="text" id="jdwl-nama" placeholder="Otomatis terisi saat pilih paket..." class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                            </div>
+                            <!-- Tanggal -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Hari / Tanggal <span class="text-red-500">*</span></label>
+                                <input type="date" id="jdwl-tanggal" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                            </div>
+                            <!-- Jam Mulai -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Jam Mulai <span class="text-red-500">*</span></label>
+                                <input type="time" id="jdwl-mulai" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                            </div>
+                            <!-- Jam Selesai -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Jam Selesai <span class="text-red-500">*</span></label>
+                                <input type="time" id="jdwl-selesai" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                            </div>
+                            <!-- Token: otomatis dari paket -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">
+                                    Token Ujian <span id="jdwl-token-hint" class="text-violet-500 font-normal italic">(otomatis dari paket)</span>
+                                </label>
+                                <input type="text" id="jdwl-token" placeholder="Otomatis dari paket soal" class="w-full px-3 py-2 border rounded-lg text-sm outline-none bg-violet-50 font-mono font-bold tracking-widest text-violet-700" readonly>
+                            </div>
+                            <!-- Durasi: otomatis dari paket -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">
+                                    Durasi (menit) <span class="text-violet-500 font-normal italic">(dari paket)</span>
+                                </label>
+                                <input type="number" id="jdwl-durasi" placeholder="Dari paket soal" min="1" max="300" class="w-full px-3 py-2 border rounded-lg text-sm outline-none bg-violet-50" readonly>
+                            </div>
+                            <!-- Hidden fields -->
+                            <input type="hidden" id="jdwl-paket-id">
+                            <input type="hidden" id="jdwl-kelas-arr">
+                        </div>
+                        <div class="mt-4 flex items-center gap-3 flex-wrap">
+                            <button onclick="window.tambahJadwal()" class="bg-violet-600 hover:bg-violet-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition active:scale-95">
+                                <i data-lucide="save" class="w-4 h-4"></i> Simpan Jadwal
+                            </button>
+                            <p class="text-xs text-gray-400 italic">Kelas, token & durasi diambil otomatis dari pengaturan paket soal.</p>
+                        </div>
+                    </div>
+
+                    <!-- DAFTAR JADWAL -->
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-gray-700 flex items-center gap-2"><i data-lucide="list" class="w-4 h-4 text-violet-600"></i> Daftar Jadwal</h3>
+                            <div class="flex items-center gap-2">
+                                <select id="jdwl-filter-tanggal" onchange="window.renderJadwalList()" class="px-3 py-1.5 border rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-violet-500">
+                                    <option value="all">Semua Tanggal</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="jadwal-list-container" class="space-y-3">
+                            <p class="text-sm text-gray-400 text-center py-8 bg-gray-50 rounded-xl border border-dashed">Memuat jadwal...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- ══ END PANEL JADWAL ══ -->
+
             <div id="panel-tampilan" class="hidden-section admin-only-panel">
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
@@ -3260,6 +3677,11 @@
         <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-2xl shadow-black/10">
             <!-- Safe area untuk iPhone dengan home indicator -->
             <div class="flex items-stretch h-16 px-1" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
+                <button onclick="window.switchDashTab('welcome')" id="mob-tab-welcome"
+                    class="admin-only-tab flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    <i data-lucide="home" class="w-5 h-5"></i>
+                    <span class="text-[9px] font-bold tracking-wide">BERANDA</span>
+                </button>
                 <button onclick="window.switchDashTab('nilai')" id="mob-tab-nilai"
                     class="flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 bg-blue-50 text-blue-600">
                     <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
@@ -3279,6 +3701,11 @@
                     class="admin-only-tab flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="door-open" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">RUANG</span>
+                </button>
+                <button onclick="window.switchDashTab('jadwal')" id="mob-tab-jadwal"
+                    class="admin-only-tab flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    <i data-lucide="calendar-clock" class="w-5 h-5"></i>
+                    <span class="text-[9px] font-bold tracking-wide">JADWAL</span>
                 </button>
                 <button onclick="window.switchDashTab('analitik')" id="mob-tab-analitik"
                     class="flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
@@ -3418,6 +3845,7 @@
             <div class="bg-slate-50 rounded-xl p-6 mb-4 border border-slate-200">
                 <p class="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-1">Nilai Anda</p>
                 <p id="final-score-display" class="text-5xl font-extrabold text-blue-600">0</p>
+                <p id="final-score-detail" class="text-xs text-gray-400 mt-2"></p>
             </div>
             <div id="motivational-message" class="mb-6 px-4 py-3 rounded-lg font-bold text-sm md:text-base border-l-4"></div>
             <div class="flex flex-col gap-3">
@@ -3842,7 +4270,425 @@
         };
         // ==================== END MANAJEMEN SESI ====================
 
-        // ═══════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════
+        // JADWAL UJIAN OTOMATIS
+        // ════════════════════════════════════════════════════════════
+        window.allJadwalDB = [];
+        window._jadwalSchedulerTimer = null;
+
+        // Listen jadwal dari Firestore
+        window.listenForJadwal = function() {
+            if (!window.db || !window.isFirebaseReady) return;
+            const q = query(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian'));
+            onSnapshot(q, (snapshot) => {
+                window.allJadwalDB = [];
+                snapshot.forEach(d => window.allJadwalDB.push({ id: d.id, ...d.data() }));
+                // Sort: tanggal asc, jamMulai asc
+                window.allJadwalDB.sort((a,b) => {
+                    if (a.tanggal !== b.tanggal) return a.tanggal > b.tanggal ? 1 : -1;
+                    return a.jamMulai > b.jamMulai ? 1 : -1;
+                });
+                window.renderJadwalList();
+                window.updateJadwalTanggalFilter();
+            });
+        };
+
+        // Tambah jadwal baru
+        window.tambahJadwal = async function() {
+            if (!window.isFirebaseReady) return alert('Mode Offline — tidak bisa menyimpan jadwal.');
+            const nama     = document.getElementById('jdwl-nama').value.trim();
+            const tanggal  = document.getElementById('jdwl-tanggal').value;
+            const mulai    = document.getElementById('jdwl-mulai').value;
+            const selesai  = document.getElementById('jdwl-selesai').value;
+            const paket    = document.getElementById('jdwl-paket').value.trim();
+            const paketId  = document.getElementById('jdwl-paket-id').value.trim();
+            const token    = document.getElementById('jdwl-token').value.trim();
+            const durasi   = document.getElementById('jdwl-durasi').value;
+            const kelasStr = document.getElementById('jdwl-kelas').value.trim();
+            // Array kelas dari paket
+            let kelasArr = [];
+            try { kelasArr = JSON.parse(document.getElementById('jdwl-kelas-arr').value || '[]'); } catch(e) {}
+
+            if (!paket)   return alert('Pilih paket soal terlebih dahulu!');
+            if (!nama)    return alert('Nama sesi tidak boleh kosong!');
+            if (!tanggal) return alert('Tanggal harus dipilih!');
+            if (!mulai)   return alert('Jam mulai harus diisi!');
+            if (!selesai) return alert('Jam selesai harus diisi!');
+            if (mulai >= selesai) return alert('Jam selesai harus lebih besar dari jam mulai!');
+
+            try {
+                await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian'), {
+                    nama, tanggal, jamMulai: mulai, jamSelesai: selesai,
+                    paket, paketId: paketId || '',
+                    kelas: kelasStr, kelasArr: kelasArr,   // simpan keduanya
+                    tokenCustom: token || '',
+                    durasiCustom: durasi ? parseInt(durasi) : 0,
+                    isActive: false, sudahDijalankan: false,
+                    createdAt: Date.now()
+                });
+                // Reset form
+                document.getElementById('jdwl-paket').value = '';
+                document.getElementById('jdwl-paket-id').value = '';
+                document.getElementById('jdwl-kelas').value = '';
+                document.getElementById('jdwl-kelas-arr').value = '';
+                document.getElementById('jdwl-nama').value = '';
+                document.getElementById('jdwl-token').value = '';
+                document.getElementById('jdwl-durasi').value = '';
+                const ki = document.getElementById('jdwl-kelas-info');
+                if (ki) ki.innerHTML = 'Pilih paket soal terlebih dahulu...';
+                const hint = document.getElementById('jdwl-token-hint');
+                if (hint) hint.textContent = '(otomatis dari paket)';
+                alert(`✅ Jadwal "${nama}" berhasil disimpan!\n\nOtomatis aktif: ${tanggal} pukul ${mulai}\nOtomatis mati: pukul ${selesai}`);
+            } catch(e) { alert('Gagal menyimpan: ' + e.message); }
+        };
+
+        // Hapus jadwal
+        window.hapusJadwal = async function(id, nama) {
+            if (!confirm(`Hapus jadwal "${nama}"?\n\nJika jadwal sedang aktif, sesi akan tetap aktif sampai Anda menonaktifkan secara manual.`)) return;
+            try {
+                await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', id));
+            } catch(e) { alert('Gagal hapus: ' + e.message); }
+        };
+
+        // Toggle aktif/nonaktif manual
+        window.toggleJadwalManual = async function(id, currentState, nama) {
+            if (!window.isFirebaseReady) return alert('Mode Offline.');
+            const action = currentState ? 'Nonaktifkan' : 'Aktifkan';
+            if (!confirm(`${action} jadwal "${nama}" secara manual?`)) return;
+            try {
+                if (!currentState) {
+                    // Aktifkan: nonaktifkan semua sesi ujian dulu, lalu aktifkan jadwal ini
+                    const j = window.allJadwalDB.find(x => x.id === id);
+                    if (j) await window._aktifkanJadwal(j, true);
+                } else {
+                    await window._nonaktifkanJadwal(id);
+                }
+            } catch(e) { alert('Gagal: ' + e.message); }
+        };
+
+        // Internal: aktifkan sesi berdasarkan jadwal
+        window._aktifkanJadwal = async function(jadwal, manual = false) {
+            if (!window.isFirebaseReady || !window.db) return;
+            try {
+                // 1. Nonaktifkan semua sesi ujian yang aktif
+                const deact = (window.allSesiDB || [])
+                    .filter(s => s.isActive)
+                    .map(s => updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian', s.id), { isActive: false }));
+                await Promise.all(deact);
+
+                // 2. Buat / aktifkan sesi baru
+                const docRef = await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian'), {
+                    nama: jadwal.nama,
+                    keterangan: [jadwal.paket, (jadwal.kelasArr && jadwal.kelasArr.length ? jadwal.kelasArr.join(', ') : jadwal.kelas)].filter(Boolean).join(' · '),
+                    isActive: true,
+                    createdAt: Date.now()
+                });
+
+                // 3. Update token jika ada custom token
+                if (jadwal.tokenCustom) {
+                    await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'settings', 'exam_token'), {
+                        token: jadwal.tokenCustom, updatedAt: Date.now()
+                    }, { merge: true });
+                    window.currentExamToken = jadwal.tokenCustom;
+                }
+
+                // 4. Update durasi jika ada custom durasi
+                if (jadwal.durasiCustom && jadwal.durasiCustom > 0) {
+                    await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'settings', 'exam_config'), {
+                        duration: jadwal.durasiCustom, updatedAt: Date.now()
+                    }, { merge: true });
+                    window.currentExamDuration = jadwal.durasiCustom;
+                }
+
+                // 5. Tandai jadwal sudah dijalankan & aktif
+                await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', jadwal.id), {
+                    isActive: true, sudahDijalankan: true, sesiRefId: docRef.id
+                });
+
+                console.log(`[Jadwal] ✅ Sesi "${jadwal.nama}" diaktifkan ${manual ? 'manual' : 'otomatis'}`);
+            } catch(e) { console.error('[Jadwal] Gagal aktifkan:', e); }
+        };
+
+        // Internal: nonaktifkan sesi
+        window._nonaktifkanJadwal = async function(jadwalId) {
+            if (!window.isFirebaseReady || !window.db) return;
+            try {
+                const jadwal = window.allJadwalDB.find(j => j.id === jadwalId);
+                // Nonaktifkan semua sesi aktif
+                const deact = (window.allSesiDB || [])
+                    .filter(s => s.isActive)
+                    .map(s => updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian', s.id), { isActive: false }));
+                await Promise.all(deact);
+                // Update jadwal
+                if (jadwal) {
+                    await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', jadwalId), {
+                        isActive: false
+                    });
+                }
+                console.log(`[Jadwal] 🔴 Sesi dinonaktifkan otomatis`);
+            } catch(e) { console.error('[Jadwal] Gagal nonaktifkan:', e); }
+        };
+
+        // ── SCHEDULER — dicek tiap menit ──
+        window.startJadwalScheduler = function() {
+            if (window._jadwalSchedulerTimer) clearInterval(window._jadwalSchedulerTimer);
+            const check = () => {
+                if (!window.isAdmin || !window.isAdmin()) return; // hanya admin yang menjalankan scheduler
+                if (!window.allJadwalDB || !window.isFirebaseReady) return;
+
+                const now = new Date();
+                const todayStr = now.toISOString().slice(0,10); // YYYY-MM-DD
+                const timeStr  = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'); // HH:MM
+
+                window.allJadwalDB.forEach(async j => {
+                    if (j.tanggal !== todayStr) return; // bukan hari ini
+
+                    const tepat_mulai = (timeStr === j.jamMulai);
+                    const sudah_lewat_selesai = (timeStr > j.jamSelesai);
+                    const sedang_berjalan = (timeStr >= j.jamMulai && timeStr <= j.jamSelesai);
+
+                    // Aktifkan tepat pada jam mulai
+                    if (tepat_mulai && !j.isActive) {
+                        await window._aktifkanJadwal(j);
+                        return;
+                    }
+
+                    // Nonaktifkan saat melewati jam selesai
+                    if (sudah_lewat_selesai && j.isActive) {
+                        await window._nonaktifkanJadwal(j.id);
+                        return;
+                    }
+                });
+            };
+            check(); // cek langsung saat mulai
+            window._jadwalSchedulerTimer = setInterval(check, 60000); // cek tiap menit
+            console.log('[Jadwal] Scheduler dimulai, cek tiap menit.');
+        };
+
+        // Render list jadwal
+        window.renderJadwalList = function() {
+            const container = document.getElementById('jadwal-list-container');
+            if (!container) return;
+
+            const filterEl = document.getElementById('jdwl-filter-tanggal');
+            const filterVal = filterEl ? filterEl.value : 'all';
+
+            let list = window.allJadwalDB;
+            if (filterVal && filterVal !== 'all') {
+                list = list.filter(j => j.tanggal === filterVal);
+            }
+
+            if (list.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-400 text-center py-8 bg-gray-50 rounded-xl border border-dashed">Belum ada jadwal. Tambah jadwal di atas.</p>';
+                return;
+            }
+
+            // Group by tanggal
+            const groups = {};
+            list.forEach(j => {
+                if (!groups[j.tanggal]) groups[j.tanggal] = [];
+                groups[j.tanggal].push(j);
+            });
+
+            const now = new Date();
+            const todayStr = now.toISOString().slice(0,10);
+            const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+            container.innerHTML = Object.entries(groups).map(([tgl, jadwals]) => {
+                const d = new Date(tgl + 'T00:00:00');
+                const hariNama = d.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+                const isToday = tgl === todayStr;
+
+                const rows = jadwals.map(j => {
+                    const sudahLewat = tgl < todayStr || (isToday && timeStr > j.jamSelesai);
+                    const sedangAktif = j.isActive || (isToday && timeStr >= j.jamMulai && timeStr <= j.jamSelesai);
+                    const belumMulai = !sudahLewat && !sedangAktif;
+
+                    let statusBadge = '';
+                    if (j.isActive || sedangAktif) {
+                        statusBadge = '<span class="shrink-0 bg-green-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide animate-pulse">⚡ Aktif</span>';
+                    } else if (sudahLewat) {
+                        statusBadge = '<span class="shrink-0 bg-gray-300 text-gray-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">✓ Selesai</span>';
+                    } else {
+                        statusBadge = '<span class="shrink-0 bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">⏳ Menunggu</span>';
+                    }
+
+                    // Kelas dari array (lebih akurat) atau fallback ke string
+                    const kelasArrJ = j.kelasArr && j.kelasArr.length ? j.kelasArr : (j.kelas ? [j.kelas] : []);
+                    const kelasBadges = kelasArrJ.length
+                        ? kelasArrJ.map(k => `<span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded text-[10px] font-bold">${k}</span>`).join(' ')
+                        : '<span class="text-[10px] text-gray-400">Semua kelas</span>';
+                    const paketInfo = j.paket ? `<span class="text-xs font-medium text-gray-600">${j.paket}</span>` : '';
+                    const tokenInfo = j.tokenCustom ? `<span class="text-xs text-indigo-600 font-mono">Token: ${j.tokenCustom}</span>` : '';
+                    const durasiInfo = j.durasiCustom ? `<span class="text-xs text-gray-400">${j.durasiCustom} mnt</span>` : '';
+
+                    return `
+                    <div class="flex items-center gap-3 p-4 rounded-xl border ${j.isActive ? 'bg-green-50 border-green-300' : sudahLewat ? 'bg-gray-50 border-gray-200 opacity-70' : 'bg-white border-gray-200'}">
+                        <div class="flex flex-col items-center justify-center bg-violet-100 text-violet-700 rounded-xl p-2.5 text-xs font-black shrink-0 w-16 text-center leading-tight">
+                            <span>${j.jamMulai}</span>
+                            <span class="text-gray-400 font-normal">↓</span>
+                            <span>${j.jamSelesai}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold text-sm text-gray-800">${j.nama}</span>
+                                ${statusBadge}
+                            </div>
+                            <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                                ${paketInfo || kelasBadges ? `<div class="flex items-center gap-1.5 flex-wrap mt-0.5">${paketInfo}${paketInfo && kelasBadges ? '<span class="text-gray-300">·</span>' : ''}${kelasBadges}</div>` : ''}
+                                ${tokenInfo}
+                                ${durasiInfo}
+                            </div>
+                        </div>
+                        <div class="flex gap-1.5 shrink-0">
+                            ${!sudahLewat ? `<button onclick="window.toggleJadwalManual('${j.id}',${!!j.isActive},'${j.nama.replace(/'/g,"\\'")}') " title="${j.isActive ? 'Nonaktifkan' : 'Aktifkan'} manual" class="text-xs font-bold ${j.isActive ? 'text-red-600 hover:bg-red-50 border-red-200' : 'text-green-600 hover:bg-green-50 border-green-200'} border px-3 py-1.5 rounded-lg transition-colors">${j.isActive ? '⏹ Stop' : '▶ Mulai'}</button>` : ''}
+                            <button onclick="window.hapusJadwal('${j.id}','${j.nama.replace(/'/g,"\\'")}') " title="Hapus jadwal" class="text-red-400 hover:bg-red-50 p-1.5 rounded-lg transition-colors border border-transparent hover:border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                return `
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="font-bold text-sm ${isToday ? 'text-violet-700' : 'text-gray-600'}">${hariNama}</span>
+                        ${isToday ? '<span class="text-[10px] bg-violet-600 text-white px-2 py-0.5 rounded-full font-bold">HARI INI</span>' : ''}
+                    </div>
+                    <div class="space-y-2 ml-1 pl-3 border-l-2 ${isToday ? 'border-violet-300' : 'border-gray-200'}">
+                        ${rows}
+                    </div>
+                </div>`;
+            }).join('');
+
+            if(typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        // Update filter tanggal dropdown
+        window.updateJadwalTanggalFilter = function() {
+            const sel = document.getElementById('jdwl-filter-tanggal');
+            if (!sel) return;
+            const cur = sel.value;
+            sel.innerHTML = '<option value="all">Semua Tanggal</option>';
+            const datesSet = new Set(window.allJadwalDB.map(j => j.tanggal));
+            [...datesSet].sort().forEach(tgl => {
+                const opt = document.createElement('option');
+                opt.value = tgl;
+                const d = new Date(tgl + 'T00:00:00');
+                opt.textContent = d.toLocaleDateString('id-ID', { weekday:'short', day:'numeric', month:'short' });
+                sel.appendChild(opt);
+            });
+            if (cur) sel.value = cur;
+        };
+
+        // ── Populate dropdown paket dari database (kelas tidak perlu dropdown lagi) ──
+        window.populateJadwalDropdowns = function() {
+            const selPaket = document.getElementById('jdwl-paket');
+            if (selPaket) {
+                const cur = selPaket.value;
+                selPaket.innerHTML = '<option value="">— Pilih Paket Soal —</option>';
+                (window.allPaketDB || []).forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.nama;
+                    opt.dataset.paketId  = p.id;
+                    opt.dataset.token    = p.token || window.currentExamToken || '';
+                    opt.dataset.durasi   = p.durasi || p.duration || '';
+                    // Simpan kelas sebagai JSON string di dataset
+                    opt.dataset.kelasArr = JSON.stringify(p.kelas || []);
+                    opt.dataset.mapel    = p.mapel || '';
+                    const kelasTxt = (p.kelas && p.kelas.length) ? ` [${p.kelas.join(', ')}]` : '';
+                    opt.textContent = p.nama + (p.jenis && p.jenis !== 'nonpaket' ? ` (Paket ${p.jenis})` : '') + kelasTxt;
+                    selPaket.appendChild(opt);
+                });
+                if (cur) selPaket.value = cur;
+            }
+        };
+
+        // Tidak lagi dibutuhkan, tapi dijaga agar tidak error jika dipanggil
+        window.onJadwalKelasChange = function() {};
+
+        // Saat paket dipilih → isi kelas, token, durasi, nama sesi otomatis
+        window.onJadwalPaketChange = function() {
+            const selPaket  = document.getElementById('jdwl-paket');
+            const selOpt    = selPaket ? selPaket.options[selPaket.selectedIndex] : null;
+            const tokenEl   = document.getElementById('jdwl-token');
+            const durasiEl  = document.getElementById('jdwl-durasi');
+            const paketIdEl = document.getElementById('jdwl-paket-id');
+            const kelasEl   = document.getElementById('jdwl-kelas');
+            const kelasArrEl= document.getElementById('jdwl-kelas-arr');
+            const kelasInfo = document.getElementById('jdwl-kelas-info');
+
+            if (selOpt && selOpt.value) {
+                const token    = selOpt.dataset.token    || window.currentExamToken || '';
+                const durasi   = selOpt.dataset.durasi   || '';
+                const pid      = selOpt.dataset.paketId  || '';
+                const kelasArr = JSON.parse(selOpt.dataset.kelasArr || '[]');
+
+                if (tokenEl)    { tokenEl.value  = token; }
+                if (durasiEl)   { durasiEl.value = durasi; }
+                if (paketIdEl)  { paketIdEl.value = pid; }
+                if (kelasEl)    { kelasEl.value   = kelasArr.join(', '); }
+                if (kelasArrEl) { kelasArrEl.value = JSON.stringify(kelasArr); }
+
+                // Tampilkan kelas sebagai badge-badge
+                if (kelasInfo) {
+                    if (kelasArr.length > 0) {
+                        kelasInfo.innerHTML = kelasArr.map(k =>
+                            `<span class="bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-lg text-xs font-bold">${k}</span>`
+                        ).join('');
+                        kelasInfo.classList.remove('text-gray-400','italic');
+                    } else {
+                        kelasInfo.innerHTML = '<span class="text-gray-400 italic text-xs">Semua kelas (tidak dibatasi di paket ini)</span>';
+                        kelasInfo.classList.add('text-gray-400','italic');
+                    }
+                }
+
+                const hint = document.getElementById('jdwl-token-hint');
+                if (hint) hint.textContent = token ? `(Token: ${token})` : '(otomatis dari paket)';
+            } else {
+                // Reset semua
+                if (tokenEl)    { tokenEl.value  = ''; }
+                if (durasiEl)   { durasiEl.value = ''; }
+                if (paketIdEl)  { paketIdEl.value = ''; }
+                if (kelasEl)    { kelasEl.value   = ''; }
+                if (kelasArrEl) { kelasArrEl.value = ''; }
+                if (kelasInfo)  { kelasInfo.innerHTML = 'Pilih paket soal terlebih dahulu...'; kelasInfo.classList.add('text-gray-400','italic'); }
+                const hint = document.getElementById('jdwl-token-hint');
+                if (hint) hint.textContent = '(otomatis dari paket)';
+            }
+            window._autoGenerateNamaSesi();
+        };
+
+        // Auto-generate nama sesi dari paket + kelas + urutan hari ini
+        window._autoGenerateNamaSesi = function() {
+            const paketEl  = document.getElementById('jdwl-paket');
+            const paket    = paketEl ? paketEl.value : '';
+            const tgl      = document.getElementById('jdwl-tanggal') ? document.getElementById('jdwl-tanggal').value : '';
+            if (!paket) return;
+            const countSameTgl = tgl ? (window.allJadwalDB || []).filter(j => j.tanggal === tgl).length : 0;
+            const sesiKe = countSameTgl + 1;
+            // Ambil kelas dari hidden field
+            const kelasArr = JSON.parse((document.getElementById('jdwl-kelas-arr') || {value:'[]'}).value || '[]');
+            const kelasTxt = kelasArr.length ? kelasArr.join(' & ') : '';
+            const parts = [`Sesi ${sesiKe}`, paket];
+            if (kelasTxt) parts.push(kelasTxt);
+            const namaEl = document.getElementById('jdwl-nama');
+            if (namaEl) namaEl.value = parts.join(' - ');
+        };
+
+        // Set default tanggal & populate dropdown paket
+        window.initJadwalForm = function() {
+            const tglInput = document.getElementById('jdwl-tanggal');
+            if (tglInput) {
+                if (!tglInput.value) tglInput.value = new Date().toISOString().slice(0,10);
+                // Pastikan event listener tidak double
+                tglInput.onchange = window._autoGenerateNamaSesi;
+            }
+            window.populateJadwalDropdowns();
+        };
+        // ════════════════════════════════════════════════════════════
+        // END JADWAL UJIAN OTOMATIS
+        // ════════════════════════════════════════════════════════════
+
+
         // ADMIN CREDENTIALS MANAGEMENT (Firebase-based)
         // ═══════════════════════════════════════════════════════
 
@@ -4148,10 +4994,10 @@
             const mobActive   = "flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 bg-blue-50 text-blue-600";
             const mobInactive = "flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400";
 
-            const tabs   = ['nilai','kelas','soal','ruang','analitik','tampilan'];
-            const panels = { nilai:'panel-nilai', soal:'panel-soal', kelas:'panel-kelas', ruang:'panel-ruang', analitik:'panel-analitik', tampilan:'panel-tampilan' };
-            const btnIds = { nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelas:'tab-dash-kelas', ruang:'tab-dash-ruang', analitik:'tab-dash-analitik', tampilan:'tab-dash-tampilan' };
-            const mobIds = { nilai:'mob-tab-nilai', soal:'mob-tab-soal', kelas:'mob-tab-kelas', ruang:'mob-tab-ruang', analitik:'mob-tab-analitik', tampilan:'mob-tab-tampilan' };
+            const tabs   = ['welcome','nilai','kelas','soal','ruang','analitik','jadwal','tampilan'];
+            const panels = { welcome:'panel-welcome', nilai:'panel-nilai', soal:'panel-soal', kelas:'panel-kelas', ruang:'panel-ruang', analitik:'panel-analitik', jadwal:'panel-jadwal', tampilan:'panel-tampilan' };
+            const btnIds = { welcome:'tab-dash-welcome', nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelas:'tab-dash-kelas', ruang:'tab-dash-ruang', analitik:'tab-dash-analitik', jadwal:'tab-dash-jadwal', tampilan:'tab-dash-tampilan' };
+            const mobIds = { welcome:'mob-tab-welcome', nilai:'mob-tab-nilai', soal:'mob-tab-soal', kelas:'mob-tab-kelas', ruang:'mob-tab-ruang', analitik:'mob-tab-analitik', jadwal:'mob-tab-jadwal', tampilan:'mob-tab-tampilan' };
 
             tabs.forEach(t => {
                 // Desktop tab
@@ -4181,6 +5027,7 @@
             if (tab === 'kelas') window.renderKelasList();
             if (tab === 'ruang') window.renderRuangList();
             if (tab === 'tampilan') window.loadTampilanFields();
+            if (tab === 'jadwal') { window.renderJadwalList(); window.initJadwalForm(); }
             if(typeof lucide !== 'undefined') lucide.createIcons();
         };
 
@@ -4210,6 +5057,12 @@
                 window.renderPaketGrid();
                 window.updatePaketFilter();
                 if (window.activePaketId) window.refreshActivePaketInfo();
+                // Update token pengawas setiap kali data paket berubah (real-time)
+                if (window.isPengawas && window.isPengawas() && window.updatePengawasTokenDisplay) {
+                    window.updatePengawasTokenDisplay();
+                }
+                // Refresh jadwal dropdown paket jika panel jadwal sedang terbuka
+                if (window.populateJadwalDropdowns) window.populateJadwalDropdowns();
             });
         };
 
@@ -4395,6 +5248,7 @@
                     document.getElementById('paket-mapel').value = p.mapel || '';
                     document.getElementById('paket-token').value = p.token || '';
                     document.getElementById('paket-jumlah-soal').value = p.jumlahSoal || '';
+                    document.getElementById('paket-nilai-maks').value = (p.nilaiMaksimal && p.nilaiMaksimal !== 100) ? p.nilaiMaksimal : '';
                     const isAktif = p.aktif !== false;
                     document.getElementById('paket-aktif').checked = isAktif;
                     document.getElementById('paket-aktif-label').textContent = isAktif ? 'Aktif' : 'Nonaktif';
@@ -4459,11 +5313,13 @@
             const kelas = Array.from(document.querySelectorAll('#paket-kelas-checks input:checked')).map(c => c.value);
             const jumlahSoalRaw = document.getElementById('paket-jumlah-soal').value.trim();
             const jumlahSoal = jumlahSoalRaw ? parseInt(jumlahSoalRaw) : 0;
+            const nilaiMaksRaw = document.getElementById('paket-nilai-maks').value.trim();
+            const nilaiMaksimal = nilaiMaksRaw ? parseInt(nilaiMaksRaw) : 100;
 
             if (!nama) return alert("Nama paket tidak boleh kosong!");
             if (!token) return alert("Token paket tidak boleh kosong!");
 
-            const data = { nama, mapel, token, aktif, jenis, kelas, jumlahSoal, updatedAt: Date.now() };
+            const data = { nama, mapel, token, aktif, jenis, kelas, jumlahSoal, nilaiMaksimal, updatedAt: Date.now() };
             try {
                 if (id) {
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'paket_soal', id), data);
@@ -4500,6 +5356,8 @@
                 window.renderKelasList();
                 window.updateKelasFilter();
                 window.updateStudentKelasDropdown();
+                // Refresh jadwal dropdown kelas jika panel jadwal sedang terbuka
+                if (window.populateJadwalDropdowns) window.populateJadwalDropdowns();
             });
         };
 
@@ -5000,7 +5858,24 @@
             }
 
             if (paketCocok.length === 0) {
-                container.innerHTML = '<div class="text-center py-6 text-white/40 text-sm">Tidak ada ujian tersedia untuk kelasmu. Hubungi pengawas.</div>';
+                container.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-6 px-4 text-center">
+                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style="background:#fef9c3;">
+                        <i data-lucide="calendar-x" class="w-7 h-7" style="color:#ca8a04;"></i>
+                    </div>
+                    <p class="text-gray-800 font-black text-sm mb-1">Belum Ada Jadwal atau Paket Ujian</p>
+                    <p class="text-gray-500 text-xs leading-relaxed mb-4">
+                        Saat ini belum ada ujian yang tersedia untuk kelasmu.<br>
+                        Silakan <span class="font-bold text-blue-600">tanyakan kepada Pengawas</span> mengenai jadwal dan paket ujian yang akan digunakan.
+                    </p>
+                    <div class="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                        <i data-lucide="info" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
+                        <p class="text-xs text-amber-800 text-left leading-relaxed font-medium">
+                            Pastikan pengawas telah mengaktifkan paket ujian dan menetapkan jadwal sesuai kelas kamu sebelum memulai ujian.
+                        </p>
+                    </div>
+                </div>`;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
                 return;
             }
 
@@ -5267,6 +6142,9 @@
                 document.getElementById('dash-header-icon').className = 'bg-indigo-600 p-2 rounded-lg';
                 document.getElementById('pengawas-room-badge').classList.add('hidden');
                 document.getElementById('pengawas-exam-info').classList.add('hidden');
+                // Sembunyikan card token (khusus pengawas, bukan admin)
+                const _tkCardAdmin = document.getElementById('pengawas-token-card');
+                if (_tkCardAdmin) _tkCardAdmin.classList.add('hidden');
 
                 document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.remove('hidden'));
                 // Sesuaikan lebar bottom nav mobile saat admin (semua tab tampil)
@@ -5275,6 +6153,7 @@
 
                 document.getElementById('section-login').classList.add('hidden-section');
                 document.getElementById('section-dashboard').classList.remove('hidden-section');
+                window.switchDashTab('welcome');
 
                 const teacherInput = document.getElementById('teacher-token-input');
                 if(teacherInput) teacherInput.value = window.currentExamToken;
@@ -5351,6 +6230,11 @@
             badge.classList.remove('hidden');
             badge.classList.add('flex');
             document.getElementById('pengawas-room-label').textContent = ruang.nama;
+
+            // Tampilkan card token di dashboard pengawas
+            const tokenCard = document.getElementById('pengawas-token-card');
+            if (tokenCard) { tokenCard.classList.remove('hidden'); }
+            if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
 
             // Sembunyikan tab & elemen yang hanya untuk admin — HARUS sebelum switchDashTab
             document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.add('hidden'));
@@ -5491,6 +6375,9 @@
                 document.getElementById('dash-header-icon').className = 'bg-indigo-600 p-2 rounded-lg';
                 document.getElementById('pengawas-room-badge').classList.add('hidden');
                 document.getElementById('pengawas-exam-info').classList.add('hidden');
+                // Sembunyikan card token (khusus pengawas)
+                const _tkCardRestore = document.getElementById('pengawas-token-card');
+                if (_tkCardRestore) _tkCardRestore.classList.add('hidden');
                 document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.remove('hidden'));
                 const mobileNav = document.getElementById('mobile-bottom-nav');
                 if (mobileNav) mobileNav.style.display = '';
@@ -5535,6 +6422,11 @@
                 badge.classList.remove('hidden');
                 badge.classList.add('flex');
                 document.getElementById('pengawas-room-label').textContent = ruang.nama;
+
+                // Tampilkan card token di dashboard pengawas (restore session)
+                const tokenCardRestore = document.getElementById('pengawas-token-card');
+                if (tokenCardRestore) { tokenCardRestore.classList.remove('hidden'); }
+                if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
 
                 document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.add('hidden'));
                 document.querySelectorAll('.admin-only-el').forEach(el => el.classList.add('hidden'));
@@ -6271,7 +7163,10 @@
                 if (typeof q.correct === 'undefined') return;
                 if (userAnswers[q.id] === q.correct) correctCount++;
             });
-            const score = qList.length > 0 ? Math.round((correctCount / qList.length) * 100) : 0;
+            // Gunakan nilaiMaksimal dari paket (default 100 jika tidak diset)
+            const _paketData = (window.allPaketDB || []).find(p => p.id === (currentStudent || {}).paketId);
+            const nilaiMaksimal = (_paketData && _paketData.nilaiMaksimal && _paketData.nilaiMaksimal > 0) ? _paketData.nilaiMaksimal : 100;
+            const score = qList.length > 0 ? Math.round((correctCount / qList.length) * nilaiMaksimal) : 0;
 
             const _cs = currentStudent || {};
             const resultData = {
@@ -6326,6 +7221,12 @@
             const btnReview      = document.getElementById('btn-review');
 
             if (scoreEl) scoreEl.innerText = score;
+            // Tampilkan detail: benar/total soal dan nilai per soal
+            const detailEl = document.getElementById('final-score-detail');
+            if (detailEl) {
+                const nilaiPerSoal = qList.length > 0 ? (nilaiMaksimal / qList.length).toFixed(2).replace(/\.?0+$/, '') : 0;
+                detailEl.innerHTML = `Benar <strong>${correctCount}</strong> dari <strong>${qList.length}</strong> soal &nbsp;·&nbsp; Nilai maks: <strong>${nilaiMaksimal}</strong> &nbsp;·&nbsp; Per soal: <strong>${nilaiPerSoal} poin</strong>`;
+            }
 
             if (forced) {
                 try { playAlarm(); } catch(e) {}
@@ -6358,11 +7259,11 @@
                 resultMsg.innerText = "Jawaban telah terkirim ke server.";
                 resultMsg.className = "text-gray-500 mb-6";
                 
-                if (score < 50) {
+                if (score < nilaiMaksimal * 0.5) {
                     scoreEl.className = "text-5xl font-extrabold text-red-600";
                     motivationalEl.innerHTML = `📢 "Waduh, Monitor Ketua! Sinyal otak sepertinya lagi RTO nih. Jangan panik, remidi adalah jalan ninjaku! Semangat belajar lagi ya! 🚀"`;
                     motivationalEl.className = "mb-6 px-4 py-3 rounded-lg font-bold text-sm md:text-base border-l-4 bg-red-100 text-red-800 border-red-500";
-                } else if (score < 80) {
+                } else if (score < nilaiMaksimal * 0.8) {
                     scoreEl.className = "text-5xl font-extrabold text-yellow-600";
                     motivationalEl.innerHTML = `🔥 "Lumayan! Dikit lagi jadi sepuh TKJ. Tingkatin lagi belajarnya biar nggak cuma jadi user, tapi jadi admin masa depan!"`;
                     motivationalEl.className = "mb-6 px-4 py-3 rounded-lg font-bold text-sm md:text-base border-l-4 bg-yellow-100 text-yellow-800 border-yellow-500";
