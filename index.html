@@ -646,40 +646,53 @@
             const singleWrap   = document.getElementById('q-correct-single-wrap');
             const multiWrap    = document.getElementById('q-correct-multiple-wrap');
             const tfWrap       = document.getElementById('q-correct-truefalse-wrap');
+            const essayWrap    = document.getElementById('q-correct-essay-wrap');
             const singleBtn    = document.getElementById('q-tipe-single-btn');
             const multiBtn     = document.getElementById('q-tipe-multiple-btn');
             const tfBtn        = document.getElementById('q-tipe-truefalse-btn');
+            const essayBtn     = document.getElementById('q-tipe-essay-btn');
             const hint         = document.getElementById('q-tipe-hint');
             const optSection   = document.getElementById('q-options-section');
             const tfInfo       = document.getElementById('q-truefalse-info');
+            const essayInfo    = document.getElementById('q-essay-info');
 
-            const inactiveClass = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+            const inactiveClass = 'py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all';
 
             // Reset all
             singleWrap.classList.add('hidden');
             multiWrap.classList.add('hidden');
             tfWrap.classList.add('hidden');
+            if (essayWrap) essayWrap.classList.add('hidden');
             singleBtn.className = inactiveClass;
             multiBtn.className  = inactiveClass;
             tfBtn.className     = inactiveClass;
+            if (essayBtn) essayBtn.className = inactiveClass;
             if (optSection) optSection.classList.remove('hidden');
             if (tfInfo) tfInfo.classList.add('hidden');
+            if (essayInfo) essayInfo.classList.add('hidden');
 
             if (tipe === 'multiple') {
                 multiWrap.classList.remove('hidden');
-                multiBtn.className = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                multiBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
                 hint.textContent = 'Jawaban ganda: siswa harus memilih SEMUA pilihan yang benar.';
                 hint.className   = 'text-xs text-emerald-600 mt-2';
             } else if (tipe === 'truefalse') {
                 tfWrap.classList.remove('hidden');
-                tfBtn.className = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-amber-500 bg-amber-50 text-amber-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                tfBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-amber-500 bg-amber-50 text-amber-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
                 hint.textContent = 'Benar/Salah: siswa memilih apakah pernyataan benar atau salah.';
                 hint.className   = 'text-xs text-amber-600 mt-2';
                 if (optSection) optSection.classList.add('hidden');
                 if (tfInfo) tfInfo.classList.remove('hidden');
+            } else if (tipe === 'essay') {
+                if (essayWrap) essayWrap.classList.remove('hidden');
+                if (essayBtn) essayBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-purple-500 bg-purple-50 text-purple-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                hint.textContent = 'Esai: siswa menjawab dengan uraian. Dikoreksi AI atau manual guru setelah ujian.';
+                hint.className   = 'text-xs text-purple-600 mt-2';
+                if (optSection) optSection.classList.add('hidden');
+                if (essayInfo) essayInfo.classList.remove('hidden');
             } else {
                 singleWrap.classList.remove('hidden');
-                singleBtn.className = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                singleBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
                 hint.textContent = 'Pilihan tunggal: hanya 1 jawaban benar.';
                 hint.className   = 'text-xs text-gray-400 mt-2';
             }
@@ -700,6 +713,11 @@
             document.querySelectorAll('#q-correct-multi-checks input[type=checkbox]').forEach(c => c.checked = false);
             // Uncheck kunci benar/salah
             document.querySelectorAll('input[name="correct-tf"]').forEach(r => r.checked = false);
+            // Reset essay fields
+            const essayRubrikEl = document.getElementById('q-essay-rubrik');
+            const essaySkorEl = document.getElementById('q-essay-skor-maks');
+            if (essayRubrikEl) essayRubrikEl.value = '';
+            if (essaySkorEl) essaySkorEl.value = '10';
 
             // Set paket context
             const paket = window.allPaketDB.find(p => p.id === window.activePaketId);
@@ -732,6 +750,11 @@
                         const tfVal = q.correct === true || q.correct === 'true' ? 'true' : 'false';
                         const tfRadio = document.querySelector(`input[name="correct-tf"][value="${tfVal}"]`);
                         if (tfRadio) tfRadio.checked = true;
+                    } else if (tipe === 'essay') {
+                        const rubrikEl = document.getElementById('q-essay-rubrik');
+                        const skorEl = document.getElementById('q-essay-skor-maks');
+                        if (rubrikEl) rubrikEl.value = q.essayRubrik || '';
+                        if (skorEl) skorEl.value = q.essaySkorMaks || 10;
                     } else {
                         document.getElementById('q-correct').value = Array.isArray(q.correct) ? q.correct[0] : q.correct;
                     }
@@ -877,6 +900,8 @@
 
             // Derive correct answer(s)
             let correct;
+            let essayRubrik = '';
+            let essaySkorMaks = 10;
             if (tipe === 'multiple') {
                 const checked = Array.from(document.querySelectorAll('#q-correct-multi-checks input[type=checkbox]:checked')).map(c => parseInt(c.value));
                 if (checked.length === 0) return alert("Jawaban ganda: centang minimal 1 jawaban yang benar!");
@@ -885,6 +910,13 @@
                 const tfRadio = document.querySelector('input[name="correct-tf"]:checked');
                 if (!tfRadio) return alert("Pilih kunci jawaban: BENAR atau SALAH!");
                 correct = tfRadio.value === 'true'; // boolean
+            } else if (tipe === 'essay') {
+                const rubrikEl = document.getElementById('q-essay-rubrik');
+                const skorEl = document.getElementById('q-essay-skor-maks');
+                essayRubrik = rubrikEl ? rubrikEl.value.trim() : '';
+                essaySkorMaks = skorEl ? parseInt(skorEl.value) || 10 : 10;
+                if (!essayRubrik) return alert("Soal esai harus memiliki rubrik/kunci jawaban untuk koreksi!");
+                correct = null; // essay tidak punya correct index
             } else {
                 correct = parseInt(document.getElementById('q-correct').value);
             }
@@ -904,9 +936,10 @@
             });
 
             if (!text && !image) return alert("Soal harus memiliki teks pertanyaan atau gambar soal!");
-            if (tipe !== 'truefalse' && options.every(o => !o) && optionImages.every(i => !i)) return alert("Minimal satu pilihan jawaban harus diisi!");
+            if (tipe !== 'truefalse' && tipe !== 'essay' && options.every(o => !o) && optionImages.every(i => !i)) return alert("Minimal satu pilihan jawaban harus diisi!");
 
             const data = { paketId, packet, text, options, optionImages, correct, tipe, image, token, aktif, updatedAt: Date.now() };
+            if (tipe === 'essay') { data.essayRubrik = essayRubrik; data.essaySkorMaks = essaySkorMaks; }
 
             try {
                 if (id) {
@@ -1715,18 +1748,22 @@
                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                                 <i data-lucide="layers" class="w-3.5 h-3.5"></i> Tipe Soal
                             </p>
-                            <div class="flex gap-2">
+                            <div class="grid grid-cols-2 gap-2">
                                 <button type="button" id="q-tipe-single-btn" onclick="window.setQuestionType('single')"
-                                    class="flex-1 py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    class="py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all">
                                     <i data-lucide="circle-dot" class="w-4 h-4"></i> Pilihan Tunggal
                                 </button>
                                 <button type="button" id="q-tipe-multiple-btn" onclick="window.setQuestionType('multiple')"
-                                    class="flex-1 py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    class="py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
                                     <i data-lucide="check-square" class="w-4 h-4"></i> Jawaban Ganda
                                 </button>
                                 <button type="button" id="q-tipe-truefalse-btn" onclick="window.setQuestionType('truefalse')"
-                                    class="flex-1 py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    class="py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
                                     <i data-lucide="toggle-left" class="w-4 h-4"></i> Benar / Salah
+                                </button>
+                                <button type="button" id="q-tipe-essay-btn" onclick="window.setQuestionType('essay')"
+                                    class="py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    <i data-lucide="pencil-line" class="w-4 h-4"></i> Esai / Uraian
                                 </button>
                             </div>
                             <input type="hidden" id="q-tipe" value="single">
@@ -1789,8 +1826,21 @@
                             <p class="text-xs text-emerald-600 mt-2 font-medium">⚠️ Siswa harus memilih SEMUA jawaban yang benar untuk mendapat poin penuh.</p>
                         </div>
 
-                        <!-- Kunci jawaban (benar/salah) -->
-                        <div id="q-correct-truefalse-wrap" class="hidden bg-amber-50 rounded-xl border border-amber-200 p-4">
+                        <!-- Kunci jawaban (essay) -->
+                        <div id="q-correct-essay-wrap" class="hidden bg-purple-50 rounded-xl border border-purple-200 p-4">
+                            <p class="text-xs font-bold text-purple-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                                <i data-lucide="pencil-line" class="w-3.5 h-3.5"></i> Kunci Jawaban / Rubrik Penilaian
+                                <span class="ml-auto text-[10px] font-normal text-purple-500">Digunakan AI & guru untuk menilai</span>
+                            </p>
+                            <textarea id="q-essay-rubrik" rows="5" class="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-400 bg-white resize-none" placeholder="Tulis kunci jawaban model / rubrik penilaian di sini...&#10;&#10;Contoh:&#10;- Sebutkan 3 poin utama: (1) ..., (2) ..., (3) ...&#10;- Nilai penuh jika menjawab minimal 2 poin dengan benar"></textarea>
+                            <div class="flex items-center justify-between mt-2.5 flex-wrap gap-2">
+                                <p class="text-xs text-purple-600 font-medium">⚠️ Jawaban siswa akan dikoreksi AI berdasarkan rubrik ini, atau guru bisa koreksi manual.</p>
+                                <div class="flex items-center gap-2">
+                                    <label class="text-xs font-bold text-purple-700">Skor maks:</label>
+                                    <input type="number" id="q-essay-skor-maks" min="1" max="100" value="10" class="w-20 px-2 py-1 border border-purple-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-purple-400 bg-white font-bold text-purple-700">
+                                </div>
+                            </div>
+                        </div> class="hidden bg-amber-50 rounded-xl border border-amber-200 p-4">
                             <p class="text-xs font-bold text-amber-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                                 <i data-lucide="toggle-left" class="w-3.5 h-3.5"></i> Kunci Jawaban
                                 <span class="ml-auto text-[10px] font-normal text-amber-500">Pilih mana yang benar</span>
@@ -1870,6 +1920,15 @@
                         <p class="text-xs text-amber-700 leading-relaxed">Tipe soal ini otomatis menampilkan dua pilihan: <strong>✓ BENAR</strong> dan <strong>✗ SALAH</strong>. Tidak perlu mengisi pilihan jawaban secara manual — cukup tulis pernyataannya di atas dan pilih kunci jawaban yang tepat.</p>
                     </div>
 
+                    <!-- Info box untuk tipe esai -->
+                    <div id="q-essay-info" class="hidden bg-purple-50 rounded-xl border border-purple-200 p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="pencil-line" class="w-4 h-4 text-purple-600 shrink-0"></i>
+                            <p class="text-sm font-bold text-purple-800">Soal Esai / Uraian</p>
+                        </div>
+                        <p class="text-xs text-purple-700 leading-relaxed">Siswa akan menulis jawaban uraian bebas. Koreksi dilakukan setelah ujian: <strong>otomatis oleh AI</strong> berdasarkan rubrik, atau <strong>manual oleh guru</strong> dengan override nilai.</p>
+                    </div>
+
                 </div>
 
                 <!-- Footer Actions -->
@@ -1880,6 +1939,119 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL KOREKSI ESAI -->
+    <div id="modal-koreksi-essay" class="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm hidden overflow-y-auto py-6 px-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-auto">
+            <div class="flex justify-between items-center px-6 py-4 border-b bg-gray-50 rounded-t-2xl sticky top-0 z-10">
+                <div class="flex items-center gap-3">
+                    <div class="bg-purple-100 p-2 rounded-lg"><i data-lucide="pencil-line" class="w-5 h-5 text-purple-600"></i></div>
+                    <div>
+                        <h3 class="text-base font-bold text-gray-800">Koreksi Soal Esai</h3>
+                        <p class="text-xs text-gray-500">Siswa: <span id="ke-student-name" class="font-semibold text-purple-600">—</span></p>
+                    </div>
+                </div>
+                <button onclick="window.closeKoreksiEssay()" class="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-200 rounded-lg transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <!-- Summary bar -->
+            <div class="px-6 py-3 bg-purple-50 border-b flex items-center gap-4 flex-wrap">
+                <div class="text-sm text-purple-800">
+                    Skor pilihan: <strong id="ke-score-mc">—</strong>
+                    &nbsp;·&nbsp; Skor esai: <strong id="ke-score-essay">0</strong>
+                    &nbsp;·&nbsp; Total: <strong id="ke-score-total" class="text-lg text-purple-700">—</strong>
+                </div>
+                <div class="ml-auto flex gap-2 flex-wrap">
+                    <button onclick="window.koreksiAISemua()" id="ke-btn-ai" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 shadow-sm">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> Koreksi Semua dengan AI
+                    </button>
+                    <button onclick="window.simpanKoreksiEssay()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 shadow-sm">
+                        <i data-lucide="save" class="w-4 h-4"></i> Simpan Semua
+                    </button>
+                </div>
+            </div>
+
+            <!-- Essay questions list -->
+            <div id="ke-questions-list" class="px-6 py-5 space-y-6 max-h-[65vh] overflow-y-auto">
+                <p class="text-sm text-gray-400 text-center py-8">Memuat soal esai...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT JADWAL -->
+    <div id="modal-edit-jadwal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+            <div class="flex justify-between items-center px-6 py-4 border-b bg-gray-50 rounded-t-2xl">
+                <div class="flex items-center gap-3">
+                    <div class="bg-violet-100 p-2 rounded-lg"><i data-lucide="calendar-days" class="w-5 h-5 text-violet-600"></i></div>
+                    <h3 class="text-base font-bold text-gray-800">Edit Jadwal Sesi</h3>
+                </div>
+                <button onclick="window.closeEditJadwal()" class="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-200 rounded-lg transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="px-6 py-5 space-y-4 overflow-y-auto max-h-[75vh]">
+                <input type="hidden" id="edit-jdwl-id">
+
+                <!-- Paket Soal -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Paket Soal <span class="text-red-500">*</span></label>
+                    <select id="edit-jdwl-paket" onchange="window.onEditJadwalPaketChange()" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                        <option value="">— Pilih Paket Soal —</option>
+                    </select>
+                    <input type="hidden" id="edit-jdwl-paket-id">
+                </div>
+
+                <!-- Kelas info -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Kelas <span class="text-gray-400 font-normal">(otomatis dari paket)</span></label>
+                    <div id="edit-jdwl-kelas-info" class="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-400 italic min-h-[38px] flex items-center flex-wrap gap-1">—</div>
+                    <input type="hidden" id="edit-jdwl-kelas">
+                    <input type="hidden" id="edit-jdwl-kelas-arr">
+                </div>
+
+                <!-- Nama Sesi -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Nama Sesi <span class="text-red-500">*</span></label>
+                    <input type="text" id="edit-jdwl-nama" placeholder="Nama sesi ujian..." class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                </div>
+
+                <!-- Tanggal + Jam -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal <span class="text-red-500">*</span></label>
+                        <input type="date" id="edit-jdwl-tanggal" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Jam Mulai <span class="text-red-500">*</span></label>
+                        <input type="time" id="edit-jdwl-mulai" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Jam Selesai <span class="text-red-500">*</span></label>
+                        <input type="time" id="edit-jdwl-selesai" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                    </div>
+                </div>
+
+                <!-- Token & Durasi -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Token Ujian <span class="text-violet-500 font-normal italic">(dari paket)</span></label>
+                        <input type="text" id="edit-jdwl-token" class="w-full px-3 py-2 border rounded-lg text-sm outline-none bg-violet-50 font-mono font-bold tracking-widest text-violet-700" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Durasi (menit) <span class="text-violet-500 font-normal italic">(dari paket)</span></label>
+                        <input type="number" id="edit-jdwl-durasi" min="1" max="300" class="w-full px-3 py-2 border rounded-lg text-sm outline-none bg-violet-50" readonly>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
+                <button onclick="window.closeEditJadwal()" class="px-5 py-2.5 border rounded-xl text-gray-700 hover:bg-gray-100 text-sm font-semibold transition-colors">Batal</button>
+                <button onclick="window.simpanEditJadwal()" class="px-6 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 font-bold text-sm flex items-center gap-2 shadow-md active:scale-95 transition-all">
+                    <i data-lucide="save" class="w-4 h-4"></i> Simpan Perubahan
+                </button>
+            </div>
         </div>
     </div>
 
@@ -4510,6 +4682,346 @@
             } catch(e) { alert('Gagal menyimpan: ' + e.message); }
         };
 
+        // ══════════════════════════════════════════════════════════
+        // KOREKSI SOAL ESAI
+        // ══════════════════════════════════════════════════════════
+        let _keCurrentResultId = null;
+        let _keEssayData = {}; // { qId: {...} }
+        let _keScoreMC = 0;
+        let _keNilaiMaks = 100;
+
+        window.openKoreksiEssay = function(resultId) {
+            const item = dashboardData.find(x => x.id === resultId);
+            if (!item) return alert('Data tidak ditemukan.');
+            if (!item.essayAnswers || Object.keys(item.essayAnswers).length === 0) return alert('Tidak ada soal esai pada data ini.');
+
+            _keCurrentResultId = resultId;
+            _keEssayData = JSON.parse(JSON.stringify(item.essayAnswers)); // deep copy
+            _keScoreMC = item.scoreNonEssay || item.score || 0;
+            const paket = (window.allPaketDB || []).find(p => p.id === item.paketId);
+            _keNilaiMaks = (paket && paket.nilaiMaksimal > 0) ? paket.nilaiMaksimal : 100;
+
+            document.getElementById('ke-student-name').textContent = item.studentName || '—';
+            document.getElementById('ke-score-mc').textContent = _keScoreMC;
+            window._keUpdateScoreSummary();
+            window._keRenderQuestions();
+
+            document.getElementById('modal-koreksi-essay').classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        window.closeKoreksiEssay = function() {
+            document.getElementById('modal-koreksi-essay').classList.add('hidden');
+        };
+
+        window._keUpdateScoreSummary = function() {
+            let essayTotal = 0;
+            Object.values(_keEssayData).forEach(e => {
+                const skor = e.skorGuru !== null && e.skorGuru !== undefined ? e.skorGuru : (e.skorAI !== null ? e.skorAI : 0);
+                essayTotal += Number(skor) || 0;
+            });
+
+            // Hitung total skor esai dalam skala poin
+            const totalRawEssay = essayTotal;
+            // Total skor gabungan (MC + esai proporsional)
+            const totalEssaySkorMaks = Object.values(_keEssayData).reduce((s, e) => s + (e.skorMaks || 10), 0);
+            const qTotal = (window.allQuestionsDB || []).filter(q => q.paketId === (_keCurrentResultId && (dashboardData.find(x=>x.id===_keCurrentResultId)||{}).paketId)).length;
+            // Tampilkan skor esai raw
+            document.getElementById('ke-score-essay').textContent = totalRawEssay.toFixed(1);
+            // Hitung total final (proporsional dari nilaiMaksimal)
+            // Ini simplified: MC skor sudah dalam skala final, tambah esai proporsional
+            const essayRatio = totalEssaySkorMaks > 0 ? (totalRawEssay / totalEssaySkorMaks) : 0;
+            const essayContrib = Math.round(essayRatio * _keNilaiMaks * (Object.keys(_keEssayData).length / Math.max(1, qTotal || Object.keys(_keEssayData).length)));
+            const total = Math.min(_keNilaiMaks, _keScoreMC + essayContrib);
+            document.getElementById('ke-score-total').textContent = total;
+        };
+
+        window._keRenderQuestions = function() {
+            const container = document.getElementById('ke-questions-list');
+            let html = '';
+            let qNum = 1;
+            Object.entries(_keEssayData).forEach(([qId, e]) => {
+                const skorFinal = e.skorGuru !== null && e.skorGuru !== undefined ? e.skorGuru : (e.skorAI !== null ? e.skorAI : '');
+                const statusColor = e.status === 'dikoreksi' ? 'border-green-300 bg-green-50' : e.status === 'ai_done' ? 'border-purple-200 bg-purple-50' : 'border-gray-200 bg-white';
+
+                html += `
+                <div class="rounded-xl border-2 ${statusColor} overflow-hidden" id="ke-card-${qId}">
+                    <div class="px-4 py-3 border-b bg-gray-50 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-purple-600 text-white text-xs font-black px-2 py-0.5 rounded-full">Esai ${qNum}</span>
+                            <span class="text-xs font-semibold text-gray-600">Skor maks: ${e.skorMaks || 10}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${e.status === 'dikoreksi' ? '<span class="text-xs text-green-600 font-bold flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Selesai</span>' : e.status === 'ai_done' ? '<span class="text-xs text-purple-600 font-bold flex items-center gap-1"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> AI Selesai</span>' : '<span class="text-xs text-amber-600 font-bold flex items-center gap-1"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Pending</span>'}
+                            <button onclick="window.koreksiAISatu('${qId}')" class="text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-lg text-xs font-bold border border-purple-200 flex items-center gap-1 transition-all" id="ke-ai-btn-${qId}">
+                                <i data-lucide="sparkles" class="w-3 h-3"></i> AI
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <div>
+                            <p class="text-xs font-bold text-gray-500 uppercase mb-1.5">Soal</p>
+                            <p class="text-sm text-gray-800 leading-relaxed">${e.qText || '—'}</p>
+                        </div>
+                        <div class="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                            <p class="text-xs font-bold text-blue-600 uppercase mb-1.5">Kunci / Rubrik Guru</p>
+                            <p class="text-sm text-blue-900 leading-relaxed whitespace-pre-line">${e.rubrik || '—'}</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-3 border">
+                            <p class="text-xs font-bold text-gray-500 uppercase mb-1.5">Jawaban Siswa</p>
+                            <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-line">${e.jawabanSiswa || '<em class="text-gray-400">Tidak dijawab</em>'}</p>
+                        </div>
+                        ${e.komentarAI ? `<div class="bg-purple-50 rounded-xl p-3 border border-purple-100">
+                            <p class="text-xs font-bold text-purple-600 uppercase mb-1.5 flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3"></i> Analisis AI</p>
+                            <p class="text-sm text-purple-900 leading-relaxed">${e.komentarAI}</p>
+                        </div>` : ''}
+                        <div class="flex items-center gap-3 pt-1 flex-wrap">
+                            <label class="text-xs font-bold text-gray-600">Skor AI:</label>
+                            <span class="text-sm font-bold text-purple-600 w-10">${e.skorAI !== null && e.skorAI !== undefined ? e.skorAI : '—'}</span>
+                            <label class="text-xs font-bold text-gray-600">Override Guru:</label>
+                            <input type="number" min="0" max="${e.skorMaks || 10}" step="0.5" value="${e.skorGuru !== null && e.skorGuru !== undefined ? e.skorGuru : ''}"
+                                class="w-20 px-2 py-1.5 border-2 border-gray-200 focus:border-green-400 rounded-lg text-sm font-bold text-green-700 outline-none"
+                                placeholder="0–${e.skorMaks || 10}"
+                                oninput="window._keUpdateGuru('${qId}', this.value)"
+                                id="ke-guru-input-${qId}">
+                            <span class="text-xs text-gray-400">/ ${e.skorMaks || 10}</span>
+                            <span class="ml-auto text-sm font-black ${skorFinal !== '' && Number(skorFinal) >= (e.skorMaks||10)*0.6 ? 'text-green-600' : 'text-amber-600'}">
+                                Final: <span id="ke-final-${qId}">${skorFinal !== '' ? Number(skorFinal).toFixed(1) : '—'}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>`;
+                qNum++;
+            });
+            container.innerHTML = html || '<p class="text-center text-gray-400 py-8">Tidak ada soal esai.</p>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        window._keUpdateGuru = function(qId, val) {
+            const numVal = val === '' ? null : parseFloat(val);
+            if (_keEssayData[qId]) {
+                _keEssayData[qId].skorGuru = numVal;
+                _keEssayData[qId].status = 'dikoreksi';
+                const finalEl = document.getElementById('ke-final-' + qId);
+                if (finalEl) finalEl.textContent = numVal !== null ? Number(numVal).toFixed(1) : '—';
+            }
+            window._keUpdateScoreSummary();
+        };
+
+        window.koreksiAISatu = async function(qId) {
+            const e = _keEssayData[qId];
+            if (!e) return;
+            const btn = document.getElementById('ke-ai-btn-' + qId);
+            if (btn) { btn.disabled = true; btn.innerHTML = '<svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> AI...'; }
+
+            try {
+                const prompt = `Kamu adalah asisten guru yang bertugas menilai jawaban esai siswa.
+
+SOAL: ${e.qText}
+
+RUBRIK/KUNCI JAWABAN GURU:
+${e.rubrik}
+
+JAWABAN SISWA:
+${e.jawabanSiswa || '(tidak dijawab)'}
+
+SKOR MAKSIMAL: ${e.skorMaks || 10}
+
+Berikan penilaian dalam format JSON berikut (HANYA JSON, tanpa teks lain):
+{
+  "skor": <angka 0 sampai ${e.skorMaks || 10} dengan 1 desimal>,
+  "komentar": "<analisis singkat mengapa skor ini diberikan, 1-2 kalimat>"
+}`;
+
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 300,
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+                const data = await response.json();
+                const rawText = (data.content || []).map(c => c.text || '').join('').replace(/```json|```/g, '').trim();
+                const result = JSON.parse(rawText);
+
+                _keEssayData[qId].skorAI = parseFloat(result.skor) || 0;
+                _keEssayData[qId].komentarAI = result.komentar || '';
+                _keEssayData[qId].status = 'ai_done';
+            } catch(err) {
+                _keEssayData[qId].komentarAI = 'Gagal koreksi AI: ' + (err.message || 'error');
+                _keEssayData[qId].skorAI = 0;
+                _keEssayData[qId].status = 'ai_done';
+            }
+
+            window._keRenderQuestions();
+            window._keUpdateScoreSummary();
+        };
+
+        window.koreksiAISemua = async function() {
+            const btn = document.getElementById('ke-btn-ai');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Memproses...'; }
+            for (const qId of Object.keys(_keEssayData)) {
+                await window.koreksiAISatu(qId);
+            }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Koreksi Semua dengan AI'; if (typeof lucide !== 'undefined') lucide.createIcons(); }
+        };
+
+        window.simpanKoreksiEssay = async function() {
+            if (!_keCurrentResultId || !window.isFirebaseReady) return alert('Tidak bisa menyimpan.');
+
+            // Hitung total skor esai
+            let essayTotalSkor = 0;
+            let totalEssaySkorMaks = 0;
+            Object.values(_keEssayData).forEach(e => {
+                const skor = e.skorGuru !== null && e.skorGuru !== undefined ? e.skorGuru : (e.skorAI !== null && e.skorAI !== undefined ? e.skorAI : 0);
+                essayTotalSkor += Number(skor) || 0;
+                totalEssaySkorMaks += Number(e.skorMaks) || 10;
+            });
+
+            const item = dashboardData.find(x => x.id === _keCurrentResultId);
+            const paket = (window.allPaketDB || []).find(p => p.id === (item || {}).paketId);
+            const nilaiMaks = (paket && paket.nilaiMaksimal > 0) ? paket.nilaiMaksimal : 100;
+            const totalQ = (window.allQuestionsDB || []).filter(q => q.paketId === (item || {}).paketId).length || 1;
+            const essayQ = Object.keys(_keEssayData).length;
+
+            // Proporsi esai dari total soal
+            const essayRatio = totalEssaySkorMaks > 0 ? (essayTotalSkor / totalEssaySkorMaks) : 0;
+            const essayContrib = Math.round(essayRatio * nilaiMaks * (essayQ / totalQ));
+            const finalScore = Math.min(nilaiMaks, (_keScoreMC || 0) + essayContrib);
+
+            try {
+                await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', _keCurrentResultId), {
+                    essayAnswers: _keEssayData,
+                    essayPending: false,
+                    essayTotalSkor: essayTotalSkor,
+                    score: finalScore,
+                    status: 'SELESAI',
+                    updatedAt: Date.now()
+                });
+                window.closeKoreksiEssay();
+                alert(`✅ Koreksi esai disimpan!\n\nSkor pilihan: ${_keScoreMC}\nSkor esai: ${essayTotalSkor.toFixed(1)}\nNilai akhir: ${finalScore}`);
+            } catch(e) { alert('Gagal menyimpan: ' + e.message); }
+        };
+        // ── END KOREKSI ESAI ────────────────────────────────────
+
+
+        window.editJadwal = function(id) {
+            const j = window.allJadwalDB.find(x => x.id === id);
+            if (!j) return alert('Jadwal tidak ditemukan.');
+
+            document.getElementById('edit-jdwl-id').value = id;
+            document.getElementById('edit-jdwl-nama').value = j.nama || '';
+            document.getElementById('edit-jdwl-tanggal').value = j.tanggal || '';
+            document.getElementById('edit-jdwl-mulai').value = j.jamMulai || '';
+            document.getElementById('edit-jdwl-selesai').value = j.jamSelesai || '';
+            document.getElementById('edit-jdwl-token').value = j.tokenCustom || '';
+            document.getElementById('edit-jdwl-durasi').value = j.durasiCustom || '';
+            document.getElementById('edit-jdwl-kelas').value = j.kelas || '';
+            document.getElementById('edit-jdwl-kelas-arr').value = JSON.stringify(j.kelasArr || []);
+
+            // Populate paket dropdown
+            const sel = document.getElementById('edit-jdwl-paket');
+            sel.innerHTML = '<option value="">— Pilih Paket Soal —</option>';
+            (window.allPaketDB || []).forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.nama || '';
+                opt.dataset.id = p.id;
+                opt.dataset.token = p.token || '';
+                opt.dataset.durasi = p.durasi || '';
+                opt.dataset.kelas = JSON.stringify(p.kelas || []);
+                opt.textContent = p.nama + (p.jenis && p.jenis !== 'nonpaket' ? ` (Paket ${p.jenis})` : '');
+                if (p.id === j.paketId || p.nama === j.paket) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            document.getElementById('edit-jdwl-paket-id').value = j.paketId || '';
+
+            // Populate kelas info from saved data
+            const kelasArrJ = j.kelasArr && j.kelasArr.length ? j.kelasArr : (j.kelas ? [j.kelas] : []);
+            const ki = document.getElementById('edit-jdwl-kelas-info');
+            if (kelasArrJ.length) {
+                ki.innerHTML = kelasArrJ.map(k => `<span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold text-xs">${k}</span>`).join('');
+            } else {
+                ki.innerHTML = '<span class="text-gray-400 italic text-xs">Tidak ada kelas</span>';
+            }
+
+            document.getElementById('modal-edit-jadwal').classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        window.closeEditJadwal = function() {
+            document.getElementById('modal-edit-jadwal').classList.add('hidden');
+        };
+
+        window.onEditJadwalPaketChange = function() {
+            const sel = document.getElementById('edit-jdwl-paket');
+            const opt = sel.options[sel.selectedIndex];
+            if (!opt || !opt.value) return;
+
+            const paketId = opt.dataset.id || '';
+            const token   = opt.dataset.token || '';
+            const durasi  = opt.dataset.durasi || '';
+            let kelasArr  = [];
+            try { kelasArr = JSON.parse(opt.dataset.kelas || '[]'); } catch(e) {}
+
+            document.getElementById('edit-jdwl-paket-id').value = paketId;
+            document.getElementById('edit-jdwl-token').value = token;
+            document.getElementById('edit-jdwl-durasi').value = durasi;
+            document.getElementById('edit-jdwl-kelas').value = kelasArr.join(', ');
+            document.getElementById('edit-jdwl-kelas-arr').value = JSON.stringify(kelasArr);
+
+            const ki = document.getElementById('edit-jdwl-kelas-info');
+            if (kelasArr.length) {
+                ki.innerHTML = kelasArr.map(k => `<span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold text-xs">${k}</span>`).join('');
+                ki.className = 'w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm bg-gray-50 min-h-[38px] flex items-center flex-wrap gap-1';
+            } else {
+                ki.innerHTML = '<span class="text-gray-400 italic text-xs">Tidak ada kelas terdaftar di paket ini</span>';
+            }
+
+            // Auto-fill nama sesi jika masih default
+            const namaEl = document.getElementById('edit-jdwl-nama');
+            if (!namaEl.value || namaEl.value.startsWith('Sesi')) {
+                const paketNama = opt.value;
+                namaEl.value = `Sesi ${paketNama}`;
+            }
+        };
+
+        window.simpanEditJadwal = async function() {
+            if (!window.isFirebaseReady) return alert('Mode Offline — tidak bisa menyimpan.');
+            const id      = document.getElementById('edit-jdwl-id').value;
+            const nama    = document.getElementById('edit-jdwl-nama').value.trim();
+            const tanggal = document.getElementById('edit-jdwl-tanggal').value;
+            const mulai   = document.getElementById('edit-jdwl-mulai').value;
+            const selesai = document.getElementById('edit-jdwl-selesai').value;
+            const paket   = document.getElementById('edit-jdwl-paket').value.trim();
+            const paketId = document.getElementById('edit-jdwl-paket-id').value.trim();
+            const token   = document.getElementById('edit-jdwl-token').value.trim();
+            const durasi  = document.getElementById('edit-jdwl-durasi').value;
+            const kelasStr = document.getElementById('edit-jdwl-kelas').value.trim();
+            let kelasArr = [];
+            try { kelasArr = JSON.parse(document.getElementById('edit-jdwl-kelas-arr').value || '[]'); } catch(e) {}
+
+            if (!paket)   return alert('Pilih paket soal!');
+            if (!nama)    return alert('Nama sesi tidak boleh kosong!');
+            if (!tanggal) return alert('Tanggal harus dipilih!');
+            if (!mulai)   return alert('Jam mulai harus diisi!');
+            if (!selesai) return alert('Jam selesai harus diisi!');
+            if (mulai >= selesai) return alert('Jam selesai harus lebih besar dari jam mulai!');
+
+            try {
+                await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', id), {
+                    nama, tanggal, jamMulai: mulai, jamSelesai: selesai,
+                    paket, paketId: paketId || '',
+                    kelas: kelasStr, kelasArr: kelasArr,
+                    tokenCustom: token || '',
+                    durasiCustom: durasi ? parseInt(durasi) : 0,
+                    updatedAt: Date.now()
+                });
+                window.closeEditJadwal();
+            } catch(e) { alert('Gagal menyimpan: ' + e.message); }
+        };
+
         // Hapus jadwal
         window.hapusJadwal = async function(id, nama) {
             if (!confirm(`Hapus jadwal "${nama}"?\n\nJika jadwal sedang aktif, sesi akan tetap aktif sampai Anda menonaktifkan secara manual.`)) return;
@@ -4710,6 +5222,7 @@
                         </div>
                         <div class="flex gap-1.5 shrink-0">
                             ${!sudahLewat ? `<button onclick="window.toggleJadwalManual('${j.id}',${!!j.isActive},'${j.nama.replace(/'/g,"\\'")}') " title="${j.isActive ? 'Nonaktifkan' : 'Aktifkan'} manual" class="text-xs font-bold ${j.isActive ? 'text-red-600 hover:bg-red-50 border-red-200' : 'text-green-600 hover:bg-green-50 border-green-200'} border px-3 py-1.5 rounded-lg transition-colors">${j.isActive ? '⏹ Stop' : '▶ Mulai'}</button>` : ''}
+                            <button onclick="window.editJadwal('${j.id}')" title="Edit jadwal" class="text-violet-500 hover:bg-violet-50 p-1.5 rounded-lg transition-colors border border-transparent hover:border-violet-200"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
                             <button onclick="window.hapusJadwal('${j.id}','${j.nama.replace(/'/g,"\\'")}') " title="Hapus jadwal" class="text-red-400 hover:bg-red-50 p-1.5 rounded-lg transition-colors border border-transparent hover:border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </div>
                     </div>`;
@@ -5801,7 +6314,14 @@
                 const isAktif   = q.aktif !== false;
                 const isMultiple = q.tipe === 'multiple';
                 const isTrueFalse = q.tipe === 'truefalse';
-                const optionsHtml = isTrueFalse
+                const isEssayQ = q.tipe === 'essay';
+                const optionsHtml = isEssayQ
+                    ? `<div class="bg-purple-50 border border-purple-200 rounded-xl p-3">
+                            <p class="text-xs font-bold text-purple-700 mb-1.5 flex items-center gap-1"><i data-lucide="pencil-line" class="w-3.5 h-3.5"></i> Rubrik / Kunci Jawaban</p>
+                            <p class="text-sm text-purple-900 whitespace-pre-line leading-relaxed">${q.essayRubrik || '—'}</p>
+                            <p class="text-xs text-purple-500 mt-2 font-medium">Skor maks: ${q.essaySkorMaks || 10} poin</p>
+                       </div>`
+                    : isTrueFalse
                     ? `<div class="flex gap-2">
                             <div class="flex items-center gap-2 px-4 py-2 rounded-lg ${q.correct === true || q.correct === 'true' ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-100'}">
                                 <span class="w-6 h-6 rounded-full ${q.correct === true || q.correct === 'true' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'} text-xs font-bold flex items-center justify-center">✓</span>
@@ -5825,17 +6345,21 @@
                 const imgHtml = q.image ? `<div class="mt-3"><img src="${q.image}" class="max-h-32 rounded-xl border object-contain bg-gray-50 p-1"></div>` : '';
 
                 // Build kunci label for card header
-                const kunciLabel = isTrueFalse
-                    ? (q.correct === true || q.correct === 'true' ? '✓ Benar' : '✗ Salah')
-                    : isMultiple && Array.isArray(q.correct)
-                        ? q.correct.map(i => labels[i]||i).join(', ')
-                        : labels[Array.isArray(q.correct) ? q.correct[0] : q.correct] || q.correct;
+                const kunciLabel = isEssayQ
+                    ? `<i>Esai (skor maks: ${q.essaySkorMaks || 10})</i>`
+                    : isTrueFalse
+                        ? (q.correct === true || q.correct === 'true' ? '✓ Benar' : '✗ Salah')
+                        : isMultiple && Array.isArray(q.correct)
+                            ? q.correct.map(i => labels[i]||i).join(', ')
+                            : labels[Array.isArray(q.correct) ? q.correct[0] : q.correct] || q.correct;
 
-                const tipeBadge = isTrueFalse
-                    ? `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">B/S</span>`
-                    : isMultiple
-                        ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Ganda</span>`
-                        : '';
+                const tipeBadge = isEssayQ
+                    ? `<span class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">Esai</span>`
+                    : isTrueFalse
+                        ? `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">B/S</span>`
+                        : isMultiple
+                            ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Ganda</span>`
+                            : '';
 
                 return `
                 <div class="bg-white rounded-2xl border shadow-sm overflow-hidden ${!isAktif ? 'opacity-60' : ''}" id="soal-card-${q.id}">
@@ -6517,6 +7041,8 @@
 
             const answeredCount = Object.keys(userAnswers).filter(k => {
                 const v = userAnswers[k];
+                const q = (currentQuestionList || []).find(x => x.id === k);
+                if (q && q.tipe === 'essay') return v && v.text && v.text.trim().length > 0;
                 return !(Array.isArray(v) && v.length === 0);
             }).length;
             const total = currentQuestionList.length;
@@ -6905,10 +7431,32 @@
             const labels = ['A','B','C','D','E'];
             const isMultiple = q.tipe === 'multiple';
             const isTrueFalse = q.tipe === 'truefalse';
+            const isEssay = q.tipe === 'essay';
 
             let optionsHTML = '';
 
-            if (isTrueFalse) {
+            if (isEssay) {
+                const userText = (userAnswers[q.id] && userAnswers[q.id].text) ? userAnswers[q.id].text : '';
+                optionsHTML = `
+                    <div class="mt-2">
+                        <label class="block text-xs font-bold text-purple-600 mb-2 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                            Tulis Jawaban Kamu
+                        </label>
+                        <textarea
+                            id="essay-input-${q.id}"
+                            rows="6"
+                            class="w-full px-4 py-3 border-2 border-purple-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 text-sm resize-none bg-white transition-colors"
+                            placeholder="Tulis jawaban uraianmu di sini..."
+                            oninput="saveEssayAnswer('${q.id}', this.value)"
+                        >${userText}</textarea>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-xs text-purple-500">Jawab selengkap mungkin sesuai pemahaman kamu.</p>
+                            <p class="text-xs text-gray-400" id="essay-charcount-${q.id}">${userText.length} karakter</p>
+                        </div>
+                    </div>
+                `;
+            } else if (isTrueFalse) {
                 // Render dua tombol besar: BENAR dan SALAH
                 const userAns = userAnswers[q.id]; // true, false, or undefined
                 const benarSel = userAns === true;
@@ -6987,11 +7535,13 @@
             }
 
             // Badge tipe soal
-            const tipeBadge = isTrueFalse
-                ? `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Benar / Salah</span>`
-                : isMultiple
-                    ? `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Jawaban Ganda</span>`
-                    : '';
+            const tipeBadge = isEssay
+                ? `<span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg> Esai</span>`
+                : isTrueFalse
+                    ? `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Benar / Salah</span>`
+                    : isMultiple
+                        ? `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Jawaban Ganda</span>`
+                        : '';
 
             // Gambar soal
             const qImgHtml = q.image
@@ -7015,7 +7565,12 @@
                             <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             <p class="text-xs text-amber-700 font-semibold">Apakah pernyataan di atas BENAR atau SALAH?</p>
                        </div>`
-                    : '';
+                    : isEssay
+                        ? `<div class="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-xl px-3 py-2 mb-3">
+                                <svg class="w-4 h-4 text-purple-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <p class="text-xs text-purple-700 font-semibold">Soal uraian — tulis jawaban selengkap mungkin. Dikoreksi guru/AI setelah ujian.</p>
+                           </div>`
+                        : '';
 
             const html = `
                 <div class="bg-white rounded-xl shadow-sm border p-6 md:p-8 animate-fade-in">
@@ -7081,6 +7636,16 @@
             }
         }
 
+        window.saveEssayAnswer = function(qId, text) {
+            if (!userAnswers[qId]) userAnswers[qId] = {};
+            userAnswers[qId].text = text;
+            // Update char count without re-rendering (avoids losing focus)
+            const cc = document.getElementById('essay-charcount-' + qId);
+            if (cc) cc.textContent = text.length + ' karakter';
+            // Update sidebar dot (answered if non-empty)
+            renderSidebarButtons();
+        };
+
         window.saveAnswer = function(qId, optIdx, isMultiple, isTrueFalse, element) {
             if (isTrueFalse !== undefined && isTrueFalse === false && typeof optIdx === 'boolean') {
                 // truefalse: optIdx is actually the boolean value (true/false)
@@ -7108,8 +7673,10 @@
             
             currentQuestionList.forEach((q, idx) => {
                 const ans = userAnswers[q.id];
-                const isAnswered = ans !== undefined
-                    && !(Array.isArray(ans) && ans.length === 0);
+                const isEssayQ = q.tipe === 'essay';
+                const isAnswered = isEssayQ
+                    ? (ans && ans.text && ans.text.trim().length > 0)
+                    : ans !== undefined && !(Array.isArray(ans) && ans.length === 0);
                 const isActive = idx === currentQuestionIndex;
                 
                 let btnClass = "h-10 w-full rounded font-bold text-sm flex items-center justify-center transition-colors ";
@@ -7475,7 +8042,27 @@
             // ── Hitung skor (safe: jaga dari array kosong) ──
             const qList = currentQuestionList || [];
             let correctCount = 0;
+            let nonEssayCount = 0;
+            let hasEssay = false;
+            const essayAnswersMap = {}; // { qId: { text, rubrik, skorMaks } }
+
             qList.forEach(q => {
+                if (q.tipe === 'essay') {
+                    hasEssay = true;
+                    const userText = (userAnswers[q.id] && userAnswers[q.id].text) ? userAnswers[q.id].text.trim() : '';
+                    essayAnswersMap[q.id] = {
+                        qText: q.text || '',
+                        rubrik: q.essayRubrik || '',
+                        skorMaks: q.essaySkorMaks || 10,
+                        jawabanSiswa: userText,
+                        skorAI: null,
+                        skorGuru: null,
+                        komentarAI: '',
+                        status: 'pending'
+                    };
+                    return; // essay tidak dihitung dalam skor otomatis
+                }
+                nonEssayCount++;
                 if (typeof q.correct === 'undefined') return;
                 const isMultiple = q.tipe === 'multiple';
                 const isTrueFalse = q.tipe === 'truefalse';
@@ -7483,12 +8070,10 @@
                     const correctBool = q.correct === true || q.correct === 'true';
                     if (userAnswers[q.id] === correctBool) correctCount++;
                 } else if (isMultiple && Array.isArray(q.correct)) {
-                    // Multiple: siswa harus memilih SEMUA jawaban benar, tidak lebih tidak kurang
                     const userAns = Array.isArray(userAnswers[q.id]) ? [...userAnswers[q.id]].sort() : [];
                     const corrArr = [...q.correct].sort();
                     if (userAns.length === corrArr.length && userAns.every((v, i) => v === corrArr[i])) correctCount++;
                 } else {
-                    // Single
                     const correctIdx = Array.isArray(q.correct) ? q.correct[0] : q.correct;
                     if (userAnswers[q.id] === correctIdx) correctCount++;
                 }
@@ -7496,7 +8081,8 @@
             // Gunakan nilaiMaksimal dari paket (default 100 jika tidak diset)
             const _paketData = (window.allPaketDB || []).find(p => p.id === (currentStudent || {}).paketId);
             const nilaiMaksimal = (_paketData && _paketData.nilaiMaksimal && _paketData.nilaiMaksimal > 0) ? _paketData.nilaiMaksimal : 100;
-            const score = qList.length > 0 ? Math.round((correctCount / qList.length) * nilaiMaksimal) : 0;
+            // Skor dari soal non-esai saja (esai pending)
+            const score = nonEssayCount > 0 ? Math.round((correctCount / qList.length) * nilaiMaksimal) : 0;
 
             const _cs = currentStudent || {};
             const resultData = {
@@ -7511,9 +8097,13 @@
                 sesiId:       window.currentSesiId   || 'default',
                 sesiName:     window.currentSesiName || '',
                 score:        score,
-                status:       forced ? "DISKUALIFIKASI (Kecurangan)" : "SELESAI",
+                scoreNonEssay: score,
+                status:       forced ? "DISKUALIFIKASI (Kecurangan)" : (hasEssay ? "SELESAI (Esai Pending)" : "SELESAI"),
                 violations:   forced ? 3 : violations,
-                violationLogs: violationLogs
+                violationLogs: violationLogs,
+                hasEssay:     hasEssay,
+                essayPending: hasEssay && !forced,
+                essayAnswers: hasEssay ? essayAnswersMap : {}
             };
 
             if(window.saveExamResult) window.saveExamResult(resultData);
@@ -7550,12 +8140,17 @@
             const motivationalEl = document.getElementById('motivational-message');
             const btnReview      = document.getElementById('btn-review');
 
-            if (scoreEl) scoreEl.innerText = score;
+            if (scoreEl) scoreEl.innerText = hasEssay ? '?' : score;
             // Tampilkan detail: benar/total soal dan nilai per soal
             const detailEl = document.getElementById('final-score-detail');
             if (detailEl) {
-                const nilaiPerSoal = qList.length > 0 ? (nilaiMaksimal / qList.length).toFixed(2).replace(/\.?0+$/, '') : 0;
-                detailEl.innerHTML = `Benar <strong>${correctCount}</strong> dari <strong>${qList.length}</strong> soal &nbsp;·&nbsp; Nilai maks: <strong>${nilaiMaksimal}</strong> &nbsp;·&nbsp; Per soal: <strong>${nilaiPerSoal} poin</strong>`;
+                if (hasEssay) {
+                    const essayCount = Object.keys(essayAnswersMap).length;
+                    detailEl.innerHTML = `Benar <strong>${correctCount}</strong> dari <strong>${nonEssayCount}</strong> soal pilihan &nbsp;·&nbsp; <span class="text-purple-600 font-bold">+ ${essayCount} soal esai menunggu koreksi</span>`;
+                } else {
+                    const nilaiPerSoal = qList.length > 0 ? (nilaiMaksimal / qList.length).toFixed(2).replace(/\.?0+$/, '') : 0;
+                    detailEl.innerHTML = `Benar <strong>${correctCount}</strong> dari <strong>${qList.length}</strong> soal &nbsp;·&nbsp; Nilai maks: <strong>${nilaiMaksimal}</strong> &nbsp;·&nbsp; Per soal: <strong>${nilaiPerSoal} poin</strong>`;
+                }
             }
 
             if (forced) {
@@ -7848,7 +8443,9 @@
                         <td class="px-6 py-4 text-gray-600 text-sm">${item.className || '-'}</td>
                         <td class="px-6 py-4"><span class="${ruangColor}">${ruangLabel}</span></td>
                         <td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs font-bold ${pktColor}">${item.paketNama || ('Paket ' + item.packetType)}</span></td>
-                        <td class="px-6 py-4 text-center text-lg font-bold ${(item.score??-1)>=80?'text-emerald-600':(item.score??-1)>=60?'text-amber-500':'text-red-500'}">${item.score ?? '-'}</td>
+                        <td class="px-6 py-4 text-center text-lg font-bold ${(item.score??-1)>=80?'text-emerald-600':(item.score??-1)>=60?'text-amber-500':'text-red-500'}">
+                            ${item.essayPending ? `<span class="inline-flex flex-col items-center gap-0.5"><span class="text-base">${item.score ?? '-'}</span><span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-bold leading-none">+esai⏳</span></span>` : (item.score ?? '-')}
+                        </td>
                         <td class="px-6 py-4"><span class="${statusColor}">${statusIcon} ${item.status}</span></td>
                         <td class="px-6 py-4 text-center">${violationDisplay}</td>
                         <td class="px-6 py-4 text-center">
@@ -7861,6 +8458,7 @@
                         </td>
                         <td class="px-6 py-4 text-center">
                             <div class="flex gap-1 justify-center">
+                                ${item.essayPending ? `<button onclick="window.openKoreksiEssay('${item.id}')" class="text-purple-600 hover:bg-purple-50 p-1.5 rounded transition-colors border border-purple-200 hover:border-purple-400" title="Koreksi Soal Esai"><i data-lucide="pencil-line" class="w-4 h-4"></i></button>` : (item.hasEssay && !item.essayPending ? `<button onclick="window.openKoreksiEssay('${item.id}')" class="text-gray-400 hover:bg-gray-50 p-1.5 rounded transition-colors" title="Lihat Koreksi Esai"><i data-lucide="check-circle" class="w-4 h-4"></i></button>` : '')}
                                 <button onclick="window.openNoteModal('${item.id}')" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Tambah Catatan Pengawas">
                                     <i data-lucide="pencil" class="w-4 h-4"></i>
                                 </button>
