@@ -1385,6 +1385,11 @@
                     <span class="text-white font-black">INTEGRI</span><span style="color:#bfdbfe">TEST</span>
                     &nbsp;·&nbsp; Ujian Berbasis Komputer
                 </p>
+                <!-- Judul & sub judul ujian dari pengaturan admin -->
+                <div id="welcome-judul-ujian-wrap" class="mt-3 bg-white/15 rounded-xl px-4 py-2.5 border border-white/20 backdrop-blur-sm" style="display:none">
+                    <p id="welcome-judul-ujian" class="text-white font-black text-sm leading-snug"></p>
+                    <p id="welcome-sub-judul" class="text-blue-100 text-[11px] font-semibold mt-0.5 opacity-90"></p>
+                </div>
             </div>
         </div>
 
@@ -1733,6 +1738,14 @@
                     </label>
                     <input type="text" id="paket-token" placeholder="Contoh: INFO2025" required class="w-full px-4 py-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-yellow-400 text-sm font-mono uppercase bg-yellow-50 focus:bg-yellow-50 tracking-widest font-bold">
                     <p class="text-xs text-gray-400 mt-1">Siswa harus memasukkan token ini untuk bisa memulai ujian paket ini.</p>
+                </div>
+                <!-- Jumlah Soal -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                        <i data-lucide="list-ordered" class="w-4 h-4 text-blue-500"></i> Jumlah Soal yang Ditampilkan
+                    </label>
+                    <input type="number" id="paket-jumlah-soal" placeholder="Contoh: 20" min="1" class="w-full px-4 py-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-blue-50 focus:bg-blue-50 font-bold text-gray-800">
+                    <p class="text-xs text-gray-400 mt-1">Kosongkan = tampilkan semua soal dalam paket. Isi angka untuk membatasi jumlah soal yang diambil secara acak.</p>
                 </div>
                 <!-- Status -->
                 <div class="flex items-center justify-between bg-gray-50 rounded-xl border px-4 py-3">
@@ -3573,8 +3586,15 @@
 
             // Halaman Welcome header
             const welcomeTitle = document.querySelector('#section-welcome h2');
-            // Sub judul welcome sekarang ada sebagai text node di dalam span, lewati saja
-            if (welcomeTitle && judul) welcomeTitle.textContent = 'Halo! 👋';
+            // Tampilkan judulUjian di welcome (bukan hardcode 'Halo! 👋')
+            const welcomeJudulEl = document.getElementById('welcome-judul-ujian');
+            const welcomeSubEl   = document.getElementById('welcome-sub-judul');
+            const welcomeJudulWrap = document.getElementById('welcome-judul-ujian-wrap');
+            if (welcomeJudulEl && judul) {
+                welcomeJudulEl.textContent = judul;
+                if (welcomeJudulWrap) welcomeJudulWrap.style.display = '';
+            }
+            if (welcomeSubEl && sub) welcomeSubEl.textContent = sub;
 
             // Teks motivasi di welcome
             const motEl = document.getElementById('welcome-motivasi-text');
@@ -4345,6 +4365,7 @@
                     document.getElementById('paket-nama').value = p.nama || '';
                     document.getElementById('paket-mapel').value = p.mapel || '';
                     document.getElementById('paket-token').value = p.token || '';
+                    document.getElementById('paket-jumlah-soal').value = p.jumlahSoal || '';
                     const isAktif = p.aktif !== false;
                     document.getElementById('paket-aktif').checked = isAktif;
                     document.getElementById('paket-aktif-label').textContent = isAktif ? 'Aktif' : 'Nonaktif';
@@ -4407,11 +4428,13 @@
             const aktif = document.getElementById('paket-aktif').checked;
             const jenis = document.querySelector('[name="paket-jenis"]:checked')?.value || 'nonpaket';
             const kelas = Array.from(document.querySelectorAll('#paket-kelas-checks input:checked')).map(c => c.value);
+            const jumlahSoalRaw = document.getElementById('paket-jumlah-soal').value.trim();
+            const jumlahSoal = jumlahSoalRaw ? parseInt(jumlahSoalRaw) : 0;
 
             if (!nama) return alert("Nama paket tidak boleh kosong!");
             if (!token) return alert("Token paket tidak boleh kosong!");
 
-            const data = { nama, mapel, token, aktif, jenis, kelas, updatedAt: Date.now() };
+            const data = { nama, mapel, token, aktif, jenis, kelas, jumlahSoal, updatedAt: Date.now() };
             try {
                 if (id) {
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'paket_soal', id), data);
@@ -5005,10 +5028,11 @@
                     ? window.allQuestionsDB.filter(q => q.packet === pkt && q.aktif !== false)
                     : window.allQuestionsDB.filter(q => q.paketId === paketId && q.aktif !== false);
 
-                if (dbQuestions.length === 0)
-                    dbQuestions = window.allQuestionsDB.filter(q => q.packet === pkt && q.aktif !== false);
-                if (dbQuestions.length === 0)
-                    dbQuestions = window.allQuestionsDB.filter(q => q.packet === pkt);
+                // Fallback hanya jika paket ini memang tidak punya soal sama sekali di DB
+                if (dbQuestions.length === 0 && !paketId.startsWith('__fallback')) {
+                    alert("Belum ada soal untuk paket ini. Hubungi pengawas!");
+                    return;
+                }
                 if (dbQuestions.length === 0 && window.questionBank && window.questionBank[pkt])
                     dbQuestions = [...window.questionBank[pkt]];
                 if (dbQuestions.length === 0) {
@@ -5016,12 +5040,17 @@
                     return;
                 }
 
+                // Acak dulu, lalu potong sesuai jumlahSoal yang diset di paket
+                shuffleArray(dbQuestions);
+                const jumlahSoal = paket && paket.jumlahSoal && paket.jumlahSoal > 0 ? paket.jumlahSoal : dbQuestions.length;
+                dbQuestions = dbQuestions.slice(0, jumlahSoal);
+
                 currentStudent = { name, nisn: studentNisn, cls, pkt, room, paketId, paketNama: paket ? paket.nama : '' };
                 document.getElementById('header-name').innerText   = name;
                 document.getElementById('header-detail').innerText = `${cls} · ${paket ? paket.nama : 'Paket '+pkt}`;
 
                 currentQuestionList = [...dbQuestions];
-                shuffleArray(currentQuestionList);
+                // Soal sudah diacak dan dibatasi di atas (shuffleArray + slice)
                 violationLogs = [];
                 violations    = 0;
 
