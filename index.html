@@ -1888,6 +1888,11 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
+                    <!-- Info Ujian — hanya muncul saat login sebagai Pengawas -->
+                    <div id="pengawas-exam-info" class="hidden flex-col items-end text-right">
+                        <p id="pengawas-exam-judul" class="text-sm font-black text-white leading-tight"></p>
+                        <p id="pengawas-exam-sub" class="text-[11px] text-amber-300 font-semibold leading-tight"></p>
+                    </div>
                     <div id="pengawas-room-badge" class="hidden items-center gap-2 bg-amber-500/20 border border-amber-400/30 px-3 py-1.5 rounded-full">
                         <i data-lucide="door-open" class="w-4 h-4 text-amber-300"></i>
                         <span id="pengawas-room-label" class="text-sm font-bold text-amber-200">Ruang 1</span>
@@ -3629,6 +3634,17 @@
             // Sinkron dropdown setting
             const modeSelect = document.getElementById('setting-nomor-id-mode');
             if (modeSelect && document.activeElement !== modeSelect) modeSelect.value = mode;
+
+            // Update info ujian di header pengawas (jika sedang login sebagai pengawas)
+            const _pjEl  = document.getElementById('pengawas-exam-judul');
+            const _psEl  = document.getElementById('pengawas-exam-sub');
+            const _piWrap = document.getElementById('pengawas-exam-info');
+            if (_pjEl) _pjEl.textContent = judul;
+            if (_psEl) _psEl.textContent = sub;
+            if (_piWrap) {
+                if (judul || sub) _piWrap.classList.remove('hidden');
+                else _piWrap.classList.add('hidden');
+            }
         };
 
         // Isi form panel tampilan dari pengaturan tersimpan
@@ -5244,6 +5260,7 @@
                 document.getElementById('dash-header-subtitle').textContent = `Akses Penuh — Login sebagai: ${adminDisplayName}`;
                 document.getElementById('dash-header-icon').className = 'bg-indigo-600 p-2 rounded-lg';
                 document.getElementById('pengawas-room-badge').classList.add('hidden');
+                document.getElementById('pengawas-exam-info').classList.add('hidden');
 
                 document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.remove('hidden'));
                 // Sesuaikan lebar bottom nav mobile saat admin (semua tab tampil)
@@ -5316,6 +5333,14 @@
             document.getElementById('dash-header-title').textContent = 'Monitoring Ruang';
             document.getElementById('dash-header-subtitle').textContent = `Pengawas ${ruang.nama}`;
             document.getElementById('dash-header-icon').className = 'bg-amber-500 p-2 rounded-lg';
+            // Tampilkan info ujian di kanan header
+            const _app = window._savedAppearance || {};
+            const _judulEl = document.getElementById('pengawas-exam-judul');
+            const _subEl   = document.getElementById('pengawas-exam-sub');
+            const _infoWrap = document.getElementById('pengawas-exam-info');
+            if (_judulEl) _judulEl.textContent = _app.judulUjian || '';
+            if (_subEl)   _subEl.textContent   = _app.subJudul   || '';
+            if (_infoWrap && (_app.judulUjian || _app.subJudul)) _infoWrap.classList.remove('hidden');
             const badge = document.getElementById('pengawas-room-badge');
             badge.classList.remove('hidden');
             badge.classList.add('flex');
@@ -5459,6 +5484,7 @@
                 document.getElementById('dash-header-subtitle').textContent = `Akses Penuh — Login sebagai: ${adminDisplayName}`;
                 document.getElementById('dash-header-icon').className = 'bg-indigo-600 p-2 rounded-lg';
                 document.getElementById('pengawas-room-badge').classList.add('hidden');
+                document.getElementById('pengawas-exam-info').classList.add('hidden');
                 document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.remove('hidden'));
                 const mobileNav = document.getElementById('mobile-bottom-nav');
                 if (mobileNav) mobileNav.style.display = '';
@@ -5491,6 +5517,14 @@
                 document.getElementById('dash-header-title').textContent = 'Monitoring Ruang';
                 document.getElementById('dash-header-subtitle').textContent = `Pengawas ${ruang.nama}`;
                 document.getElementById('dash-header-icon').className = 'bg-amber-500 p-2 rounded-lg';
+                // Tampilkan info ujian di kanan header
+                const _app2 = window._savedAppearance || {};
+                const _judulEl2  = document.getElementById('pengawas-exam-judul');
+                const _subEl2    = document.getElementById('pengawas-exam-sub');
+                const _infoWrap2 = document.getElementById('pengawas-exam-info');
+                if (_judulEl2)  _judulEl2.textContent  = _app2.judulUjian || '';
+                if (_subEl2)    _subEl2.textContent    = _app2.subJudul   || '';
+                if (_infoWrap2 && (_app2.judulUjian || _app2.subJudul)) _infoWrap2.classList.remove('hidden');
                 const badge = document.getElementById('pengawas-room-badge');
                 badge.classList.remove('hidden');
                 badge.classList.add('flex');
