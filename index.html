@@ -1094,11 +1094,17 @@
                             <img src="images/integritest.png" onerror="this.src='https://via.placeholder.com/150?text=TKJ'" alt="Logo TKJ" class="w-24 h-24 object-contain drop-shadow-md">
                         </div>
                     </div>
-                    <h1 id="login-header-judul" class="text-3xl font-black tracking-tight drop-shadow-md">
+                    <!-- INTEGRITEST — branding tetap, tidak hilang walau setting diubah -->
+                    <h1 class="text-3xl font-black tracking-tight drop-shadow-md">
                         <span class="text-white">INTEGRI</span><span style="color:#38bdf8;text-shadow:0 0 18px rgba(56,189,248,0.55)">TEST</span>
                     </h1>
-                    <div class="h-1 w-20 bg-blue-400/50 rounded-full my-2"></div>
-                    <p id="login-header-sub" class="text-blue-100 text-sm font-medium tracking-wide">Digitalyzing Integrity, Empowering Honestly</p>
+                    <p class="text-blue-200/70 text-[10px] font-semibold tracking-[0.2em] uppercase mt-0.5 mb-0">Digitalyzing Integrity, Empowering Honestly</p>
+                    <!-- Nama ujian custom dari setting (muncul jika admin isi di pengaturan) -->
+                    <div id="login-exam-name-wrap" class="hidden mt-2 flex-col items-center gap-0">
+                        <div class="h-px w-28 bg-white/20 mb-2"></div>
+                        <h2 id="login-header-judul" class="text-base font-extrabold text-yellow-300 tracking-wide drop-shadow-sm text-center leading-tight px-4" style="text-shadow:0 0 14px rgba(253,224,71,0.5)"></h2>
+                        <p id="login-header-sub" class="text-blue-100/80 text-[11px] font-medium tracking-wide text-center px-4 mt-0.5"></p>
+                    </div>
                 </div>
             </div>
 
@@ -3579,11 +3585,17 @@
             const logo    = (s.logoUrl    || '').trim();
             const mode    = s.nomorIdMode || 'nisn'; // 'nisn' | 'kartu'
 
-            // Halaman Login header (pakai id)
+            // Halaman Login header (nama ujian custom)
             const loginH1  = document.getElementById('login-header-judul');
             const loginSub = document.getElementById('login-header-sub');
-            if (loginH1  && judul) loginH1.textContent  = judul;
-            if (loginSub && sub)   loginSub.textContent  = sub;
+            const loginExamWrap = document.getElementById('login-exam-name-wrap');
+            if (loginH1 && judul) { loginH1.textContent = judul; }
+            if (loginSub && sub)  { loginSub.textContent = sub; }
+            // Tampilkan blok nama ujian hanya kalau ada isinya
+            if (loginExamWrap) {
+                if (judul || sub) { loginExamWrap.classList.remove('hidden'); loginExamWrap.style.display = 'flex'; }
+                else              { loginExamWrap.classList.add('hidden'); loginExamWrap.style.display = ''; }
+            }
 
             // Logo di login
             const loginLogo = document.querySelector('#section-login img[alt="Logo TKJ"]');
