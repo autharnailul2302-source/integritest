@@ -4991,11 +4991,12 @@
             if (!container) return;
 
             // Fallback jika tidak ada paket di Firebase tapi token global cocok
+            // Tampilkan semua paket aktif yang token-nya cocok, tanpa filter kelas
             if (paketCocok.length === 0 && tokenInput === window.currentExamToken) {
-                const aktifPaket = (window.allPaketDB || []).filter(p => p.aktif !== false);
-                paketCocok = aktifPaket.length > 0
-                    ? aktifPaket
-                    : [{ id: '__fallback_A', nama: 'Ujian Umum', mapel: '', jenis: 'A', token: tokenInput }];
+                const aktifPaket = (window.allPaketDB || []).filter(p =>
+                    p.aktif !== false && (!p.token || p.token.toUpperCase() === tokenInput)
+                );
+                paketCocok = aktifPaket;
             }
 
             if (paketCocok.length === 0) {
@@ -5052,20 +5053,12 @@
                 const paket = (window.allPaketDB || []).find(p => p.id === paketId);
                 const pkt   = paket ? (paket.jenis && paket.jenis !== 'nonpaket' ? paket.jenis : 'A') : 'A';
 
-                // Load soal: utamakan paketId, fallback ke packet letter
-                let dbQuestions = paketId.startsWith('__fallback')
-                    ? window.allQuestionsDB.filter(q => q.packet === pkt && q.aktif !== false)
-                    : window.allQuestionsDB.filter(q => q.paketId === paketId && q.aktif !== false);
+                // Load soal berdasarkan paketId dari Firestore (TIDAK ada fallback ke hardcode)
+                let dbQuestions = window.allQuestionsDB.filter(q => q.paketId === paketId && q.aktif !== false);
 
-                // Fallback hanya jika paket ini memang tidak punya soal sama sekali di DB
-                if (dbQuestions.length === 0 && !paketId.startsWith('__fallback')) {
-                    alert("Belum ada soal untuk paket ini. Hubungi pengawas!");
-                    return;
-                }
-                if (dbQuestions.length === 0 && window.questionBank && window.questionBank[pkt])
-                    dbQuestions = [...window.questionBank[pkt]];
+                // Jika soal paket tidak ditemukan di DB, tampilkan error — jangan fallback ke paket lain
                 if (dbQuestions.length === 0) {
-                    alert("Belum ada soal untuk ujian ini. Hubungi pengawas!");
+                    alert("Belum ada soal untuk paket ini. Hubungi pengawas!");
                     return;
                 }
 
@@ -8332,7 +8325,7 @@
             wsPetunjuk['!cols'] = [{wch:12},{wch:50},{wch:40}];
             XLSX.utils.book_append_sheet(wb, wsPetunjuk, 'Petunjuk');
 
-            XLSX.writeFile(wb, 'Template_Soal_SIUJIAN.xlsx');
+            XLSX.writeFile(wb, 'Template_Soal_INTEGRITEST.xlsx');
         };
 
         // ---------- DOWNLOAD TEMPLATE WORD (sebagai HTML yang dibuka Word) ----------
@@ -8429,7 +8422,7 @@ tr:nth-child(even) { background: #eff6ff; }
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Template_Soal_SIUJIAN.doc';
+            a.download = 'Template_Soal_INTEGRITEST.doc';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
