@@ -6739,7 +6739,7 @@
         }
 
         // Bangun halaman PDF per siswa — redesign modern
-        function buildStudentCard(d, idx, schoolName) {
+        function buildStudentCard(d, idx, schoolName, judulUjianCard) {
             const isDQ = (d.status || '').includes('DISKUALIFIKASI');
             const intScore = calcIntegrityScore(d);
             const cat = getIntegrityCategory(intScore);
@@ -6799,7 +6799,7 @@
                     <div style="position:absolute;inset:0;opacity:0.05;background-image:linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px);background-size:20px 20px"></div>
                     <div style="position:relative">
                         <div style="font-size:8.5px;letter-spacing:3px;opacity:0.5;text-transform:uppercase;margin-bottom:6px;color:white">Laporan Karakter Akademik Digital</div>
-                        <div style="font-size:22px;font-weight:900;letter-spacing:-0.5px;color:white;line-height:1">INTEGRITEST</div>
+                        <div style="font-size:20px;font-weight:900;letter-spacing:-0.5px;color:white;line-height:1.1">${judulUjianCard || 'Ujian Digital'}</div>
                         <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;font-weight:500">${schoolName}</div>
                         <!-- Status pill -->
                         <div style="display:inline-flex;align-items:center;gap:5px;margin-top:10px;background:${pal.accent};color:white;font-size:9px;font-weight:800;padding:4px 10px;border-radius:20px;letter-spacing:0.5px">
@@ -7262,15 +7262,17 @@
               });
 
             const now = new Date().toLocaleString('id-ID');
-            const schoolName = (document.getElementById('setting-sub-judul') || {}).value || 'Sistem Integritas Ujian Digital';
+            const _appPdf = window._savedAppearance || {};
+            const judulUjianPdf = (_appPdf.judulUjian || 'Ujian Digital').trim();
+            const schoolName    = (_appPdf.subJudul   || 'Sistem Integritas Ujian Digital').trim();
 
             // ── Halaman per siswa (selalu ada, untuk semua mode) ──
-            const studentPages = withScores.map((d, i) => buildStudentCard(d, i, schoolName)).join('');
+            const studentPages = withScores.map((d, i) => buildStudentCard(d, i, schoolName, judulUjianPdf)).join('');
 
             // ── Jika export satu siswa, langsung tampilkan tanpa rekap ──
             if (singleId) {
                 const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
-                <title>Laporan Siswa — ${withScores[0]?.studentName||''}</title>
+                <title>Laporan Siswa — ${withScores[0]?.studentName||''} · ${judulUjianPdf}</title>
                 <style>
                     *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
                     body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:24px;background:#f1f5f9}
@@ -7278,7 +7280,7 @@
                 </style></head><body>
                 <div class="no-print" style="margin-bottom:20px;background:white;padding:14px 20px;border-radius:14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,0.06);border:1px solid #e2e8f0">
                     <div style="width:3px;height:20px;border-radius:2px;background:#2563eb;margin-right:4px"></div>
-                    <div style="font-size:13px;font-weight:800;color:#0f172a;flex:1">INTEGRITEST &nbsp;<span style="font-weight:400;color:#64748b;font-size:11px">Laporan Siswa — ${withScores[0]?.studentName||''}</span></div>
+                    <div style="font-size:13px;font-weight:800;color:#0f172a;flex:1">${judulUjianPdf} &nbsp;<span style="font-weight:600;color:#2563eb;font-size:11px">${schoolName}</span>&nbsp;<span style="font-weight:400;color:#64748b;font-size:11px">— ${withScores[0]?.studentName||''}</span></div>
                     <button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:9px 20px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">🖨️ Cetak / Simpan PDF</button>
                     <button onclick="window.close()" style="background:#f1f5f9;color:#334155;border:1.5px solid #e2e8f0;padding:9px 18px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">✕ Tutup</button>
                 </div>
@@ -7335,6 +7337,7 @@
                         <div style="position:absolute;inset:0;opacity:0.05;background-image:linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px);background-size:20px 20px"></div>
                         <div style="position:relative">
                             <div style="font-size:8.5px;letter-spacing:3px;opacity:0.5;text-transform:uppercase;color:white;margin-bottom:5px">Rekap Kelas — Dokumen Resmi</div>
+                            <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:3px">${judulUjianPdf}</div>
                             <div style="font-size:24px;font-weight:900;color:white;line-height:1">${cls}</div>
                             <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:5px">${schoolName} · ${now}</div>
                         </div>
@@ -7421,8 +7424,9 @@
                     <div style="position:absolute;inset:0;opacity:0.05;background-image:linear-gradient(rgba(255,255,255,0.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.8) 1px,transparent 1px);background-size:20px 20px"></div>
                     <div style="position:relative">
                         <div style="font-size:8.5px;letter-spacing:3px;opacity:0.45;text-transform:uppercase;color:white;margin-bottom:8px">Dokumen Resmi — Rekap Seluruh Kelas</div>
-                        <div style="font-size:28px;font-weight:900;color:white;letter-spacing:-0.5px;line-height:1">INTEGRITEST</div>
-                        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px">${schoolName} · Diterbitkan: ${now}</div>
+                        <div style="font-size:26px;font-weight:900;color:white;letter-spacing:-0.5px;line-height:1.1">${judulUjianPdf}</div>
+                        <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.75);margin-top:4px;letter-spacing:0.3px">${schoolName}</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:4px">Diterbitkan: ${now}</div>
                         <div style="display:inline-flex;gap:10px;margin-top:12px">
                             <div style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:9.5px;color:rgba(255,255,255,0.75);font-weight:600">${withScores.length} peserta</div>
                             <div style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:9.5px;color:rgba(255,255,255,0.75);font-weight:600">${classNames.length} kelas</div>
@@ -7480,7 +7484,7 @@
             const classRekapPages = classNames.map(cls => buildClassRecapPage(cls, classMap[cls])).join('');
 
             const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
-            <title>INTEGRITEST Report — ${now}</title>
+            <title>${judulUjianPdf} — ${schoolName} · ${now}</title>
             <style>
                 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
                 body{font-family:'Segoe UI',system-ui,Arial,sans-serif;margin:0;padding:28px;background:#f1f5f9;color:#1e293b}
@@ -7494,7 +7498,7 @@
             <!-- TOMBOL AKSI -->
             <div class="no-print" style="margin-bottom:20px;background:white;padding:14px 20px;border-radius:14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,0.06);border:1px solid #e2e8f0">
                 <div style="width:3px;height:20px;border-radius:2px;background:#2563eb;margin-right:4px"></div>
-                <div style="font-size:13px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;flex:1">INTEGRITEST Report &nbsp;<span style="font-weight:400;color:#64748b;font-size:11px">· ${withScores.length} peserta · ${classNames.length} kelas · ${now}</span></div>
+                <div style="font-size:13px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;flex:1">${judulUjianPdf} &nbsp;<span style="font-weight:600;color:#2563eb;font-size:12px">${schoolName}</span>&nbsp;<span style="font-weight:400;color:#64748b;font-size:11px">· ${withScores.length} peserta · ${classNames.length} kelas · ${now}</span></div>
                 <button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:9px 20px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">🖨️ Cetak / Simpan PDF</button>
                 <button onclick="window.close()" style="background:#f1f5f9;color:#334155;border:1.5px solid #e2e8f0;padding:9px 18px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">✕ Tutup</button>
             </div>
@@ -7605,6 +7609,11 @@
 
             if (!dataToExport || dataToExport.length === 0) return alert("Belum ada data untuk diexport");
 
+            // --- Ambil data tampilan dari settings ---
+            const _app = window._savedAppearance || {};
+            const namaUjian   = (_app.judulUjian || 'Rekap Nilai Ujian').trim();
+            const namaSekolah = (_app.subJudul   || 'INTEGRITEST').trim();
+
             // --- Info filter untuk judul ---
             const filterPkt  = document.getElementById('filter-session').value;
             const filterCls  = document.getElementById('filter-class').value;
@@ -7614,8 +7623,9 @@
             const labelCls  = filterCls  !== 'all' ? filterCls : 'Semua Kelas';
             const labelDate = filterDate ? filterDate : new Date().toLocaleDateString('id-ID');
 
-            // --- Nama file ---
-            let filename = 'Rekap_Nilai';
+            // --- Nama file dinamis ---
+            let filename = namaUjian.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'');
+            if (!filename) filename = 'Rekap_Nilai';
             if (filterCls  !== 'all') filename += `_${filterCls.replace(/\s+/g,'-')}`;
             if (filterPkt  !== 'all') filename += `_Paket-${filterPkt}`;
             if (filterDate)           filename += `_${filterDate}`;
@@ -7643,13 +7653,13 @@
 
             // Baris header dokumen (baris 1-7 = info sekolah + judul)
             const headerRows = [
-                ['SMK NEGERI 1 BRONDONG'],                          // R1
-                ['INTEGRITEST'],         // R2
-                [''],                                                 // R3
-                [`Laporan Rekap Nilai Ujian`],                        // R4
+                [namaSekolah],                                               // R1: Nama Sekolah
+                [namaUjian],                                                 // R2: Nama Ujian
+                [''],                                                         // R3
+                [`Laporan Rekap Nilai — ${namaUjian}`],                      // R4
                 [`Kelas: ${labelCls}  |  Paket: ${labelPkt}  |  Tanggal: ${labelDate}`], // R5
-                [`Dicetak: ${new Date().toLocaleString('id-ID')}`],  // R6
-                [''],                                                 // R7
+                [`Dicetak: ${new Date().toLocaleString('id-ID')}`],          // R6
+                [''],                                                         // R7
             ];
 
             // Baris kolom tabel
@@ -7934,6 +7944,10 @@
             const finishedData = data.filter(r => r.status !== 'SEDANG MENGERJAKAN' && !r.status.includes('MELANJUTKAN'));
             if (finishedData.length === 0) return null;
 
+            const _app2 = window._savedAppearance || {};
+            const _namaUjian2   = (_app2.judulUjian || 'Rekap Nilai Ujian').trim();
+            const _namaSekolah2 = (_app2.subJudul   || 'INTEGRITEST').trim();
+
             const now = new Date().toLocaleString('id-ID');
             const byKelas = {};
             finishedData.forEach(row => {
@@ -7943,7 +7957,8 @@
             });
 
             const aoa = [
-                ['STATISTIK NILAI UJIAN PER KELAS'],
+                [_namaSekolah2],
+                [`${_namaUjian2} — Statistik Nilai Per Kelas`],
                 [`Dicetak: ${now}`],
                 [''],
             ];
@@ -7952,10 +7967,11 @@
             function ca(r, c) { return XLSX.utils.encode_cell({r, c}); }
 
             const merges = [
-                { s:{r:0,c:0}, e:{r:0,c:11} },
-                { s:{r:1,c:0}, e:{r:1,c:11} },
+                { s:{r:0,c:0}, e:{r:0,c:11} }, // Nama sekolah
+                { s:{r:1,c:0}, e:{r:1,c:11} }, // Nama ujian
+                { s:{r:2,c:0}, e:{r:2,c:11} }, // Dicetak
             ];
-            let currentRow = 3; // 0-indexed
+            let currentRow = 4; // 0-indexed (mulai setelah 4 baris header)
 
             Object.entries(byKelas).sort().forEach(([kelas, rows]) => {
                 const scores = rows.map(r => typeof r.score === 'number' ? r.score : parseFloat(r.score)).filter(s => !isNaN(s));
@@ -8009,11 +8025,14 @@
 
             // Apply styles for title
             for (let c = 0; c <= 11; c++) {
-                sc_(ws, ca(0,c), { font:{bold:true,sz:15,color:{rgb:'1E3A5F'}}, fill:{fgColor:{rgb:'DBEAFE'}}, alignment:{horizontal:'center'} });
-                sc_(ws, ca(1,c), { font:{sz:9,color:{rgb:'6B7280'}}, fill:{fgColor:{rgb:'EFF6FF'}}, alignment:{horizontal:'center'} });
+                sc_(ws, ca(0,c), { font:{bold:true,sz:14,color:{rgb:'1E3A5F'}}, fill:{fgColor:{rgb:'DBEAFE'}}, alignment:{horizontal:'center'} });
+                sc_(ws, ca(1,c), { font:{bold:true,sz:13,color:{rgb:'1E40AF'}}, fill:{fgColor:{rgb:'EFF6FF'}}, alignment:{horizontal:'center'} });
+                sc_(ws, ca(2,c), { font:{sz:9,color:{rgb:'6B7280'}}, fill:{fgColor:{rgb:'F8FAFC'}}, alignment:{horizontal:'center'} });
             }
             ws['!rows'] = [];
-            ws['!rows'][0] = { hpt: 30 };
+            ws['!rows'][0] = { hpt: 26 };
+            ws['!rows'][1] = { hpt: 22 };
+            ws['!rows'][2] = { hpt: 14 };
 
             return ws;
         }
@@ -8032,11 +8051,15 @@
                 byKelas[cls].push(row);
             });
 
+            const _app3 = window._savedAppearance || {};
+            const _namaUjian3   = (_app3.judulUjian || 'Rekap Nilai Ujian').trim();
+            const _namaSekolah3 = (_app3.subJudul   || 'INTEGRITEST').trim();
+
             const now = new Date().toLocaleString('id-ID');
             const aoa = [
-                ['ANALISIS STATISTIK NILAI UJIAN PER KELAS'],
-                [`Dicetak: ${now}`],
-                [`Total Data: ${finishedData.length} peserta (sudah selesai)`],
+                [_namaSekolah3],
+                [`${_namaUjian3} — Analisis Statistik Per Kelas`],
+                [`Dicetak: ${now}   |   Total Data: ${finishedData.length} peserta (sudah selesai)`],
                 [''],
                 ['Kelas', 'Peserta', 'Rata-rata', 'Tertinggi', 'Terendah', 'Lulus (≥75)', 'Tidak Lulus', '% Lulus', 'DQ', 'Rata-rata Pelanggaran'],
             ];
@@ -8110,7 +8133,8 @@
             function ca(r, c) { return XLSX.utils.encode_cell({r, c}); }
 
             const sTitle = { font:{bold:true,sz:14,color:{rgb:'1E3A5F'}}, fill:{fgColor:{rgb:'DBEAFE'}}, alignment:{horizontal:'center'} };
-            const sSub   = { font:{sz:10,color:{rgb:'6B7280'}}, fill:{fgColor:{rgb:'EFF6FF'}}, alignment:{horizontal:'center'} };
+            const sSub   = { font:{bold:true,sz:13,color:{rgb:'1E40AF'}}, fill:{fgColor:{rgb:'EFF6FF'}}, alignment:{horizontal:'center'} };
+            const sSub2  = { font:{sz:9,color:{rgb:'6B7280'}}, fill:{fgColor:{rgb:'F8FAFC'}}, alignment:{horizontal:'center'} };
             const sHead  = { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1E40AF'}}, alignment:{horizontal:'center',wrapText:true},
                              border:{top:{style:'thin',color:{rgb:'93C5FD'}},bottom:{style:'thin',color:{rgb:'93C5FD'}},left:{style:'thin',color:{rgb:'93C5FD'}},right:{style:'thin',color:{rgb:'93C5FD'}}} };
             const sTotal = { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1D4ED8'}}, alignment:{horizontal:'center'} };
@@ -8121,7 +8145,7 @@
             for (let c = 0; c <= 9; c++) {
                 sc_(ws, ca(0,c), sTitle);
                 sc_(ws, ca(1,c), sSub);
-                sc_(ws, ca(2,c), sSub);
+                sc_(ws, ca(2,c), sSub2);
             }
             // Header row (row 4)
             for (let c = 0; c <= 9; c++) sc_(ws, ca(4,c), sHead);
@@ -8173,8 +8197,13 @@
             const cheaters = data.filter(r => r.violations > 0 || (r.status||'').includes('DISKUALIFIKASI'));
             if (cheaters.length === 0) return null;
 
+            const _app4 = window._savedAppearance || {};
+            const _namaUjian4   = (_app4.judulUjian || 'Rekap Nilai Ujian').trim();
+            const _namaSekolah4 = (_app4.subJudul   || 'INTEGRITEST').trim();
+
             const aoa = [
-                ['LAPORAN DETAIL PELANGGARAN'],
+                [_namaSekolah4],
+                [`${_namaUjian4} — Laporan Detail Pelanggaran`],
                 [`Dicetak: ${new Date().toLocaleString('id-ID')}`],
                 [''],
                 ['No.', 'Nama Siswa', 'NISN', 'Kelas', 'Paket', 'Nilai', 'Status', 'Jml Pelanggaran', 'Log Pelanggaran'],
@@ -8201,9 +8230,21 @@
             const ws = XLSX.utils.aoa_to_sheet(aoa);
             ws['!cols'] = [{wch:5},{wch:28},{wch:14},{wch:12},{wch:10},{wch:8},{wch:28},{wch:15},{wch:60}];
             ws['!merges'] = [
-                { s:{r:0,c:0}, e:{r:0,c:8} },
-                { s:{r:1,c:0}, e:{r:1,c:8} },
+                { s:{r:0,c:0}, e:{r:0,c:8} }, // Nama sekolah
+                { s:{r:1,c:0}, e:{r:1,c:8} }, // Nama ujian
+                { s:{r:2,c:0}, e:{r:2,c:8} }, // Dicetak
             ];
+
+            // Style header pelanggaran
+            function sc_p(ws, addr, style) { if (!ws[addr]) ws[addr] = {v:'',t:'s'}; ws[addr].s = style; }
+            function ca_p(r, c) { return XLSX.utils.encode_cell({r, c}); }
+            for (let c = 0; c <= 8; c++) {
+                sc_p(ws, ca_p(0,c), { font:{bold:true,sz:14,color:{rgb:'7F1D1D'}}, fill:{fgColor:{rgb:'FEE2E2'}}, alignment:{horizontal:'center'} });
+                sc_p(ws, ca_p(1,c), { font:{bold:true,sz:12,color:{rgb:'991B1B'}}, fill:{fgColor:{rgb:'FEF2F2'}}, alignment:{horizontal:'center'} });
+                sc_p(ws, ca_p(2,c), { font:{sz:9,color:{rgb:'6B7280'}}, fill:{fgColor:{rgb:'F8FAFC'}},            alignment:{horizontal:'center'} });
+                sc_p(ws, ca_p(4,c), { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'DC2626'}}, alignment:{horizontal:'center',wrapText:true} });
+            }
+            ws['!rows'] = [{ hpt:24 },{ hpt:20 },{ hpt:14 },{},{ hpt:22 }];
             return ws;
         }
 
