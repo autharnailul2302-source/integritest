@@ -224,11 +224,11 @@
                         if (data.examDuration) window.currentExamDuration = parseInt(data.examDuration);
                         if (data.minDuration) window.currentMinExamDuration = parseInt(data.minDuration); 
                         if (data.deviceCooldown) window.deviceCooldownHours = Math.max(10, parseInt(data.deviceCooldown)); // menit, minimal 10
-                        // Appearance
-                        if (data.judulUjian) latestAppearance.judulUjian = data.judulUjian;
-                        if (data.subJudul)   latestAppearance.subJudul   = data.subJudul;
-                        if (data.motivasi)   latestAppearance.motivasi   = data.motivasi;
-                        if (data.logoUrl)    latestAppearance.logoUrl    = data.logoUrl;
+                        // Appearance — gunakan 'in' agar nilai null (dikosongkan user) ikut ter-apply
+                        if ('judulUjian' in data) latestAppearance.judulUjian = data.judulUjian ?? '';
+                        if ('subJudul'   in data) latestAppearance.subJudul   = data.subJudul   ?? '';
+                        if ('motivasi'   in data) latestAppearance.motivasi   = data.motivasi   ?? '';
+                        if ('logoUrl'    in data) latestAppearance.logoUrl    = data.logoUrl    ?? '';
                         if (data.nomorIdMode !== undefined) latestAppearance.nomorIdMode = data.nomorIdMode;
                     }
                 });
@@ -243,8 +243,8 @@
                 if(minDurationInput && document.activeElement !== minDurationInput) minDurationInput.value = window.currentMinExamDuration;
                 if(cooldownInput && document.activeElement !== cooldownInput) cooldownInput.value = window.deviceCooldownHours;
 
-                // Terapkan pengaturan tampilan
-                if (Object.keys(latestAppearance).length > 0) {
+                // Terapkan pengaturan tampilan — selalu apply termasuk saat semua field dikosongkan
+                if (latestTime > 0) {
                     window._savedAppearance = latestAppearance;
                     if (window.applyAppearanceSettings) window.applyAppearanceSettings(latestAppearance);
                 }
@@ -342,12 +342,13 @@
             if(newMinDuration > newDuration) return alert("Durasi minimal tidak boleh lebih besar dari durasi ujian!");
             if(newCooldown < 10) return alert("Cooldown device minimal 10 menit!");
 
-            // Ambil juga pengaturan tampilan (fallback ke nilai tersimpan sebelumnya jika kosong)
+            // Ambil pengaturan tampilan — langsung dari input tanpa fallback,
+            // sehingga jika dikosongkan user maka tersimpan kosong (bukan nilai lama)
             const savedApp = window._savedAppearance || {};
-            const newJudulUjian   = (document.getElementById('setting-judul-ujian')?.value || '').trim() || savedApp.judulUjian || '';
-            const newSubJudul     = (document.getElementById('setting-sub-judul')?.value || '').trim() || savedApp.subJudul || '';
-            const newMotivasi     = (document.getElementById('setting-motivasi')?.value || '').trim() || savedApp.motivasi || '';
-            const newLogoUrl      = (document.getElementById('setting-logo-url')?.value || '').trim() || savedApp.logoUrl || '';
+            const newJudulUjian   = (document.getElementById('setting-judul-ujian')?.value  ?? '').trim();
+            const newSubJudul     = (document.getElementById('setting-sub-judul')?.value    ?? '').trim();
+            const newMotivasi     = (document.getElementById('setting-motivasi')?.value     ?? '').trim();
+            const newLogoUrl      = (document.getElementById('setting-logo-url')?.value     ?? '').trim();
             const newNomorIdMode  = document.getElementById('setting-nomor-id-mode')?.value || savedApp.nomorIdMode || 'nisn';
 
             if (window.isFirebaseReady && window.db) {
