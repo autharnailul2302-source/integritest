@@ -81,6 +81,15 @@
         window.allQuestionsDB = []; 
         window.currentExamDocId = null; 
         window.examStartTime = null; 
+        
+        // ★ RECOVERY: Ambil currentExamDocId dari sessionStorage jika ada (untuk handle refresh)
+        try {
+            const savedDocId = sessionStorage.getItem('ukktkj_current_exam_doc_id');
+            if (savedDocId) {
+                window.currentExamDocId = savedDocId;
+                console.log('[Recovery Init] Memulihkan exam doc ID dari sessionStorage:', savedDocId);
+            }
+        } catch(e) {}
 
         // --- DEVICE FINGERPRINTING (REVISED V2) ---
         // UPDATE: Menggunakan key 'v2' untuk mereset ID lama yang mungkin duplikat pada HP sejenis (Oppo/Vivo/Xiaomi)
@@ -288,7 +297,16 @@
                 try {
                     data.deviceFingerprint = getDeviceFingerprint();
                     const docRef = await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'), data);
-                    window.currentExamDocId = docRef.id; 
+                    window.currentExamDocId = docRef.id;
+                    // Simpan ke sessionStorage agar tidak hilang saat refresh
+                    try {
+                        sessionStorage.setItem('ukktkj_current_exam_doc_id', docRef.id);
+                        sessionStorage.setItem('ukktkj_student_data', JSON.stringify({
+                            name: data.studentName,
+                            nisn: data.studentNisn,
+                            cls: data.className
+                        }));
+                    } catch(e) {}
                 } catch (e) {
                     console.error("Failed to log start", e);
                 }
@@ -305,11 +323,58 @@
             } catch(e) {}
 
             const doSave = async () => {
+                // Coba ambil currentExamDocId dari sessionStorage jika null
+                if (!window.currentExamDocId) {
+                    try {
+                        const savedDocId = sessionStorage.getItem('ukktkj_current_exam_doc_id');
+                        if (savedDocId) {
+                            console.log('[Recovery] Menggunakan exam doc ID dari sessionStorage:', savedDocId);
+                            window.currentExamDocId = savedDocId;
+                        }
+                    } catch(e) {}
+                }
+                
+                // Jika masih null, cari dokumen yang sesuai dengan siswa ini
+                if (!window.currentExamDocId && window.isFirebaseReady && window.db) {
+                    try {
+                        console.log('[Recovery] Mencari dokumen exam yang sesuai...');
+                        const studentData = data.studentName ? data : 
+                            JSON.parse(sessionStorage.getItem('ukktkj_student_data') || '{}');
+                        
+                        if (studentData.studentName || studentData.name) {
+                            const qSnap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
+                            
+                            // Cari dokumen SEDANG MENGERJAKAN/MELANJUTKAN dengan NISN atau nama+kelas yang sama
+                            qSnap.forEach(ds => {
+                                const d = ds.data();
+                                const nisnMatch = d.studentNisn && studentData.studentNisn && 
+                                    d.studentNisn.toString().trim() === studentData.studentNisn.toString().trim();
+                                const nameMatch = !nisnMatch && 
+                                    d.studentName && d.studentName.toLowerCase() === (studentData.studentName || studentData.name).toLowerCase() &&
+                                    d.className === studentData.className;
+                                
+                                if ((nisnMatch || nameMatch) && 
+                                    (d.status === 'SEDANG MENGERJAKAN' || d.status.includes('MELANJUTKAN'))) {
+                                    window.currentExamDocId = ds.id;
+                                    console.log('[Recovery] Ditemukan dokumen exam:', ds.id);
+                                }
+                            });
+                        }
+                    } catch(e) {
+                        console.error('[Recovery] Gagal mencari dokumen:', e);
+                    }
+                }
+                
                 if (window.currentExamDocId) {
+                    console.log('[Save] Updating dokumen exam:', window.currentExamDocId);
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId), data);
                 } else {
+                    console.warn('[Save] currentExamDocId masih null, membuat dokumen baru');
                     const ref = await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'), data);
                     window.currentExamDocId = ref.id;
+                    try {
+                        sessionStorage.setItem('ukktkj_current_exam_doc_id', ref.id);
+                    } catch(e) {}
                 }
             };
 
@@ -317,6 +382,10 @@
                 try {
                     await doSave();
                     console.log('[IntegriTest] Nilai tersimpan ke server.');
+                    // Hapus dari sessionStorage setelah berhasil
+                    try {
+                        sessionStorage.removeItem('ukktkj_current_exam_doc_id');
+                    } catch(e) {}
                 } catch (e) {
                     console.warn('[IntegriTest] Gagal simpan, retry dalam 3 detik...', e);
                     // Tampilkan banner offline
@@ -330,6 +399,10 @@
                                 console.log('[IntegriTest] Retry berhasil.');
                                 const ob2 = document.getElementById('offline-result-banner');
                                 if (ob2) { ob2.innerHTML = '<span style="color:#16a34a">✅ Nilai berhasil dikirim ke server!</span>'; }
+                                // Hapus dari sessionStorage setelah berhasil
+                                try {
+                                    sessionStorage.removeItem('ukktkj_current_exam_doc_id');
+                                } catch(e) {}
                             }
                         } catch(e2) { console.error('[IntegriTest] Retry gagal.', e2); }
                     }, 3000);
@@ -528,6 +601,59 @@
                 await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', id));
             } catch(e) {
                 alert("Gagal menghapus: " + e.message);
+            }
+        };
+
+        // ★ FUNGSI BARU: Paksa Selesaikan Ujian Siswa (untuk siswa yang masih "SEDANG MENGERJAKAN")
+        window.forceFinishStudent = async (id) => {
+            if(!window.isFirebaseReady) return alert("Mode Offline.");
+            
+            // Cari data siswa
+            const studentData = dashboardData.find(item => item.id === id);
+            if (!studentData) return alert("Data siswa tidak ditemukan.");
+            
+            const confirmMsg = `⚠️ PAKSA SELESAIKAN UJIAN\n\n` +
+                `Siswa: ${studentData.studentName}\n` +
+                `Kelas: ${studentData.className}\n` +
+                `Status: ${studentData.status}\n\n` +
+                `Tindakan ini akan:\n` +
+                `• Mengubah status menjadi "SELESAI (Paksa oleh Pengawas)"\n` +
+                `• Ujian siswa langsung berakhir\n\n` +
+                `Lanjutkan?`;
+            
+            if(!confirm(confirmMsg)) return;
+            
+            // Tanya nilai yang akan diberikan
+            const scoreInput = prompt(
+                `Masukkan nilai untuk ${studentData.studentName}:\n\n` +
+                `Ketik angka 0-100, atau ketik "0" jika siswa tidak mengerjakan sama sekali.\n` +
+                `Tekan Cancel untuk membatalkan.`,
+                "0"
+            );
+            
+            if (scoreInput === null) return; // User cancel
+            
+            const score = parseInt(scoreInput);
+            if (isNaN(score) || score < 0 || score > 100) {
+                return alert("❌ Nilai tidak valid!\n\nNilai harus berupa angka antara 0-100.");
+            }
+            
+            try {
+                const updateData = {
+                    status: "SELESAI (Paksa oleh Pengawas)",
+                    score: score,
+                    scoreNonEssay: score,
+                    timestamp: Date.now(), // Update timestamp ke waktu sekarang
+                    forcedFinishBy: window.currentPengawasName || window.currentStaffName || 'Admin',
+                    forcedFinishAt: Date.now(),
+                    note: (studentData.note || '') + `\n[${new Date().toLocaleString('id-ID')}] Ujian dipaksa selesai oleh ${window.currentPengawasName || window.currentStaffName || 'Admin'}. Nilai diberikan manual: ${score}.`
+                };
+                
+                await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', id), updateData);
+                
+                alert(`✅ Ujian ${studentData.studentName} telah dipaksa selesai.\n\nStatus: SELESAI (Paksa oleh Pengawas)\nNilai: ${score}`);
+            } catch(e) {
+                alert("Gagal memaksa selesai ujian: " + e.message);
             }
         };
 
@@ -6711,6 +6837,15 @@
 
                     if (existingActiveDocId) {
                         window.currentExamDocId = existingActiveDocId;
+                        // Simpan ke sessionStorage agar tidak hilang saat refresh
+                        try {
+                            sessionStorage.setItem('ukktkj_current_exam_doc_id', existingActiveDocId);
+                            sessionStorage.setItem('ukktkj_student_data', JSON.stringify({
+                                name: name,
+                                nisn: studentNisn,
+                                cls: cls
+                            }));
+                        } catch(e) {}
                         await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', existingActiveDocId), {
                             status: "MELANJUTKAN (Re-Login)", packetType: pkt, paketId,
                             ruangUjian: room || '-',
@@ -7090,8 +7225,14 @@
         };
 
         window.finalFinish = function() {
-            window.closeModal();
-            finishExam();
+            window._suppressCheat = false;
+            const modal = document.getElementById('modal-confirm');
+            modal.classList.remove('show');
+            // Tunggu animasi modal selesai baru panggil finishExam
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                finishExam();
+            }, 250);
         };
 
         window.logout = function() {
@@ -7995,6 +8136,15 @@
                     btn.disabled = false;
                     btn.className = 'w-full max-w-sm py-4 rounded-2xl font-black text-lg uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white cursor-pointer shadow-xl shadow-red-500/50 active:scale-95 transition-all duration-300';
                     cdWr.classList.add('hidden');
+                    
+                    // AUTO TRANSITION: Jika ini DQ (violations = 3), otomatis tutup modal warning dan tampilkan modal DQ
+                    if (isDQ) {
+                        setTimeout(() => {
+                            modal.classList.add('hidden');
+                            isWarningActive = false;
+                            _showDQModal();
+                        }, 1000); // Delay 1 detik agar user sempat lihat tombol aktif
+                    }
                 }
             }, 1000);
         };
@@ -8016,17 +8166,42 @@
 
         function _showDQModal() {
             const modal = document.getElementById('modal-dq-final');
-            if (!modal) { finishExam(true); return; }
+            if (!modal) { 
+                console.error('Modal DQ tidak ditemukan, langsung ke result');
+                finishExam(true); 
+                return; 
+            }
+            
+            // Tampilkan modal
             modal.classList.remove('hidden');
+            
+            // Set nama siswa
             const nm = (document.getElementById('header-name') || {}).innerText || '';
-            document.getElementById('dq-name').textContent = nm;
+            const dqNameEl = document.getElementById('dq-name');
+            if (dqNameEl) dqNameEl.textContent = nm;
+            
+            // Countdown dari 5 detik
             let secs = 5;
             const cdEl = document.getElementById('dq-cd');
+            if (!cdEl) {
+                console.error('Element countdown tidak ditemukan');
+                finishExam(true);
+                return;
+            }
+            
             cdEl.textContent = secs;
+            console.log('Memulai countdown DQ dari', secs);
+            
             const iv = setInterval(() => {
                 secs--;
-                cdEl.textContent = secs;
-                if (secs <= 0) { clearInterval(iv); finishExam(true); }
+                console.log('Countdown DQ:', secs);
+                if (cdEl) cdEl.textContent = secs;
+                
+                if (secs <= 0) { 
+                    clearInterval(iv);
+                    console.log('Countdown selesai, pindah ke result');
+                    finishExam(true); 
+                }
             }, 1000);
         }
 
@@ -8175,8 +8350,16 @@
             // ── PINDAH HALAMAN DULU — sebelum DOM manipulation apapun ──
             const dqModal = document.getElementById('modal-dq-final');
             if (dqModal) dqModal.classList.add('hidden');
-            document.getElementById('section-exam').classList.add('hidden-section');
-            document.getElementById('section-result').classList.remove('hidden-section');
+            
+            const examSection = document.getElementById('section-exam');
+            const resultSection = document.getElementById('section-result');
+            
+            examSection.classList.add('hidden-section');
+            resultSection.classList.remove('hidden-section');
+            
+            // Pastikan halaman scroll ke atas dan fokus ke section result
+            window.scrollTo(0, 0);
+            resultSection.scrollIntoView({ behavior: 'instant', block: 'start' });
 
             // ── Isi UI halaman hasil (semua null-safe) ──
             const resultIcon     = document.getElementById('result-icon-container');
@@ -8464,7 +8647,7 @@
                 const date = new Date(item.timestamp).toLocaleTimeString('id-ID');
 
                 const isCheating = item.status.includes('DISKUALIFIKASI');
-                const isDoing = item.status === 'SEDANG MENGERJAKAN';
+                const isDoing = item.status === 'SEDANG MENGERJAKAN' || item.status.includes('MELANJUTKAN');
 
                 let statusColor = isCheating ? 'text-red-600 font-extrabold flex items-center gap-1' : 'text-green-600 font-bold';
                 let rowClass = isCheating ? 'bg-red-50 border-red-200' : 'hover:bg-slate-50 border-b';
@@ -8513,6 +8696,7 @@
                         </td>
                         <td class="px-6 py-4 text-center">
                             <div class="flex gap-1 justify-center">
+                                ${isDoing ? `<button onclick="window.forceFinishStudent('${item.id}')" class="text-orange-600 hover:bg-orange-50 px-2 py-1.5 rounded transition-colors border border-orange-200 hover:border-orange-400 text-xs font-bold" title="Paksa Selesaikan Ujian Siswa Ini"><i data-lucide="flag" class="w-4 h-4 inline"></i> Selesaikan</button>` : ''}
                                 ${item.essayPending ? `<button onclick="window.openKoreksiEssay('${item.id}')" class="text-purple-600 hover:bg-purple-50 p-1.5 rounded transition-colors border border-purple-200 hover:border-purple-400" title="Koreksi Soal Esai"><i data-lucide="pencil-line" class="w-4 h-4"></i></button>` : (item.hasEssay && !item.essayPending ? `<button onclick="window.openKoreksiEssay('${item.id}')" class="text-gray-400 hover:bg-gray-50 p-1.5 rounded transition-colors" title="Lihat Koreksi Esai"><i data-lucide="check-circle" class="w-4 h-4"></i></button>` : '')}
                                 <button onclick="window.openNoteModal('${item.id}')" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Tambah Catatan Pengawas">
                                     <i data-lucide="pencil" class="w-4 h-4"></i>
