@@ -75,8 +75,8 @@
         window.currentExamDuration = 60; 
         window.currentMinExamDuration = 0; 
         window.deviceCooldownHours = 30; // Default 30 Menit (bukan jam)
-        window.currentSesiId = null;      // ID sesi aktif
-        window.currentSesiName = "Sesi Aktif"; // Nama sesi aktif
+        window.currentSesiId = null;      // Kompatibilitas mundur (jadwal aktif pertama)
+        window.currentSesiName = "Jadwal Aktif"; // Kompatibilitas mundur
         
         window.allQuestionsDB = []; 
         window.currentExamDocId = null; 
@@ -505,7 +505,7 @@
 
         window.resetAllExamData = async () => {
             if(!window.isFirebaseReady) return alert("Mode Offline.");
-            const sesiNama = window.currentSesiName || 'Sesi Aktif';
+            const sesiNama = window.currentSesiName || 'Jadwal Aktif';
             const key = prompt(
                 `⚠️ HAPUS DATA SESI INI\n\n` +
                 `Anda akan menghapus semua data hasil ujian di "${sesiNama}".\n` +
@@ -527,11 +527,14 @@
                 if (snapshot.empty) { alert("Data sudah kosong."); return; }
 
                 const activeSesiId = window.currentSesiId || 'default';
+                const jadwalAktifIds = (window.allJadwalDB || []).filter(j => j.isActive).map(j => j.id);
                 const toDelete = [];
                 snapshot.forEach((d) => {
                     const data = d.data();
-                    // Hanya hapus data yang sesiIdnya cocok dengan sesi aktif
-                    const matchSesi = (data.sesiId === activeSesiId) || (!data.sesiId && activeSesiId === 'default');
+                    // Hapus data dari jadwal aktif saat ini
+                    const matchSesi = jadwalAktifIds.includes(data.sesiId)
+                        || (data.sesiId === activeSesiId)
+                        || (!data.sesiId && activeSesiId === 'default');
                     if (matchSesi) toDelete.push(deleteDoc(d.ref));
                 });
                 
@@ -542,7 +545,7 @@
                 console.error(e);
                 alert("Gagal mereset data: " + e.message);
             } finally {
-                if(btn) { btn.disabled = false; btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i> Reset Sesi Ini`; if(typeof lucide !== 'undefined') lucide.createIcons(); }
+                if(btn) { btn.disabled = false; btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i> Reset Jadwal Ini`; if(typeof lucide !== 'undefined') lucide.createIcons(); }
             }
         };
 
@@ -646,42 +649,51 @@
             const singleWrap   = document.getElementById('q-correct-single-wrap');
             const multiWrap    = document.getElementById('q-correct-multiple-wrap');
             const tfWrap       = document.getElementById('q-correct-truefalse-wrap');
+            const essayWrap    = document.getElementById('q-correct-essay-wrap');
             const singleBtn    = document.getElementById('q-tipe-single-btn');
             const multiBtn     = document.getElementById('q-tipe-multiple-btn');
             const tfBtn        = document.getElementById('q-tipe-truefalse-btn');
+            const essayBtn     = document.getElementById('q-tipe-essay-btn');
             const hint         = document.getElementById('q-tipe-hint');
             const optSection   = document.getElementById('q-options-section');
             const tfInfo       = document.getElementById('q-truefalse-info');
+            const essayInfo    = document.getElementById('q-essay-info');
 
-            const inactiveClass = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+            const inactiveClass = 'py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all';
 
-            // Reset all
-            singleWrap.classList.add('hidden');
-            multiWrap.classList.add('hidden');
-            tfWrap.classList.add('hidden');
-            singleBtn.className = inactiveClass;
-            multiBtn.className  = inactiveClass;
-            tfBtn.className     = inactiveClass;
+            // Reset all — gunakan null-check agar tidak crash jika elemen tidak ada di HTML
+            if (singleWrap) singleWrap.classList.add('hidden');
+            if (multiWrap)  multiWrap.classList.add('hidden');
+            if (tfWrap)     tfWrap.classList.add('hidden');
+            if (essayWrap)  essayWrap.classList.add('hidden');
+            if (singleBtn)  singleBtn.className = inactiveClass;
+            if (multiBtn)   multiBtn.className  = inactiveClass;
+            if (tfBtn)      tfBtn.className     = inactiveClass;
+            if (essayBtn)   essayBtn.className  = inactiveClass;
             if (optSection) optSection.classList.remove('hidden');
-            if (tfInfo) tfInfo.classList.add('hidden');
+            if (tfInfo)     tfInfo.classList.add('hidden');
+            if (essayInfo)  essayInfo.classList.add('hidden');
 
             if (tipe === 'multiple') {
-                multiWrap.classList.remove('hidden');
-                multiBtn.className = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
-                hint.textContent = 'Jawaban ganda: siswa harus memilih SEMUA pilihan yang benar.';
-                hint.className   = 'text-xs text-emerald-600 mt-2';
+                if (multiWrap) multiWrap.classList.remove('hidden');
+                if (multiBtn)  multiBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                if (hint) { hint.textContent = 'Jawaban ganda: siswa harus memilih SEMUA pilihan yang benar.'; hint.className = 'text-xs text-emerald-600 mt-2'; }
             } else if (tipe === 'truefalse') {
-                tfWrap.classList.remove('hidden');
-                tfBtn.className = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-amber-500 bg-amber-50 text-amber-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
-                hint.textContent = 'Benar/Salah: siswa memilih apakah pernyataan benar atau salah.';
-                hint.className   = 'text-xs text-amber-600 mt-2';
+                if (tfWrap)  tfWrap.classList.remove('hidden');
+                if (tfBtn)   tfBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-amber-500 bg-amber-50 text-amber-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                if (hint) { hint.textContent = 'Benar/Salah: siswa memilih apakah pernyataan benar atau salah.'; hint.className = 'text-xs text-amber-600 mt-2'; }
                 if (optSection) optSection.classList.add('hidden');
-                if (tfInfo) tfInfo.classList.remove('hidden');
+                if (tfInfo)     tfInfo.classList.remove('hidden');
+            } else if (tipe === 'essay') {
+                if (essayWrap) essayWrap.classList.remove('hidden');
+                if (essayBtn)  essayBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-purple-500 bg-purple-50 text-purple-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                if (hint) { hint.textContent = 'Esai: siswa menjawab dengan uraian. Dikoreksi AI atau manual guru setelah ujian.'; hint.className = 'text-xs text-purple-600 mt-2'; }
+                if (optSection) optSection.classList.add('hidden');
+                if (essayInfo)  essayInfo.classList.remove('hidden');
             } else {
-                singleWrap.classList.remove('hidden');
-                singleBtn.className = 'flex-1 py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
-                hint.textContent = 'Pilihan tunggal: hanya 1 jawaban benar.';
-                hint.className   = 'text-xs text-gray-400 mt-2';
+                if (singleWrap) singleWrap.classList.remove('hidden');
+                if (singleBtn)  singleBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                if (hint) { hint.textContent = 'Pilihan tunggal: hanya 1 jawaban benar.'; hint.className = 'text-xs text-gray-400 mt-2'; }
             }
         };
 
@@ -700,9 +712,14 @@
             document.querySelectorAll('#q-correct-multi-checks input[type=checkbox]').forEach(c => c.checked = false);
             // Uncheck kunci benar/salah
             document.querySelectorAll('input[name="correct-tf"]').forEach(r => r.checked = false);
+            // Reset essay fields
+            const essayRubrikEl = document.getElementById('q-essay-rubrik');
+            const essaySkorEl = document.getElementById('q-essay-skor-maks');
+            if (essayRubrikEl) essayRubrikEl.value = '';
+            if (essaySkorEl) essaySkorEl.value = '10';
 
             // Set paket context
-            const paket = window.allPaketDB.find(p => p.id === window.activePaketId);
+            const paket = (window.allPaketDB || []).find(p => p.id === window.activePaketId);
             document.getElementById('q-packet').value = window.activePaketId || '';
             document.getElementById('modal-q-paket-label').textContent = paket ? paket.nama : '—';
 
@@ -732,6 +749,11 @@
                         const tfVal = q.correct === true || q.correct === 'true' ? 'true' : 'false';
                         const tfRadio = document.querySelector(`input[name="correct-tf"][value="${tfVal}"]`);
                         if (tfRadio) tfRadio.checked = true;
+                    } else if (tipe === 'essay') {
+                        const rubrikEl = document.getElementById('q-essay-rubrik');
+                        const skorEl = document.getElementById('q-essay-skor-maks');
+                        if (rubrikEl) rubrikEl.value = q.essayRubrik || '';
+                        if (skorEl) skorEl.value = q.essaySkorMaks || 10;
                     } else {
                         document.getElementById('q-correct').value = Array.isArray(q.correct) ? q.correct[0] : q.correct;
                     }
@@ -877,6 +899,8 @@
 
             // Derive correct answer(s)
             let correct;
+            let essayRubrik = '';
+            let essaySkorMaks = 10;
             if (tipe === 'multiple') {
                 const checked = Array.from(document.querySelectorAll('#q-correct-multi-checks input[type=checkbox]:checked')).map(c => parseInt(c.value));
                 if (checked.length === 0) return alert("Jawaban ganda: centang minimal 1 jawaban yang benar!");
@@ -885,12 +909,19 @@
                 const tfRadio = document.querySelector('input[name="correct-tf"]:checked');
                 if (!tfRadio) return alert("Pilih kunci jawaban: BENAR atau SALAH!");
                 correct = tfRadio.value === 'true'; // boolean
+            } else if (tipe === 'essay') {
+                const rubrikEl = document.getElementById('q-essay-rubrik');
+                const skorEl = document.getElementById('q-essay-skor-maks');
+                essayRubrik = rubrikEl ? rubrikEl.value.trim() : '';
+                essaySkorMaks = skorEl ? parseInt(skorEl.value) || 10 : 10;
+                if (!essayRubrik) return alert("Soal esai harus memiliki rubrik/kunci jawaban untuk koreksi!");
+                correct = null; // essay tidak punya correct index
             } else {
                 correct = parseInt(document.getElementById('q-correct').value);
             }
 
             // Derive packet letter from paket data
-            const paket = window.allPaketDB.find(p => p.id === paketId);
+            const paket = (window.allPaketDB || []).find(p => p.id === paketId);
             const packet = paket ? (paket.jenis !== 'nonpaket' ? paket.jenis : 'A') : 'A';
             const token  = paket ? paket.token : '';
 
@@ -904,9 +935,10 @@
             });
 
             if (!text && !image) return alert("Soal harus memiliki teks pertanyaan atau gambar soal!");
-            if (tipe !== 'truefalse' && options.every(o => !o) && optionImages.every(i => !i)) return alert("Minimal satu pilihan jawaban harus diisi!");
+            if (tipe !== 'truefalse' && tipe !== 'essay' && options.every(o => !o) && optionImages.every(i => !i)) return alert("Minimal satu pilihan jawaban harus diisi!");
 
             const data = { paketId, packet, text, options, optionImages, correct, tipe, image, token, aktif, updatedAt: Date.now() };
+            if (tipe === 'essay') { data.essayRubrik = essayRubrik; data.essaySkorMaks = essaySkorMaks; }
 
             try {
                 if (id) {
@@ -929,22 +961,57 @@
         window.updatePengawasTokenDisplay = function() {
             const container = document.getElementById('pengawas-token-list');
             if (!container) return;
-            const paketAktif = (window.allPaketDB || []).filter(p => p.aktif !== false);
-            if (paketAktif.length === 0) {
-                const globalToken = window.currentExamToken || '—';
-                container.innerHTML = '<div class="flex items-center gap-3 bg-white border border-amber-200 rounded-xl px-4 py-2.5"><span class="font-mono font-black text-2xl tracking-[0.25em] text-amber-800">' + globalToken + '</span><span class="text-[10px] text-amber-400 font-semibold">(Token Global)</span></div>';
+
+            // Kumpulkan semua jadwal yang sedang aktif bersamaan
+            const jadwalAktifList = (window.allJadwalDB || []).filter(j => j.isActive === true);
+
+            if (jadwalAktifList.length > 0) {
+                // Tampilkan semua jadwal aktif — bisa lebih dari satu di jam yang sama
+                container.innerHTML = jadwalAktifList.map(function(jadwal) {
+                    const paketJadwal = (window.allPaketDB || []).find(p => p.id === jadwal.paketId);
+                    const token = jadwal.tokenCustom
+                        ? jadwal.tokenCustom.toUpperCase()
+                        : (paketJadwal ? (paketJadwal.token || window.currentExamToken || '—') : (window.currentExamToken || '—'));
+                    const namaJadwal = jadwal.nama || (paketJadwal ? paketJadwal.nama : '—');
+                    const kelasInfo  = jadwal.kelasArr && jadwal.kelasArr.length
+                        ? jadwal.kelasArr.join(', ')
+                        : (jadwal.kelas || '');
+                    return '<div class="flex flex-col items-center bg-white border-2 border-amber-300 rounded-xl px-5 py-3 min-w-[140px]">' +
+                        '<span class="font-mono font-black text-2xl tracking-[0.25em] text-amber-800">' + token + '</span>' +
+                        '<span class="text-[10px] text-amber-600 font-bold mt-1 text-center leading-tight">' + namaJadwal + '</span>' +
+                        (kelasInfo ? '<span class="text-[9px] text-gray-400 text-center">' + kelasInfo + '</span>' : '') +
+                        '<span class="text-[9px] text-green-600 font-bold mt-0.5">⚡ Aktif ' + jadwal.jamMulai + '–' + jadwal.jamSelesai + '</span>' +
+                    '</div>';
+                }).join('');
                 return;
             }
-            const tokenMap = {};
-            paketAktif.forEach(function(p) {
-                const t = (p.token || window.currentExamToken || '—').toUpperCase();
-                if (!tokenMap[t]) tokenMap[t] = [];
-                tokenMap[t].push(p.nama || ('Paket ' + (p.jenis || '?')));
-            });
-            container.innerHTML = Object.entries(tokenMap).map(function(entry) {
-                const token = entry[0], namaList = entry[1];
-                return '<div class="flex flex-col items-center bg-white border-2 border-amber-300 rounded-xl px-5 py-3 min-w-[140px]"><span class="font-mono font-black text-2xl tracking-[0.25em] text-amber-800">' + token + '</span><span class="text-[10px] text-amber-500 font-semibold mt-1 text-center leading-tight">' + namaList.join(', ') + '</span></div>';
-            }).join('');
+
+            // Tidak ada jadwal aktif → cek jadwal hari ini yang belum mulai
+            const now = new Date();
+            const todayStr = now.toISOString().slice(0, 10);
+            const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+            const jadwalHariIni = (window.allJadwalDB || []).filter(j =>
+                j.tanggal === todayStr && timeStr < j.jamSelesai && !j.sudahDijalankan
+            );
+
+            if (jadwalHariIni.length > 0) {
+                const berikutnya = jadwalHariIni.sort((a,b) => a.jamMulai.localeCompare(b.jamMulai))[0];
+                container.innerHTML =
+                    '<div class="flex flex-col items-center bg-gray-50 border-2 border-gray-200 rounded-xl px-5 py-3 min-w-[140px] text-center">' +
+                        '<span class="text-xs font-bold text-gray-400">⏳ Menunggu Jadwal</span>' +
+                        '<span class="text-sm font-black text-gray-600 mt-1">' + (berikutnya.nama || '—') + '</span>' +
+                        '<span class="text-[10px] text-gray-400 mt-0.5">Mulai pukul ' + berikutnya.jamMulai + '</span>' +
+                    '</div>';
+                return;
+            }
+
+            // Tidak ada jadwal → fallback token global
+            const globalToken = window.currentExamToken || '—';
+            container.innerHTML =
+                '<div class="flex items-center gap-3 bg-white border border-amber-200 rounded-xl px-4 py-2.5">' +
+                    '<span class="font-mono font-black text-2xl tracking-[0.25em] text-amber-800">' + globalToken + '</span>' +
+                    '<span class="text-[10px] text-amber-400 font-semibold">(Token Global)</span>' +
+                '</div>';
         };
 
         window.setupRealtimeListener = () => {
@@ -1715,18 +1782,22 @@
                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                                 <i data-lucide="layers" class="w-3.5 h-3.5"></i> Tipe Soal
                             </p>
-                            <div class="flex gap-2">
+                            <div class="grid grid-cols-2 gap-2">
                                 <button type="button" id="q-tipe-single-btn" onclick="window.setQuestionType('single')"
-                                    class="flex-1 py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    class="py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all">
                                     <i data-lucide="circle-dot" class="w-4 h-4"></i> Pilihan Tunggal
                                 </button>
                                 <button type="button" id="q-tipe-multiple-btn" onclick="window.setQuestionType('multiple')"
-                                    class="flex-1 py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    class="py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
                                     <i data-lucide="check-square" class="w-4 h-4"></i> Jawaban Ganda
                                 </button>
                                 <button type="button" id="q-tipe-truefalse-btn" onclick="window.setQuestionType('truefalse')"
-                                    class="flex-1 py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    class="py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
                                     <i data-lucide="toggle-left" class="w-4 h-4"></i> Benar / Salah
+                                </button>
+                                <button type="button" id="q-tipe-essay-btn" onclick="window.setQuestionType('essay')"
+                                    class="py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                    <i data-lucide="pencil-line" class="w-4 h-4"></i> Esai / Uraian
                                 </button>
                             </div>
                             <input type="hidden" id="q-tipe" value="single">
@@ -1789,6 +1860,21 @@
                             <p class="text-xs text-emerald-600 mt-2 font-medium">⚠️ Siswa harus memilih SEMUA jawaban yang benar untuk mendapat poin penuh.</p>
                         </div>
 
+                        <!-- Kunci jawaban (essay) -->
+                        <div id="q-correct-essay-wrap" class="hidden bg-purple-50 rounded-xl border border-purple-200 p-4">
+                            <p class="text-xs font-bold text-purple-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                                <i data-lucide="pencil-line" class="w-3.5 h-3.5"></i> Kunci Jawaban / Rubrik Penilaian
+                                <span class="ml-auto text-[10px] font-normal text-purple-500">Digunakan AI & guru untuk menilai</span>
+                            </p>
+                            <textarea id="q-essay-rubrik" rows="5" class="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-400 bg-white resize-none" placeholder="Tulis kunci jawaban model / rubrik penilaian di sini...&#10;&#10;Contoh:&#10;- Sebutkan 3 poin utama: (1) ..., (2) ..., (3) ...&#10;- Nilai penuh jika menjawab minimal 2 poin dengan benar"></textarea>
+                            <div class="flex items-center justify-between mt-2.5 flex-wrap gap-2">
+                                <p class="text-xs text-purple-600 font-medium">⚠️ Jawaban siswa akan dikoreksi AI berdasarkan rubrik ini, atau guru bisa koreksi manual.</p>
+                                <div class="flex items-center gap-2">
+                                    <label class="text-xs font-bold text-purple-700">Skor maks:</label>
+                                    <input type="number" id="q-essay-skor-maks" min="1" max="100" value="10" class="w-20 px-2 py-1 border border-purple-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-purple-400 bg-white font-bold text-purple-700">
+                                </div>
+                            </div>
+                        </div>
                         <!-- Kunci jawaban (benar/salah) -->
                         <div id="q-correct-truefalse-wrap" class="hidden bg-amber-50 rounded-xl border border-amber-200 p-4">
                             <p class="text-xs font-bold text-amber-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
@@ -1870,6 +1956,15 @@
                         <p class="text-xs text-amber-700 leading-relaxed">Tipe soal ini otomatis menampilkan dua pilihan: <strong>✓ BENAR</strong> dan <strong>✗ SALAH</strong>. Tidak perlu mengisi pilihan jawaban secara manual — cukup tulis pernyataannya di atas dan pilih kunci jawaban yang tepat.</p>
                     </div>
 
+                    <!-- Info box untuk tipe esai -->
+                    <div id="q-essay-info" class="hidden bg-purple-50 rounded-xl border border-purple-200 p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="pencil-line" class="w-4 h-4 text-purple-600 shrink-0"></i>
+                            <p class="text-sm font-bold text-purple-800">Soal Esai / Uraian</p>
+                        </div>
+                        <p class="text-xs text-purple-700 leading-relaxed">Siswa akan menulis jawaban uraian bebas. Koreksi dilakukan setelah ujian: <strong>otomatis oleh AI</strong> berdasarkan rubrik, atau <strong>manual oleh guru</strong> dengan override nilai.</p>
+                    </div>
+
                 </div>
 
                 <!-- Footer Actions -->
@@ -1880,6 +1975,44 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL KOREKSI ESAI -->
+    <div id="modal-koreksi-essay" class="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm hidden overflow-y-auto py-6 px-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-auto">
+            <div class="flex justify-between items-center px-6 py-4 border-b bg-gray-50 rounded-t-2xl sticky top-0 z-10">
+                <div class="flex items-center gap-3">
+                    <div class="bg-purple-100 p-2 rounded-lg"><i data-lucide="pencil-line" class="w-5 h-5 text-purple-600"></i></div>
+                    <div>
+                        <h3 class="text-base font-bold text-gray-800">Koreksi Soal Esai</h3>
+                        <p class="text-xs text-gray-500">Siswa: <span id="ke-student-name" class="font-semibold text-purple-600">—</span></p>
+                    </div>
+                </div>
+                <button onclick="window.closeKoreksiEssay()" class="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-200 rounded-lg transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <!-- Summary bar -->
+            <div class="px-6 py-3 bg-purple-50 border-b flex items-center gap-4 flex-wrap">
+                <div class="text-sm text-purple-800">
+                    Skor pilihan: <strong id="ke-score-mc">—</strong>
+                    &nbsp;·&nbsp; Skor esai: <strong id="ke-score-essay">0</strong>
+                    &nbsp;·&nbsp; Total: <strong id="ke-score-total" class="text-lg text-purple-700">—</strong>
+                </div>
+                <div class="ml-auto flex gap-2 flex-wrap">
+                    <button onclick="window.koreksiAISemua()" id="ke-btn-ai" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 shadow-sm">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> Koreksi Semua dengan AI
+                    </button>
+                    <button onclick="window.simpanKoreksiEssay()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 shadow-sm">
+                        <i data-lucide="save" class="w-4 h-4"></i> Simpan Semua
+                    </button>
+                </div>
+            </div>
+
+            <!-- Essay questions list -->
+            <div id="ke-questions-list" class="px-6 py-5 space-y-6 max-h-[65vh] overflow-y-auto">
+                <p class="text-sm text-gray-400 text-center py-8">Memuat soal esai...</p>
+            </div>
         </div>
     </div>
 
@@ -2069,55 +2202,6 @@
         </div>
     </div>
     
-    <!-- MODAL: KELOLA SESI UJIAN -->
-    <div id="modal-sesi" class="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 animate-fade-in max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center px-6 py-4 border-b bg-gray-50 rounded-t-2xl shrink-0">
-                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <i data-lucide="layers" class="w-5 h-5 text-indigo-600"></i> Manajemen Sesi Ujian
-                </h3>
-                <button onclick="window.closeSesiModal()" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-6 overflow-y-auto flex-1">
-                <!-- Info cara kerja -->
-                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-5 text-sm text-indigo-800">
-                    <strong>💡 Cara kerja Sesi:</strong> Setiap sesi ujian (misal: Sesi 1 pukul 08.00, Sesi 2 pukul 10.00) punya ID unik. Siswa hanya muncul di sesi yang aktif saat mereka login. Data sesi lama tetap tersimpan sebagai histori dan bisa dilihat kapan saja dengan filter "Semua Sesi".
-                </div>
-
-                <!-- Buat Sesi Baru -->
-                <div class="bg-white border-2 border-dashed border-indigo-300 rounded-xl p-5 mb-5">
-                    <h4 class="font-bold text-gray-800 mb-3 flex items-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4 text-indigo-600"></i> Buat Sesi Baru & Jadikan Aktif</h4>
-                    <div class="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Sesi <span class="text-red-500">*</span></label>
-                            <input type="text" id="new-sesi-nama" placeholder="Contoh: Sesi 1 - Senin 08.00" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1">Keterangan (Opsional)</label>
-                            <input type="text" id="new-sesi-ket" placeholder="Contoh: Kelas XI TKJ 1 & 2" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50">
-                        </div>
-                    </div>
-                    <button onclick="window.createAndActivateSesi()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md active:scale-95 transition-all">
-                        <i data-lucide="zap" class="w-4 h-4"></i> Buat & Aktifkan Sesi Ini
-                    </button>
-                    <p class="text-xs text-gray-400 mt-2">⚠️ Mengaktifkan sesi baru akan menyebabkan siswa yang login berikutnya masuk ke sesi ini. Data sesi sebelumnya tidak terhapus.</p>
-                </div>
-
-                <!-- Daftar Sesi -->
-                <div>
-                    <h4 class="font-bold text-gray-700 mb-3 flex items-center gap-2">
-                        <i data-lucide="history" class="w-4 h-4 text-gray-500"></i> Semua Sesi
-                    </h4>
-                    <div id="sesi-list-container" class="space-y-2">
-                        <p class="text-sm text-gray-400 text-center py-4">Memuat daftar sesi...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- MODAL CHEATING ALERT -->
     <div id="modal-cheat-alert" class="fixed inset-0 z-[60] flex items-center justify-center bg-red-900/90 backdrop-blur-sm hidden animate-fade-in">
         <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4 text-center border-4 border-red-600 relative overflow-hidden">
@@ -2661,19 +2745,13 @@
                             <div class="flex items-center gap-3 flex-wrap">
                                 <h2 class="text-lg font-bold text-gray-800">Data Hasil Ujian</h2>
                                 <!-- SESI BADGE -->
-                                <span id="active-sesi-badge" class="hidden items-center gap-1.5 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold border border-indigo-200">
-                                    <i data-lucide="layers" class="w-3 h-3"></i>
-                                    <span id="active-sesi-label">Sesi Aktif</span>
                                 </span>
                             </div>
                             <div class="flex gap-2 flex-wrap">
-                                <button onclick="window.openSesiModal()" class="admin-only-el bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
-                                    <i data-lucide="layers" class="w-4 h-4"></i> Kelola Sesi
-                                </button>
                                 <button onclick="window.showKelasStatistikModal()" class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition hover:scale-105">
                                     <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Statistik Kelas
                                 </button>
-                                <button id="btn-reset-all" onclick="window.resetAllExamData()" class="admin-only-el bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition hover:scale-105"><i data-lucide="trash-2" class="w-4 h-4"></i> Reset Sesi Ini</button>
+                                <button id="btn-reset-all" onclick="window.resetAllExamData()" class="admin-only-el bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition hover:scale-105"><i data-lucide="trash-2" class="w-4 h-4"></i> Reset Jadwal Ini</button>
                                 <button onclick="window.exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-md transition hover:scale-105 hover:shadow-emerald-500/30">
                                     <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export Excel
                                 </button>
@@ -2682,10 +2760,10 @@
                         
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
                             <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">📅 Sesi Ujian</label>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">📅 Jadwal Ujian</label>
                                 <select id="filter-sesi" onchange="if(window._pg)window._pg.monitoring.page=1; window.filterDashboard()" class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
-                                    <option value="active">Sesi Aktif</option>
-                                    <option value="all">Semua Sesi (History)</option>
+                                    <option value="active">Jadwal Aktif</option>
+                                    <option value="all">Semua Jadwal (History)</option>
                                 </select>
                             </div>
                             <div>
@@ -3214,9 +3292,9 @@
                         </div>
                         <!-- Filter Sesi -->
                         <div class="flex-1 min-w-[160px]">
-                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Sesi Ujian</label>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Jadwal Ujian</label>
                             <select id="analitik-filter-sesi" onchange="window._pg.analitik.page=1; window.renderIntegrityDashboard()" class="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none">
-                                <option value="all">Semua Sesi</option>
+                                <option value="all">Semua Jadwal</option>
                             </select>
                         </div>
                         <!-- Filter Ruang (admin only) -->
@@ -4235,12 +4313,14 @@
         // ==================== MANAJEMEN RUANG UJIAN ====================
         window.ruangList = [];
 
-        // ==================== MANAJEMEN SESI UJIAN ====================
-        window.allSesiDB = [];
 
-        // ==================== SETTING TAMPILAN ====================
+        // ════════════════════════════════════════════════════════════
+        // JADWAL UJIAN OTOMATIS
+        // ════════════════════════════════════════════════════════════
+        window.allJadwalDB = [];
+        window._jadwalSchedulerTimer = null;
 
-        // Data default tampilan
+        // Listen jadwal dari Firestore
         window.appearanceDefaults = {
             judulUjian : 'INTEGRITEST',
             subJudul   : 'Digitalyzing Integrity, Empowering Honestly',
@@ -4363,163 +4443,57 @@
 
         // ==================== END SETTING TAMPILAN ====================
 
-        window.listenForActiveSesi = function() {
-            if (!window.db || !window.isFirebaseReady) return;
-            const q = query(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian'));
-            onSnapshot(q, (snapshot) => {
-                window.allSesiDB = [];
-                snapshot.forEach((d) => window.allSesiDB.push({ id: d.id, ...d.data() }));
-                window.allSesiDB.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
-                
-                // Cari sesi aktif
-                const activeSesi = window.allSesiDB.find(s => s.isActive === true);
-                if (activeSesi) {
-                    window.currentSesiId = activeSesi.id;
-                    window.currentSesiName = activeSesi.nama;
-                } else if (window.allSesiDB.length > 0) {
-                    window.currentSesiId = window.allSesiDB[0].id;
-                    window.currentSesiName = window.allSesiDB[0].nama;
+        // Sinkronisasi currentSesiId/Name dari jadwal aktif
+        window._syncSesiFromJadwal = function() {
+            const jadwalAktifList = (window.allJadwalDB || []).filter(j => j.isActive === true);
+            const jadwalAktif = jadwalAktifList[0] || null;
+            if (jadwalAktif) {
+                window.currentSesiId   = jadwalAktif.id;
+                window.currentSesiName = jadwalAktif.nama;
+            } else {
+                const sorted = (window.allJadwalDB || []).slice().sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+                if (sorted.length > 0) {
+                    window.currentSesiId   = sorted[0].id;
+                    window.currentSesiName = sorted[0].nama;
+                } else {
+                    window.currentSesiId   = 'default';
+                    window.currentSesiName = 'Sesi Default';
                 }
-
-                // Update badge di monitoring
-                const badge = document.getElementById('active-sesi-badge');
-                const label = document.getElementById('active-sesi-label');
-                if (badge && label) {
-                    if (activeSesi) {
-                        badge.classList.remove('hidden');
-                        badge.classList.add('flex');
-                        label.textContent = activeSesi.nama;
-                    } else {
-                        badge.classList.add('hidden');
-                    }
-                }
-
-                // Update filter sesi dropdown
-                window.updateSesiFilter();
-                // Re-render sesi list jika modal terbuka
-                const modal = document.getElementById('modal-sesi');
-                if (modal && !modal.classList.contains('hidden')) {
-                    window.renderSesiList();
-                }
-                // Refresh dropdown analitik agar sesi baru ikut muncul
-                if (window.renderIntegrityDashboard && document.getElementById('panel-analitik') && !document.getElementById('panel-analitik').classList.contains('hidden-section')) {
-                    window.renderIntegrityDashboard();
-                }
-            });
+            }
+            const badge = document.getElementById('active-sesi-badge');
+            const label = document.getElementById('active-sesi-label');
+            if (badge && label) {
+                if (jadwalAktif) {
+                    const nama = jadwalAktifList.length > 1 ? jadwalAktifList.map(j => j.nama).join(', ') : jadwalAktif.nama;
+                    badge.classList.remove('hidden'); badge.classList.add('flex');
+                    label.textContent = nama;
+                } else { badge.classList.add('hidden'); }
+            }
+            if (window.updateSesiFilter) window.updateSesiFilter();
         };
 
+        // Update dropdown filter jadwal di monitoring
         window.updateSesiFilter = function() {
             const sel = document.getElementById('filter-sesi');
             if (!sel) return;
-            // Simpan pilihan saat ini
             const current = sel.value;
-            sel.innerHTML = '<option value="active">Sesi Aktif</option><option value="all">Semua Sesi (History)</option>';
-            window.allSesiDB.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                const aktifLabel = s.isActive ? ' ⚡' : '';
-                opt.textContent = s.nama + aktifLabel;
-                sel.appendChild(opt);
-            });
-            // Restore pilihan
-            if (current) sel.value = current;
-        };
-
-        window.openSesiModal = function() {
-            document.getElementById('modal-sesi').classList.remove('hidden');
-            window.renderSesiList();
-            if(typeof lucide !== 'undefined') lucide.createIcons();
-        };
-        window.closeSesiModal = function() {
-            document.getElementById('modal-sesi').classList.add('hidden');
-        };
-
-        window.createAndActivateSesi = async function() {
-            if (!window.isFirebaseReady) return alert("Mode Offline.");
-            const nama = document.getElementById('new-sesi-nama').value.trim();
-            const ket  = document.getElementById('new-sesi-ket').value.trim();
-            if (!nama) return alert("Nama sesi tidak boleh kosong!");
-
-            const confirmed = confirm(
-                `Buat & aktifkan sesi baru: "${nama}"?\n\n` +
-                `Data sesi sebelumnya TIDAK terhapus dan masih bisa dilihat di histori.\n` +
-                `Siswa yang login berikutnya akan masuk ke sesi ini.`
-            );
-            if (!confirmed) return;
-
-            try {
-                // 1. Nonaktifkan semua sesi lama
-                const deactivatePromises = window.allSesiDB
-                    .filter(s => s.isActive)
-                    .map(s => updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian', s.id), { isActive: false }));
-                await Promise.all(deactivatePromises);
-
-                // 2. Buat sesi baru dengan isActive = true
-                await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian'), {
-                    nama, keterangan: ket, isActive: true, createdAt: Date.now()
+            sel.innerHTML = '<option value="active">Jadwal Aktif</option><option value="all">Semua Jadwal (History)</option>';
+            (window.allJadwalDB || []).slice()
+                .sort((a,b) => a.tanggal !== b.tanggal ? (b.tanggal > a.tanggal ? 1 : -1) : (b.jamMulai > a.jamMulai ? 1 : -1))
+                .forEach(j => {
+                    const opt = document.createElement('option');
+                    opt.value = j.id;
+                    opt.textContent = (j.nama || j.id) + (j.isActive ? ' ⚡' : '') + (j.tanggal ? ' · ' + j.tanggal : '');
+                    sel.appendChild(opt);
                 });
-
-                document.getElementById('new-sesi-nama').value = '';
-                document.getElementById('new-sesi-ket').value = '';
-                alert(`✅ Sesi "${nama}" berhasil dibuat dan diaktifkan!`);
-            } catch(e) { alert("Gagal: " + e.message); }
+            if (current && sel.querySelector('option[value="' + current + '"]')) sel.value = current;
         };
 
-        window.activateSesi = async function(id, nama) {
-            if (!window.isFirebaseReady) return alert("Mode Offline.");
-            if (!confirm(`Aktifkan sesi "${nama}"?\n\nSiswa yang login berikutnya akan masuk ke sesi ini.`)) return;
-            try {
-                const deactivatePromises = window.allSesiDB
-                    .filter(s => s.isActive)
-                    .map(s => updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian', s.id), { isActive: false }));
-                await Promise.all(deactivatePromises);
-                await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian', id), { isActive: true });
-            } catch(e) { alert("Gagal: " + e.message); }
+        // listenForActiveSesi: stub kompatibilitas — sesi kini otomatis dari jadwal
+        window.listenForActiveSesi = function() {
+            if (window._syncSesiFromJadwal) window._syncSesiFromJadwal();
         };
 
-        window.deleteSesi = async function(id, nama) {
-            if (!window.isFirebaseReady) return alert("Mode Offline.");
-            if (!confirm(`Hapus sesi "${nama}"?\n\nData hasil ujian siswa di sesi ini TIDAK akan terhapus, namun tidak akan bisa difilter berdasarkan sesi ini.`)) return;
-            try {
-                await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian', id));
-            } catch(e) { alert("Gagal hapus: " + e.message); }
-        };
-
-        window.renderSesiList = function() {
-            const container = document.getElementById('sesi-list-container');
-            if (!container) return;
-            if (window.allSesiDB.length === 0) {
-                container.innerHTML = '<p class="text-sm text-gray-400 text-center py-6 bg-gray-50 rounded-xl border border-dashed">Belum ada sesi. Buat sesi baru di atas.</p>';
-                return;
-            }
-            container.innerHTML = window.allSesiDB.map(s => {
-                const tanggal = new Date(s.createdAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
-                return `
-                <div class="flex items-center gap-3 p-3.5 rounded-xl border ${s.isActive ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-gray-200'}">
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-sm text-gray-800 truncate">${s.nama}</span>
-                            ${s.isActive ? '<span class="shrink-0 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">⚡ Aktif</span>' : ''}
-                        </div>
-                        <p class="text-xs text-gray-400 mt-0.5">${s.keterangan ? s.keterangan + ' · ' : ''}Dibuat: ${tanggal}</p>
-                    </div>
-                    <div class="flex gap-1.5 shrink-0">
-                        ${!s.isActive ? `<button onclick="window.activateSesi('${s.id}','${s.nama.replace(/'/g,"\\'")}') " class="text-xs font-bold text-indigo-600 hover:bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg transition-colors">Aktifkan</button>` : ''}
-                        <button onclick="window.deleteSesi('${s.id}','${s.nama.replace(/'/g,"\\'")}') " class="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                    </div>
-                </div>`;
-            }).join('');
-            if(typeof lucide !== 'undefined') lucide.createIcons();
-        };
-        // ==================== END MANAJEMEN SESI ====================
-
-        // ════════════════════════════════════════════════════════════
-        // JADWAL UJIAN OTOMATIS
-        // ════════════════════════════════════════════════════════════
-        window.allJadwalDB = [];
-        window._jadwalSchedulerTimer = null;
-
-        // Listen jadwal dari Firestore
         window.listenForJadwal = function() {
             if (!window.db || !window.isFirebaseReady) return;
             const q = query(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian'));
@@ -4533,6 +4507,10 @@
                 });
                 window.renderJadwalList();
                 window.updateJadwalTanggalFilter();
+                // Update tampilan token di panel pengawas setiap kali status jadwal berubah
+                if (window.updatePengawasTokenDisplay) window.updatePengawasTokenDisplay();
+                // Sync currentSesiId dari jadwal aktif
+                if (window._syncSesiFromJadwal) window._syncSesiFromJadwal();
             });
         };
 
@@ -4585,7 +4563,297 @@
             } catch(e) { alert('Gagal menyimpan: ' + e.message); }
         };
 
-        // ── EDIT JADWAL ─────────────────────────────────────────────
+        // ══════════════════════════════════════════════════════════
+        // KOREKSI SOAL ESAI
+        // ══════════════════════════════════════════════════════════
+        let _keCurrentResultId = null;
+        let _keEssayData = {}; // { qId: {...} }
+        let _keScoreMC = 0;
+        let _keNilaiMaks = 100;
+
+        window.openKoreksiEssay = function(resultId) {
+            const item = dashboardData.find(x => x.id === resultId);
+            if (!item) return alert('Data tidak ditemukan.');
+            if (!item.essayAnswers || Object.keys(item.essayAnswers).length === 0) return alert('Tidak ada soal esai pada data ini.');
+
+            _keCurrentResultId = resultId;
+            _keEssayData = JSON.parse(JSON.stringify(item.essayAnswers)); // deep copy
+            _keScoreMC = item.scoreNonEssay || item.score || 0;
+            const paket = (window.allPaketDB || []).find(p => p.id === item.paketId);
+            _keNilaiMaks = (paket && paket.nilaiMaksimal > 0) ? paket.nilaiMaksimal : 100;
+
+            document.getElementById('ke-student-name').textContent = item.studentName || '—';
+            document.getElementById('ke-score-mc').textContent = _keScoreMC;
+            window._keUpdateScoreSummary();
+            window._keRenderQuestions();
+
+            document.getElementById('modal-koreksi-essay').classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        window.closeKoreksiEssay = function() {
+            document.getElementById('modal-koreksi-essay').classList.add('hidden');
+        };
+
+        window._keUpdateScoreSummary = function() {
+            let essayTotal = 0;
+            Object.values(_keEssayData).forEach(e => {
+                const skor = e.skorGuru !== null && e.skorGuru !== undefined ? e.skorGuru : (e.skorAI !== null ? e.skorAI : 0);
+                essayTotal += Number(skor) || 0;
+            });
+
+            // Hitung total skor esai dalam skala poin
+            const totalRawEssay = essayTotal;
+            // Total skor gabungan (MC + esai proporsional)
+            const totalEssaySkorMaks = Object.values(_keEssayData).reduce((s, e) => s + (e.skorMaks || 10), 0);
+            const qTotal = (window.allQuestionsDB || []).filter(q => q.paketId === (_keCurrentResultId && (dashboardData.find(x=>x.id===_keCurrentResultId)||{}).paketId)).length;
+            // Tampilkan skor esai raw
+            document.getElementById('ke-score-essay').textContent = totalRawEssay.toFixed(1);
+            // Hitung total final (proporsional dari nilaiMaksimal)
+            // Ini simplified: MC skor sudah dalam skala final, tambah esai proporsional
+            const essayRatio = totalEssaySkorMaks > 0 ? (totalRawEssay / totalEssaySkorMaks) : 0;
+            const essayContrib = Math.round(essayRatio * _keNilaiMaks * (Object.keys(_keEssayData).length / Math.max(1, qTotal || Object.keys(_keEssayData).length)));
+            const total = Math.min(_keNilaiMaks, _keScoreMC + essayContrib);
+            document.getElementById('ke-score-total').textContent = total;
+        };
+
+        window._keRenderQuestions = function() {
+            const container = document.getElementById('ke-questions-list');
+            let html = '';
+            let qNum = 1;
+            Object.entries(_keEssayData).forEach(([qId, e]) => {
+                const skorFinal = e.skorGuru !== null && e.skorGuru !== undefined ? e.skorGuru : (e.skorAI !== null ? e.skorAI : '');
+                const statusColor = e.status === 'dikoreksi' ? 'border-green-300 bg-green-50' : e.status === 'ai_done' ? 'border-purple-200 bg-purple-50' : 'border-gray-200 bg-white';
+
+                html += `
+                <div class="rounded-xl border-2 ${statusColor} overflow-hidden" id="ke-card-${qId}">
+                    <div class="px-4 py-3 border-b bg-gray-50 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-purple-600 text-white text-xs font-black px-2 py-0.5 rounded-full">Esai ${qNum}</span>
+                            <span class="text-xs font-semibold text-gray-600">Skor maks: ${e.skorMaks || 10}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${e.status === 'dikoreksi' ? '<span class="text-xs text-green-600 font-bold flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Selesai</span>' : e.status === 'ai_done' ? '<span class="text-xs text-purple-600 font-bold flex items-center gap-1"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> AI Selesai</span>' : '<span class="text-xs text-amber-600 font-bold flex items-center gap-1"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Pending</span>'}
+                            <button onclick="window.koreksiAISatu('${qId}')" class="text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-lg text-xs font-bold border border-purple-200 flex items-center gap-1 transition-all" id="ke-ai-btn-${qId}">
+                                <i data-lucide="sparkles" class="w-3 h-3"></i> AI
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <div>
+                            <p class="text-xs font-bold text-gray-500 uppercase mb-1.5">Soal</p>
+                            <p class="text-sm text-gray-800 leading-relaxed">${e.qText || '—'}</p>
+                        </div>
+                        <div class="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                            <p class="text-xs font-bold text-blue-600 uppercase mb-1.5">Kunci / Rubrik Guru</p>
+                            <p class="text-sm text-blue-900 leading-relaxed whitespace-pre-line">${e.rubrik || '—'}</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-3 border">
+                            <p class="text-xs font-bold text-gray-500 uppercase mb-1.5">Jawaban Siswa</p>
+                            <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-line">${e.jawabanSiswa || '<em class="text-gray-400">Tidak dijawab</em>'}</p>
+                        </div>
+                        ${e.komentarAI ? `<div class="bg-purple-50 rounded-xl p-3 border border-purple-100">
+                            <p class="text-xs font-bold text-purple-600 uppercase mb-1.5 flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3"></i> Analisis AI</p>
+                            <p class="text-sm text-purple-900 leading-relaxed">${e.komentarAI}</p>
+                        </div>` : ''}
+                        <div class="flex items-center gap-3 pt-1 flex-wrap">
+                            <label class="text-xs font-bold text-gray-600">Skor AI:</label>
+                            <span class="text-sm font-bold text-purple-600 w-10">${e.skorAI !== null && e.skorAI !== undefined ? e.skorAI : '—'}</span>
+                            <label class="text-xs font-bold text-gray-600">Override Guru:</label>
+                            <input type="number" min="0" max="${e.skorMaks || 10}" step="0.5" value="${e.skorGuru !== null && e.skorGuru !== undefined ? e.skorGuru : ''}"
+                                class="w-20 px-2 py-1.5 border-2 border-gray-200 focus:border-green-400 rounded-lg text-sm font-bold text-green-700 outline-none"
+                                placeholder="0–${e.skorMaks || 10}"
+                                oninput="window._keUpdateGuru('${qId}', this.value)"
+                                id="ke-guru-input-${qId}">
+                            <span class="text-xs text-gray-400">/ ${e.skorMaks || 10}</span>
+                            <span class="ml-auto text-sm font-black ${skorFinal !== '' && Number(skorFinal) >= (e.skorMaks||10)*0.6 ? 'text-green-600' : 'text-amber-600'}">
+                                Final: <span id="ke-final-${qId}">${skorFinal !== '' ? Number(skorFinal).toFixed(1) : '—'}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>`;
+                qNum++;
+            });
+            container.innerHTML = html || '<p class="text-center text-gray-400 py-8">Tidak ada soal esai.</p>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        window._keUpdateGuru = function(qId, val) {
+            const numVal = val === '' ? null : parseFloat(val);
+            if (_keEssayData[qId]) {
+                _keEssayData[qId].skorGuru = numVal;
+                _keEssayData[qId].status = 'dikoreksi';
+                const finalEl = document.getElementById('ke-final-' + qId);
+                if (finalEl) finalEl.textContent = numVal !== null ? Number(numVal).toFixed(1) : '—';
+            }
+            window._keUpdateScoreSummary();
+        };
+
+        // ── INTEGRITES AI ENGINE ─────────────────────────────────────────────
+        // Mesin koreksi esai mandiri tanpa API eksternal.
+        // Algoritma: keyword matching (bobot 70%) + panjang jawaban (bobot 30%)
+        // Threshold skor penuh: 60% kata kunci rubrik ditemukan di jawaban siswa.
+        window._integritesAI = function(rubrik, jawabanSiswa, skorMaks) {
+            skorMaks = parseFloat(skorMaks) || 10;
+
+            const jawaban = (jawabanSiswa || '').trim();
+            if (!jawaban || jawaban === '(tidak dijawab)') {
+                return { skor: 0, komentar: 'Siswa tidak memberikan jawaban.' };
+            }
+
+            function tokenize(text) {
+                return text
+                    .toLowerCase()
+                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?'"]/g, ' ')
+                    .split(/\s+/)
+                    .filter(w => w.length > 2);
+            }
+
+            const STOPWORDS = new Set([
+                'dan','atau','yang','di','ke','dari','untuk','dengan','ini','itu',
+                'adalah','ada','pada','oleh','dalam','juga','sudah','belum','akan',
+                'bisa','dapat','harus','perlu','saat','jika','maka','agar','karena',
+                'namun','tetapi','tapi','sehingga','setelah','sebelum','ketika',
+                'bahwa','seperti','antara','bagi','secara','lebih','sangat','yaitu',
+                'tersebut','mereka','kami','kita','saya','kamu','dia','nya','pun',
+                'hal','cara','jenis','setiap','semua','salah','satu','dua','tiga'
+            ]);
+
+            function extractKeywords(text) {
+                return tokenize(text).filter(w => !STOPWORDS.has(w));
+            }
+
+            const rubrikTokens  = extractKeywords(rubrik);
+            const jawabanTokens = extractKeywords(jawaban);
+            const jawabanSet    = new Set(jawabanTokens);
+
+            if (rubrikTokens.length === 0) {
+                const panjangSkor = Math.min(1, jawaban.length / 200);
+                const skor = parseFloat((panjangSkor * skorMaks).toFixed(1));
+                return { skor, komentar: 'Rubrik tidak memiliki kata kunci spesifik. Skor diberikan berdasarkan kelengkapan jawaban.' };
+            }
+
+            let matched = 0;
+            const matchedWords = [];
+            const missedWords  = [];
+
+            rubrikTokens.forEach(kw => {
+                const exactMatch   = jawabanSet.has(kw);
+                const partialMatch = !exactMatch && jawabanTokens.some(jw =>
+                    jw.includes(kw) || kw.includes(jw)
+                );
+                if (exactMatch || partialMatch) {
+                    matched++;
+                    matchedWords.push(kw);
+                } else {
+                    missedWords.push(kw);
+                }
+            });
+
+            const matchRatio  = matched / rubrikTokens.length;
+            const THRESHOLD   = 0.6;
+            const keywordScore = Math.min(1, matchRatio / THRESHOLD);
+            const idealLen    = Math.max(100, rubrik.length * 1.2);
+            const lengthScore = Math.min(1, jawaban.length / idealLen);
+            const combined    = (keywordScore * 0.70) + (lengthScore * 0.30);
+            const skor        = parseFloat((combined * skorMaks).toFixed(1));
+
+            const persen = Math.round(matchRatio * 100);
+            let komentar = '';
+
+            if (matchRatio >= 0.8) {
+                komentar = `Jawaban sangat baik! ${persen}% kata kunci rubrik ditemukan (${matchedWords.slice(0,4).join(', ')}${matchedWords.length > 4 ? ', ...' : ''}).`;
+            } else if (matchRatio >= 0.6) {
+                komentar = `Jawaban cukup baik. ${persen}% kata kunci rubrik terpenuhi.`;
+                if (missedWords.length > 0) komentar += ` Kurang: ${missedWords.slice(0,3).join(', ')}.`;
+            } else if (matchRatio >= 0.3) {
+                komentar = `Jawaban kurang lengkap. Hanya ${persen}% kata kunci terpenuhi.`;
+                if (missedWords.length > 0) komentar += ` Kata kunci yang terlewat: ${missedWords.slice(0,4).join(', ')}.`;
+            } else {
+                komentar = `Jawaban belum menjawab inti soal. Hanya ${persen}% kata kunci rubrik ditemukan.`;
+                if (missedWords.length > 0) komentar += ` Perlu membahas: ${missedWords.slice(0,4).join(', ')}.`;
+            }
+
+            if (lengthScore < 0.4) komentar += ' Jawaban terlalu singkat.';
+            else if (lengthScore >= 1.0) komentar += ' Jawaban cukup panjang dan detail.';
+
+            return { skor, komentar };
+        };
+        // ── END INTEGRITES AI ENGINE ─────────────────────────────────────────
+
+        window.koreksiAISatu = async function(qId) {
+            const e = _keEssayData[qId];
+            if (!e) return;
+            const btn = document.getElementById('ke-ai-btn-' + qId);
+            if (btn) { btn.disabled = true; btn.innerHTML = '<svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Menilai...'; }
+
+            try {
+                const result = window._integritesAI(
+                    e.rubrik       || '',
+                    e.jawabanSiswa || '',
+                    e.skorMaks     || 10
+                );
+                _keEssayData[qId].skorAI    = result.skor;
+                _keEssayData[qId].komentarAI = result.komentar;
+                _keEssayData[qId].status     = 'ai_done';
+            } catch(err) {
+                _keEssayData[qId].komentarAI = 'Gagal koreksi: ' + (err.message || 'error');
+                _keEssayData[qId].skorAI = 0;
+                _keEssayData[qId].status = 'ai_done';
+            }
+
+            window._keRenderQuestions();
+            window._keUpdateScoreSummary();
+        };
+
+        window.koreksiAISemua = async function() {
+            const btn = document.getElementById('ke-btn-ai');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Memproses...'; }
+            for (const qId of Object.keys(_keEssayData)) {
+                await window.koreksiAISatu(qId);
+            }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Koreksi Semua dengan AI'; if (typeof lucide !== 'undefined') lucide.createIcons(); }
+        };
+
+        window.simpanKoreksiEssay = async function() {
+            if (!_keCurrentResultId || !window.isFirebaseReady) return alert('Tidak bisa menyimpan.');
+
+            // Hitung total skor esai
+            let essayTotalSkor = 0;
+            let totalEssaySkorMaks = 0;
+            Object.values(_keEssayData).forEach(e => {
+                const skor = e.skorGuru !== null && e.skorGuru !== undefined ? e.skorGuru : (e.skorAI !== null && e.skorAI !== undefined ? e.skorAI : 0);
+                essayTotalSkor += Number(skor) || 0;
+                totalEssaySkorMaks += Number(e.skorMaks) || 10;
+            });
+
+            const item = dashboardData.find(x => x.id === _keCurrentResultId);
+            const paket = (window.allPaketDB || []).find(p => p.id === (item || {}).paketId);
+            const nilaiMaks = (paket && paket.nilaiMaksimal > 0) ? paket.nilaiMaksimal : 100;
+            const totalQ = (window.allQuestionsDB || []).filter(q => q.paketId === (item || {}).paketId).length || 1;
+            const essayQ = Object.keys(_keEssayData).length;
+
+            // Proporsi esai dari total soal
+            const essayRatio = totalEssaySkorMaks > 0 ? (essayTotalSkor / totalEssaySkorMaks) : 0;
+            const essayContrib = Math.round(essayRatio * nilaiMaks * (essayQ / totalQ));
+            const finalScore = Math.min(nilaiMaks, (_keScoreMC || 0) + essayContrib);
+
+            try {
+                await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', _keCurrentResultId), {
+                    essayAnswers: _keEssayData,
+                    essayPending: false,
+                    essayTotalSkor: essayTotalSkor,
+                    score: finalScore,
+                    status: 'SELESAI',
+                    updatedAt: Date.now()
+                });
+                window.closeKoreksiEssay();
+                alert(`✅ Koreksi esai disimpan!\n\nSkor pilihan: ${_keScoreMC}\nSkor esai: ${essayTotalSkor.toFixed(1)}\nNilai akhir: ${finalScore}`);
+            } catch(e) { alert('Gagal menyimpan: ' + e.message); }
+        };
+        // ── END KOREKSI ESAI ────────────────────────────────────
+
+
         window.editJadwal = function(id) {
             const j = window.allJadwalDB.find(x => x.id === id);
             if (!j) return alert('Jadwal tidak ditemukan.');
@@ -4729,37 +4997,26 @@
         window._aktifkanJadwal = async function(jadwal, manual = false) {
             if (!window.isFirebaseReady || !window.db) return;
             try {
-                // 1. Nonaktifkan semua sesi ujian yang aktif
-                const deact = (window.allSesiDB || [])
-                    .filter(s => s.isActive)
-                    .map(s => updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian', s.id), { isActive: false }));
-                await Promise.all(deact);
-
-                // 2. Buat / aktifkan sesi baru
+                // Buat sesi baru khusus untuk jadwal ini (TIDAK nonaktifkan sesi lain)
+                // Sehingga banyak jadwal bisa aktif bersamaan di jam yang sama (beda kelas/mapel)
                 const docRef = await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian'), {
                     nama: jadwal.nama,
                     keterangan: [jadwal.paket, (jadwal.kelasArr && jadwal.kelasArr.length ? jadwal.kelasArr.join(', ') : jadwal.kelas)].filter(Boolean).join(' · '),
+                    jadwalId: jadwal.id,   // referensi ke jadwal
+                    paketId:  jadwal.paketId || '',
                     isActive: true,
                     createdAt: Date.now()
                 });
 
-                // 3. Update token jika ada custom token
-                if (jadwal.tokenCustom) {
-                    await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'settings', 'exam_token'), {
-                        token: jadwal.tokenCustom, updatedAt: Date.now()
-                    }, { merge: true });
-                    window.currentExamToken = jadwal.tokenCustom;
-                }
+                // Update token custom jika ada (per-jadwal, tidak global)
+                // Token disimpan di jadwal itu sendiri, bukan overwrite global
 
-                // 4. Update durasi jika ada custom durasi
+                // Update durasi jika ada custom durasi
                 if (jadwal.durasiCustom && jadwal.durasiCustom > 0) {
-                    await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'settings', 'exam_config'), {
-                        duration: jadwal.durasiCustom, updatedAt: Date.now()
-                    }, { merge: true });
                     window.currentExamDuration = jadwal.durasiCustom;
                 }
 
-                // 5. Tandai jadwal sudah dijalankan & aktif
+                // Tandai jadwal sudah dijalankan & aktif
                 await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', jadwal.id), {
                     isActive: true, sudahDijalankan: true, sesiRefId: docRef.id
                 });
@@ -4768,23 +5025,20 @@
             } catch(e) { console.error('[Jadwal] Gagal aktifkan:', e); }
         };
 
-        // Internal: nonaktifkan sesi
+        // Internal: nonaktifkan sesi milik jadwal ini saja
         window._nonaktifkanJadwal = async function(jadwalId) {
             if (!window.isFirebaseReady || !window.db) return;
             try {
-                const jadwal = window.allJadwalDB.find(j => j.id === jadwalId);
-                // Nonaktifkan semua sesi aktif
-                const deact = (window.allSesiDB || [])
-                    .filter(s => s.isActive)
-                    .map(s => updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'sesi_ujian', s.id), { isActive: false }));
-                await Promise.all(deact);
+                const jadwal = (window.allJadwalDB || []).find(j => j.id === jadwalId);
+                // Hanya nonaktifkan sesi yang terkait jadwal ini (via jadwalId atau sesiRefId)
+                // Sesi ujian tidak lagi dikelola manual - jadwal langsung jadi acuan
                 // Update jadwal
                 if (jadwal) {
                     await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian', jadwalId), {
                         isActive: false
                     });
                 }
-                console.log(`[Jadwal] 🔴 Sesi dinonaktifkan otomatis`);
+                console.log(`[Jadwal] 🔴 Jadwal "${jadwal ? jadwal.nama : jadwalId}" dinonaktifkan`);
             } catch(e) { console.error('[Jadwal] Gagal nonaktifkan:', e); }
         };
 
@@ -5532,7 +5786,7 @@
 
         window.openPaketSoal = function(paketId) {
             window.activePaketId = paketId;
-            const paket = window.allPaketDB.find(p => p.id === paketId);
+            const paket = (window.allPaketDB || []).find(p => p.id === paketId);
             if (!paket) return;
 
             // Reset soal page to 1 when switching paket
@@ -5549,7 +5803,7 @@
         };
 
         window.refreshActivePaketInfo = function() {
-            const paket = window.allPaketDB.find(p => p.id === window.activePaketId);
+            const paket = (window.allPaketDB || []).find(p => p.id === window.activePaketId);
             if (!paket) return;
             const COLORS = PAKET_COLORS;
             const idx = window.allPaketDB.indexOf(paket);
@@ -5601,7 +5855,7 @@
             document.getElementById('modal-paket-title').textContent = id ? 'Edit Paket Soal' : 'Buat Paket Soal Baru';
 
             if (id) {
-                const p = window.allPaketDB.find(x => x.id === id);
+                const p = (window.allPaketDB || []).find(x => x.id === id);
                 if (p) {
                     document.getElementById('paket-id').value = p.id;
                     document.getElementById('paket-nama').value = p.nama || '';
@@ -5961,7 +6215,7 @@
             const pw = document.getElementById('pager-soal-wrap');
 
             if (filtered.length === 0) {
-                const paket = window.allPaketDB.find(p => p.id === window.activePaketId);
+                const paket = (window.allPaketDB || []).find(p => p.id === window.activePaketId);
                 container.innerHTML = `
                     <div class="bg-white rounded-xl border shadow-sm p-12 text-center">
                         <div class="inline-flex p-4 bg-blue-50 rounded-2xl mb-4"><i data-lucide="file-plus" class="w-10 h-10 text-blue-400"></i></div>
@@ -5993,7 +6247,14 @@
                 const isAktif   = q.aktif !== false;
                 const isMultiple = q.tipe === 'multiple';
                 const isTrueFalse = q.tipe === 'truefalse';
-                const optionsHtml = isTrueFalse
+                const isEssayQ = q.tipe === 'essay';
+                const optionsHtml = isEssayQ
+                    ? `<div class="bg-purple-50 border border-purple-200 rounded-xl p-3">
+                            <p class="text-xs font-bold text-purple-700 mb-1.5 flex items-center gap-1"><i data-lucide="pencil-line" class="w-3.5 h-3.5"></i> Rubrik / Kunci Jawaban</p>
+                            <p class="text-sm text-purple-900 whitespace-pre-line leading-relaxed">${q.essayRubrik || '—'}</p>
+                            <p class="text-xs text-purple-500 mt-2 font-medium">Skor maks: ${q.essaySkorMaks || 10} poin</p>
+                       </div>`
+                    : isTrueFalse
                     ? `<div class="flex gap-2">
                             <div class="flex items-center gap-2 px-4 py-2 rounded-lg ${q.correct === true || q.correct === 'true' ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-100'}">
                                 <span class="w-6 h-6 rounded-full ${q.correct === true || q.correct === 'true' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'} text-xs font-bold flex items-center justify-center">✓</span>
@@ -6017,17 +6278,21 @@
                 const imgHtml = q.image ? `<div class="mt-3"><img src="${q.image}" class="max-h-32 rounded-xl border object-contain bg-gray-50 p-1"></div>` : '';
 
                 // Build kunci label for card header
-                const kunciLabel = isTrueFalse
-                    ? (q.correct === true || q.correct === 'true' ? '✓ Benar' : '✗ Salah')
-                    : isMultiple && Array.isArray(q.correct)
-                        ? q.correct.map(i => labels[i]||i).join(', ')
-                        : labels[Array.isArray(q.correct) ? q.correct[0] : q.correct] || q.correct;
+                const kunciLabel = isEssayQ
+                    ? `<i>Esai (skor maks: ${q.essaySkorMaks || 10})</i>`
+                    : isTrueFalse
+                        ? (q.correct === true || q.correct === 'true' ? '✓ Benar' : '✗ Salah')
+                        : isMultiple && Array.isArray(q.correct)
+                            ? q.correct.map(i => labels[i]||i).join(', ')
+                            : labels[Array.isArray(q.correct) ? q.correct[0] : q.correct] || q.correct;
 
-                const tipeBadge = isTrueFalse
-                    ? `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">B/S</span>`
-                    : isMultiple
-                        ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Ganda</span>`
-                        : '';
+                const tipeBadge = isEssayQ
+                    ? `<span class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">Esai</span>`
+                    : isTrueFalse
+                        ? `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">B/S</span>`
+                        : isMultiple
+                            ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Ganda</span>`
+                            : '';
 
                 return `
                 <div class="bg-white rounded-2xl border shadow-sm overflow-hidden ${!isAktif ? 'opacity-60' : ''}" id="soal-card-${q.id}">
@@ -6393,8 +6658,9 @@
                         const startData = {
                             timestamp: Date.now(), studentName: name, studentNisn,
                             className: cls, ruangUjian: room || '-', packetType: pkt, paketId,
-                            sesiId: window.currentSesiId || 'default',
+                            sesiId:   window.currentSesiId   || 'default',
                             sesiName: window.currentSesiName || 'Sesi Default',
+                            jadwalId: (window.allJadwalDB || []).find(j => j.isActive && j.paketId === paketId)?.id || window.currentSesiId || 'default',
                             score: '-', status: "SEDANG MENGERJAKAN",
                             violations: 0, violationLogs: [],
                             deviceFingerprint: (window.getDeviceFingerprint || getDeviceFingerprint)()
@@ -6709,6 +6975,8 @@
 
             const answeredCount = Object.keys(userAnswers).filter(k => {
                 const v = userAnswers[k];
+                const q = (currentQuestionList || []).find(x => x.id === k);
+                if (q && q.tipe === 'essay') return v && v.text && v.text.trim().length > 0;
                 return !(Array.isArray(v) && v.length === 0);
             }).length;
             const total = currentQuestionList.length;
@@ -7097,10 +7365,32 @@
             const labels = ['A','B','C','D','E'];
             const isMultiple = q.tipe === 'multiple';
             const isTrueFalse = q.tipe === 'truefalse';
+            const isEssay = q.tipe === 'essay';
 
             let optionsHTML = '';
 
-            if (isTrueFalse) {
+            if (isEssay) {
+                const userText = (userAnswers[q.id] && userAnswers[q.id].text) ? userAnswers[q.id].text : '';
+                optionsHTML = `
+                    <div class="mt-2">
+                        <label class="block text-xs font-bold text-purple-600 mb-2 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                            Tulis Jawaban Kamu
+                        </label>
+                        <textarea
+                            id="essay-input-${q.id}"
+                            rows="6"
+                            class="w-full px-4 py-3 border-2 border-purple-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 text-sm resize-none bg-white transition-colors"
+                            placeholder="Tulis jawaban uraianmu di sini..."
+                            oninput="saveEssayAnswer('${q.id}', this.value)"
+                        >${userText}</textarea>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-xs text-purple-500">Jawab selengkap mungkin sesuai pemahaman kamu.</p>
+                            <p class="text-xs text-gray-400" id="essay-charcount-${q.id}">${userText.length} karakter</p>
+                        </div>
+                    </div>
+                `;
+            } else if (isTrueFalse) {
                 // Render dua tombol besar: BENAR dan SALAH
                 const userAns = userAnswers[q.id]; // true, false, or undefined
                 const benarSel = userAns === true;
@@ -7179,11 +7469,13 @@
             }
 
             // Badge tipe soal
-            const tipeBadge = isTrueFalse
-                ? `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Benar / Salah</span>`
-                : isMultiple
-                    ? `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Jawaban Ganda</span>`
-                    : '';
+            const tipeBadge = isEssay
+                ? `<span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg> Esai</span>`
+                : isTrueFalse
+                    ? `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Benar / Salah</span>`
+                    : isMultiple
+                        ? `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Jawaban Ganda</span>`
+                        : '';
 
             // Gambar soal
             const qImgHtml = q.image
@@ -7207,7 +7499,12 @@
                             <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             <p class="text-xs text-amber-700 font-semibold">Apakah pernyataan di atas BENAR atau SALAH?</p>
                        </div>`
-                    : '';
+                    : isEssay
+                        ? `<div class="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-xl px-3 py-2 mb-3">
+                                <svg class="w-4 h-4 text-purple-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <p class="text-xs text-purple-700 font-semibold">Soal uraian — tulis jawaban selengkap mungkin. Dikoreksi guru/AI setelah ujian.</p>
+                           </div>`
+                        : '';
 
             const html = `
                 <div class="bg-white rounded-xl shadow-sm border p-6 md:p-8 animate-fade-in">
@@ -7273,6 +7570,16 @@
             }
         }
 
+        window.saveEssayAnswer = function(qId, text) {
+            if (!userAnswers[qId]) userAnswers[qId] = {};
+            userAnswers[qId].text = text;
+            // Update char count without re-rendering (avoids losing focus)
+            const cc = document.getElementById('essay-charcount-' + qId);
+            if (cc) cc.textContent = text.length + ' karakter';
+            // Update sidebar dot (answered if non-empty)
+            renderSidebarButtons();
+        };
+
         window.saveAnswer = function(qId, optIdx, isMultiple, isTrueFalse, element) {
             if (isTrueFalse !== undefined && isTrueFalse === false && typeof optIdx === 'boolean') {
                 // truefalse: optIdx is actually the boolean value (true/false)
@@ -7300,8 +7607,10 @@
             
             currentQuestionList.forEach((q, idx) => {
                 const ans = userAnswers[q.id];
-                const isAnswered = ans !== undefined
-                    && !(Array.isArray(ans) && ans.length === 0);
+                const isEssayQ = q.tipe === 'essay';
+                const isAnswered = isEssayQ
+                    ? (ans && ans.text && ans.text.trim().length > 0)
+                    : ans !== undefined && !(Array.isArray(ans) && ans.length === 0);
                 const isActive = idx === currentQuestionIndex;
                 
                 let btnClass = "h-10 w-full rounded font-bold text-sm flex items-center justify-center transition-colors ";
@@ -7667,7 +7976,27 @@
             // ── Hitung skor (safe: jaga dari array kosong) ──
             const qList = currentQuestionList || [];
             let correctCount = 0;
+            let nonEssayCount = 0;
+            let hasEssay = false;
+            const essayAnswersMap = {}; // { qId: { text, rubrik, skorMaks } }
+
             qList.forEach(q => {
+                if (q.tipe === 'essay') {
+                    hasEssay = true;
+                    const userText = (userAnswers[q.id] && userAnswers[q.id].text) ? userAnswers[q.id].text.trim() : '';
+                    essayAnswersMap[q.id] = {
+                        qText: q.text || '',
+                        rubrik: q.essayRubrik || '',
+                        skorMaks: q.essaySkorMaks || 10,
+                        jawabanSiswa: userText,
+                        skorAI: null,
+                        skorGuru: null,
+                        komentarAI: '',
+                        status: 'pending'
+                    };
+                    return; // essay tidak dihitung dalam skor otomatis
+                }
+                nonEssayCount++;
                 if (typeof q.correct === 'undefined') return;
                 const isMultiple = q.tipe === 'multiple';
                 const isTrueFalse = q.tipe === 'truefalse';
@@ -7675,12 +8004,10 @@
                     const correctBool = q.correct === true || q.correct === 'true';
                     if (userAnswers[q.id] === correctBool) correctCount++;
                 } else if (isMultiple && Array.isArray(q.correct)) {
-                    // Multiple: siswa harus memilih SEMUA jawaban benar, tidak lebih tidak kurang
                     const userAns = Array.isArray(userAnswers[q.id]) ? [...userAnswers[q.id]].sort() : [];
                     const corrArr = [...q.correct].sort();
                     if (userAns.length === corrArr.length && userAns.every((v, i) => v === corrArr[i])) correctCount++;
                 } else {
-                    // Single
                     const correctIdx = Array.isArray(q.correct) ? q.correct[0] : q.correct;
                     if (userAnswers[q.id] === correctIdx) correctCount++;
                 }
@@ -7688,7 +8015,8 @@
             // Gunakan nilaiMaksimal dari paket (default 100 jika tidak diset)
             const _paketData = (window.allPaketDB || []).find(p => p.id === (currentStudent || {}).paketId);
             const nilaiMaksimal = (_paketData && _paketData.nilaiMaksimal && _paketData.nilaiMaksimal > 0) ? _paketData.nilaiMaksimal : 100;
-            const score = qList.length > 0 ? Math.round((correctCount / qList.length) * nilaiMaksimal) : 0;
+            // Skor dari soal non-esai saja (esai pending)
+            const score = nonEssayCount > 0 ? Math.round((correctCount / qList.length) * nilaiMaksimal) : 0;
 
             const _cs = currentStudent || {};
             const resultData = {
@@ -7703,9 +8031,13 @@
                 sesiId:       window.currentSesiId   || 'default',
                 sesiName:     window.currentSesiName || '',
                 score:        score,
-                status:       forced ? "DISKUALIFIKASI (Kecurangan)" : "SELESAI",
+                scoreNonEssay: score,
+                status:       forced ? "DISKUALIFIKASI (Kecurangan)" : (hasEssay ? "SELESAI (Esai Pending)" : "SELESAI"),
                 violations:   forced ? 3 : violations,
-                violationLogs: violationLogs
+                violationLogs: violationLogs,
+                hasEssay:     hasEssay,
+                essayPending: hasEssay && !forced,
+                essayAnswers: hasEssay ? essayAnswersMap : {}
             };
 
             if(window.saveExamResult) window.saveExamResult(resultData);
@@ -7742,12 +8074,17 @@
             const motivationalEl = document.getElementById('motivational-message');
             const btnReview      = document.getElementById('btn-review');
 
-            if (scoreEl) scoreEl.innerText = score;
+            if (scoreEl) scoreEl.innerText = hasEssay ? '?' : score;
             // Tampilkan detail: benar/total soal dan nilai per soal
             const detailEl = document.getElementById('final-score-detail');
             if (detailEl) {
-                const nilaiPerSoal = qList.length > 0 ? (nilaiMaksimal / qList.length).toFixed(2).replace(/\.?0+$/, '') : 0;
-                detailEl.innerHTML = `Benar <strong>${correctCount}</strong> dari <strong>${qList.length}</strong> soal &nbsp;·&nbsp; Nilai maks: <strong>${nilaiMaksimal}</strong> &nbsp;·&nbsp; Per soal: <strong>${nilaiPerSoal} poin</strong>`;
+                if (hasEssay) {
+                    const essayCount = Object.keys(essayAnswersMap).length;
+                    detailEl.innerHTML = `Benar <strong>${correctCount}</strong> dari <strong>${nonEssayCount}</strong> soal pilihan &nbsp;·&nbsp; <span class="text-purple-600 font-bold">+ ${essayCount} soal esai menunggu koreksi</span>`;
+                } else {
+                    const nilaiPerSoal = qList.length > 0 ? (nilaiMaksimal / qList.length).toFixed(2).replace(/\.?0+$/, '') : 0;
+                    detailEl.innerHTML = `Benar <strong>${correctCount}</strong> dari <strong>${qList.length}</strong> soal &nbsp;·&nbsp; Nilai maks: <strong>${nilaiMaksimal}</strong> &nbsp;·&nbsp; Per soal: <strong>${nilaiPerSoal} poin</strong>`;
+                }
             }
 
             if (forced) {
@@ -7955,9 +8292,18 @@
                 let matchSesi = true;
                 if (!isLive) { // live siswa selalu lolos filter sesi
                     if (filterSesi === 'active') {
-                        const activeSesiId = window.currentSesiId || 'default';
-                        matchSesi = (item.sesiId === activeSesiId) ||
-                                    (!item.sesiId && activeSesiId === 'default');
+                        // Cocokkan dengan semua jadwal yang sedang aktif
+                        const jadwalAktifIds = (window.allJadwalDB || [])
+                            .filter(j => j.isActive === true)
+                            .map(j => j.id);
+                        if (jadwalAktifIds.length > 0) {
+                            matchSesi = jadwalAktifIds.includes(item.sesiId);
+                        } else {
+                            // Tidak ada jadwal aktif → tampilkan data terbaru (hari ini)
+                            const today = new Date().toISOString().slice(0,10);
+                            const itemDate = item.timestamp ? new Date(item.timestamp).toISOString().slice(0,10) : '';
+                            matchSesi = itemDate === today || item.sesiId === (window.currentSesiId || 'default');
+                        }
                     } else if (filterSesi !== 'all') {
                         matchSesi = item.sesiId === filterSesi;
                     }
@@ -8040,7 +8386,9 @@
                         <td class="px-6 py-4 text-gray-600 text-sm">${item.className || '-'}</td>
                         <td class="px-6 py-4"><span class="${ruangColor}">${ruangLabel}</span></td>
                         <td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs font-bold ${pktColor}">${item.paketNama || ('Paket ' + item.packetType)}</span></td>
-                        <td class="px-6 py-4 text-center text-lg font-bold ${(item.score??-1)>=80?'text-emerald-600':(item.score??-1)>=60?'text-amber-500':'text-red-500'}">${item.score ?? '-'}</td>
+                        <td class="px-6 py-4 text-center text-lg font-bold ${(item.score??-1)>=80?'text-emerald-600':(item.score??-1)>=60?'text-amber-500':'text-red-500'}">
+                            ${item.essayPending ? `<span class="inline-flex flex-col items-center gap-0.5"><span class="text-base">${item.score ?? '-'}</span><span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-bold leading-none">+esai⏳</span></span>` : (item.score ?? '-')}
+                        </td>
                         <td class="px-6 py-4"><span class="${statusColor}">${statusIcon} ${item.status}</span></td>
                         <td class="px-6 py-4 text-center">${violationDisplay}</td>
                         <td class="px-6 py-4 text-center">
@@ -8053,6 +8401,7 @@
                         </td>
                         <td class="px-6 py-4 text-center">
                             <div class="flex gap-1 justify-center">
+                                ${item.essayPending ? `<button onclick="window.openKoreksiEssay('${item.id}')" class="text-purple-600 hover:bg-purple-50 p-1.5 rounded transition-colors border border-purple-200 hover:border-purple-400" title="Koreksi Soal Esai"><i data-lucide="pencil-line" class="w-4 h-4"></i></button>` : (item.hasEssay && !item.essayPending ? `<button onclick="window.openKoreksiEssay('${item.id}')" class="text-gray-400 hover:bg-gray-50 p-1.5 rounded transition-colors" title="Lihat Koreksi Esai"><i data-lucide="check-circle" class="w-4 h-4"></i></button>` : '')}
                                 <button onclick="window.openNoteModal('${item.id}')" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Tambah Catatan Pengawas">
                                     <i data-lucide="pencil" class="w-4 h-4"></i>
                                 </button>
@@ -8413,13 +8762,11 @@
                     const dr = (d.ruangUjian || '').trim().toLowerCase();
                     return dr === pgNama || dr === pgId;
                 });
-                // Default sesi: hanya sesi aktif (bisa di-override oleh filter dropdown)
-                const activeSesiId = window.currentSesiId || 'default';
+                // Default: hanya tampilkan data jadwal aktif (bisa di-override filter dropdown)
                 const fSesiDropdown = document.getElementById('analitik-filter-sesi')?.value || 'all';
-                if (fSesiDropdown === 'all') {
-                    finished = finished.filter(d =>
-                        (d.sesiId === activeSesiId) || (!d.sesiId && activeSesiId === 'default')
-                    );
+                const jadwalAktifIds3 = (window.allJadwalDB || []).filter(j => j.isActive).map(j => j.id);
+                if (fSesiDropdown === 'all' && jadwalAktifIds3.length > 0) {
+                    finished = finished.filter(d => jadwalAktifIds3.includes(d.sesiId));
                 }
             }
 
@@ -8455,23 +8802,24 @@
             if (ruangWrap) ruangWrap.style.display = isAdmin ? '' : 'none';
 
             // ══ POPULATE DROPDOWN: Gabungkan data master + data ujian ══
-            // Dropdown diisi dari DATABASE MASTER (ruangList/kelasList/allSesiDB)
-            // digabung dengan data yang sudah ada di exam results, agar selalu lengkap.
+            // Dropdown diisi dari jadwal & data master
 
-            // Isi dropdown sesi — dari allSesiDB (master) + data ujian yang ada
+            // Isi dropdown jadwal — dari allJadwalDB
             if (sesiSel) {
                 const curSesi = sesiSel.value;
-                // Kumpulkan sesiId yang ada di data ujian
-                const sesiSetFromData = new Set(baseForDropdown.map(d => d.sesiId || 'default').filter(Boolean));
-                sesiSel.innerHTML = '<option value="all">Semua Sesi</option>';
-                // Tampilkan SEMUA sesi dari master, bukan hanya yang ada di data ujian
-                (window.allSesiDB || []).forEach(s => {
+                sesiSel.innerHTML = '<option value="all">Semua Jadwal</option>';
+                const sortedJ = (window.allJadwalDB || []).slice().sort((a,b) => {
+                    if (a.tanggal !== b.tanggal) return b.tanggal > a.tanggal ? 1 : -1;
+                    return b.jamMulai > a.jamMulai ? 1 : -1;
+                });
+                sortedJ.forEach(j => {
                     const opt = document.createElement('option');
-                    opt.value = s.id;
-                    opt.textContent = s.nama || s.id;
+                    opt.value = j.id;
+                    const aktif = j.isActive ? ' ⚡' : '';
+                    opt.textContent = (j.nama || j.id) + aktif + (j.tanggal ? ' · ' + j.tanggal : '');
                     sesiSel.appendChild(opt);
                 });
-                if (curSesi && sesiSel.querySelector(`option[value="${curSesi}"]`)) sesiSel.value = curSesi;
+                if (curSesi && sesiSel.querySelector('option[value="' + curSesi + '"]')) sesiSel.value = curSesi;
             }
 
             // Isi dropdown ruang (admin only) — dari ruangList (master) + data ujian
