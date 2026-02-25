@@ -80,7 +80,13 @@
         
         window.allQuestionsDB = []; 
         window.currentExamDocId = null; 
-        window.examStartTime = null; 
+        window.examStartTime = null;
+        
+        // ★ PEMBAHASAN SETTINGS (NEW) ★
+        // Admin dapat mengatur kapan siswa boleh melihat pembahasan
+        window.showDiscussionAfterExam = true;      // Aktifkan/nonaktifkan pembahasan
+        window.discussionVisibility = 'after-exam'; // after-exam | after-deadline | manual | never
+        window.manualDiscussionOpen = false;        // Kontrol manual pembukaan pembahasan oleh admin 
         
         // ★ RECOVERY: Ambil currentExamDocId dari sessionStorage jika ada (untuk handle refresh)
         try {
@@ -452,6 +458,135 @@
                 alert("Mode Offline: Pengaturan sistem tidak tersimpan ke server.");
             }
         };
+
+        // ★ PEMBAHASAN SETTINGS FUNCTIONS (NEW) ★
+        window.saveDiscussionSettings = function() {
+            const toggle = document.getElementById('toggle-discussion');
+            const mode = document.querySelector('input[name="discussion-mode"]:checked')?.value || 'after-exam';
+            
+            window.showDiscussionAfterExam = toggle.checked;
+            window.discussionVisibility = mode;
+
+            // Update UI status
+            window.updateDiscussionUIStatus();
+
+            // Simpan ke localStorage untuk persistensi
+            try {
+                localStorage.setItem('ukktkj_discussion_settings', JSON.stringify({
+                    enabled: window.showDiscussionAfterExam,
+                    visibility: window.discussionVisibility,
+                    manualOpen: window.manualDiscussionOpen
+                }));
+            } catch(e) {
+                console.warn("Gagal menyimpan discussion settings ke localStorage");
+            }
+
+            // Simpan ke Firestore jika available
+            if (window.isFirebaseReady && window.currentExamDocId) {
+                window.updateDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exams', window.currentExamDocId), {
+                    discussionEnabled: window.showDiscussionAfterExam,
+                    discussionVisibility: window.discussionVisibility,
+                }).catch(err => console.warn('Gagal update discussion settings di server:', err));
+            }
+
+            alert('✅ Pengaturan pembahasan disimpan!');
+        };
+
+        window.updateDiscussionUIStatus = function() {
+            const toggle = document.getElementById('toggle-discussion');
+            const manualArea = document.getElementById('manual-control-area');
+            const statusText = document.getElementById('discussion-status-text');
+            const modeRadios = document.querySelectorAll('input[name="discussion-mode"]');
+            const selectedMode = document.querySelector('input[name="discussion-mode"]:checked')?.value || 'after-exam';
+
+            // Update visibility manual control area
+            if (selectedMode === 'manual') {
+                manualArea.classList.remove('hidden');
+            } else {
+                manualArea.classList.add('hidden');
+            }
+
+            // Update status text
+            if (!toggle.checked) {
+                statusText.innerHTML = '❌ Dinonaktifkan - Pembahasan tidak tersedia';
+                statusText.className = 'text-red-600 font-bold';
+            } else if (selectedMode === 'never') {
+                statusText.innerHTML = '❌ Jangan Tampilkan - Pembahasan tidak tersedia';
+                statusText.className = 'text-red-600 font-bold';
+            } else if (selectedMode === 'manual') {
+                const isOpen = window.manualDiscussionOpen ? '✅ Dibuka' : '⏳ Ditutup';
+                statusText.innerHTML = `🔧 Manual - ${isOpen}`;
+                statusText.className = 'text-amber-600 font-bold';
+            } else {
+                statusText.innerHTML = '✅ Aktif - Setelah Ujian Selesai';
+                statusText.className = 'text-indigo-600 font-bold';
+            }
+        };
+
+        window.toggleDiscussionManually = function() {
+            window.manualDiscussionOpen = !window.manualDiscussionOpen;
+            const btn = document.getElementById('btn-toggle-manual-discussion');
+
+            if (window.manualDiscussionOpen) {
+                btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                btn.classList.add('bg-red-600', 'hover:bg-red-700');
+                btn.innerHTML = '<i data-lucide="lock" class="w-5 h-5"></i> Tutup Pembahasan untuk Siswa';
+            } else {
+                btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                btn.innerHTML = '<i data-lucide="unlock" class="w-5 h-5"></i> Buka Pembahasan untuk Siswa';
+            }
+
+            if(typeof lucide !== 'undefined') lucide.createIcons();
+            window.updateDiscussionUIStatus();
+            
+            // Broadcast ke Firestore (untuk update real-time di tab lain)
+            if (window.isFirebaseReady && window.currentExamDocId) {
+                window.updateDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exams', window.currentExamDocId), {
+                    manualDiscussionOpen: window.manualDiscussionOpen,
+                    discussionOpenedAt: new Date().toISOString()
+                }).catch(err => console.warn('Gagal update manual discussion status:', err));
+            }
+
+            alert(window.manualDiscussionOpen ? '✅ Pembahasan dibuka!' : '🔒 Pembahasan ditutup!');
+        };
+
+        // Load discussion settings dari localStorage saat init
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const saved = localStorage.getItem('ukktkj_discussion_settings');
+                if (saved) {
+                    const settings = JSON.parse(saved);
+                    window.showDiscussionAfterExam = settings.enabled !== false;
+                    window.discussionVisibility = settings.visibility || 'after-exam';
+                    window.manualDiscussionOpen = settings.manualOpen || false;
+
+                    // Update UI elements
+                    const toggle = document.getElementById('toggle-discussion');
+                    if (toggle) {
+                        toggle.checked = window.showDiscussionAfterExam;
+                    }
+
+                    const modeRadio = document.querySelector(`input[name="discussion-mode"][value="${window.discussionVisibility}"]`);
+                    if (modeRadio) {
+                        modeRadio.checked = true;
+                    }
+
+                    // Add event listeners
+                    if (toggle) {
+                        toggle.addEventListener('change', window.updateDiscussionUIStatus);
+                    }
+
+                    document.querySelectorAll('input[name="discussion-mode"]').forEach(radio => {
+                        radio.addEventListener('change', window.updateDiscussionUIStatus);
+                    });
+
+                    window.updateDiscussionUIStatus();
+                }
+            } catch(e) {
+                console.warn("Gagal load discussion settings dari localStorage:", e);
+            }
+        });
 
         // --- SAVE APPEARANCE ONLY (Pengaturan Tampilan SAJA — dari tab Setting Tampilan) ---
         window.saveAppearanceOnly = async () => {
@@ -2820,6 +2955,80 @@
                     </div>
                 </div>
 
+                <!-- ★ PANEL KONTROL PEMBAHASAN (NEW) ★ -->
+                <div class="admin-only-el bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl shadow-sm border border-indigo-200 p-6 mb-6">
+                    <h2 class="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-5 h-5 text-indigo-600"></i> Kontrol Pembahasan Soal
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <!-- Toggle Pembahasan -->
+                        <div class="flex items-center justify-between bg-white rounded-lg p-4 border border-indigo-200">
+                            <div>
+                                <p class="font-semibold text-gray-800">Aktifkan Pembahasan</p>
+                                <p class="text-sm text-gray-600">Siswa dapat melihat kunci jawaban setelah selesai ujian</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="toggle-discussion" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
+                        </div>
+
+                        <!-- Mode Pembahasan -->
+                        <div class="bg-white rounded-lg p-4 border border-indigo-200">
+                            <p class="font-semibold text-gray-800 mb-3">Mode Pembahasan</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-indigo-50 transition">
+                                    <input type="radio" name="discussion-mode" value="after-exam" checked class="w-4 h-4 text-indigo-600">
+                                    <span class="ml-3">
+                                        <p class="font-medium text-gray-800">Setelah Ujian Selesai</p>
+                                        <p class="text-xs text-gray-600">Siswa langsung bisa lihat pembahasan</p>
+                                    </span>
+                                </label>
+                                <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-indigo-50 transition">
+                                    <input type="radio" name="discussion-mode" value="manual" class="w-4 h-4 text-indigo-600">
+                                    <span class="ml-3">
+                                        <p class="font-medium text-gray-800">Buka Manual</p>
+                                        <p class="text-xs text-gray-600">Admin kontrol kapan pembahasan dibuka</p>
+                                    </span>
+                                </label>
+                                <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-red-50 transition">
+                                    <input type="radio" name="discussion-mode" value="never" class="w-4 h-4 text-red-600">
+                                    <span class="ml-3">
+                                        <p class="font-medium text-gray-800">Jangan Tampilkan</p>
+                                        <p class="text-xs text-gray-600">Pembahasan tidak tersedia</p>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Tombol Buka Pembahasan (untuk mode manual) -->
+                        <div id="manual-control-area" class="hidden bg-white rounded-lg p-4 border border-amber-300 bg-amber-50">
+                            <p class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600"></i> Kontrol Manual
+                            </p>
+                            <button onclick="window.toggleDiscussionManually()" id="btn-toggle-manual-discussion" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-transform active:scale-95">
+                                <i data-lucide="unlock" class="w-5 h-5"></i> Buka Pembahasan untuk Siswa
+                            </button>
+                            <p class="text-xs text-gray-600 mt-2">Klik tombol di atas untuk membuka akses pembahasan ke semua siswa yang sudah selesai ujian.</p>
+                        </div>
+
+                        <!-- Info Status -->
+                        <div id="discussion-info-box" class="bg-white rounded-lg p-4 border border-indigo-200">
+                            <p class="text-sm">
+                                <span class="font-semibold">Status Pembahasan:</span>
+                                <span id="discussion-status-text" class="text-indigo-600 font-bold">✅ Aktif (Setelah Ujian Selesai)</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex justify-end gap-2">
+                        <button onclick="window.saveDiscussionSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2">
+                            <i data-lucide="save" class="w-4 h-4"></i> Simpan Pengaturan Pembahasan
+                        </button>
+                    </div>
+                </div>
+
                 <!-- ══ STAT CARDS ══ -->
                 <div id="stat-cards-area" class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 mb-6">
                     <div class="col-span-2 md:col-span-2 xl:col-span-2 bg-white rounded-xl border shadow-sm p-4 flex items-center gap-4">
@@ -4348,6 +4557,9 @@
                 <button onclick="window.toggleReview()" id="btn-review" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-transform active:scale-95">
                     <i data-lucide="book-open" class="w-5 h-5"></i> Lihat Pembahasan
                 </button>
+                <div id="discussion-status" class="hidden px-4 py-2 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-700">
+                    ⏳ Pembahasan akan dibuka oleh admin
+                </div>
                 <button onclick="if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().then(()=>location.reload()).catch(()=>location.reload());else location.reload();" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg transition-transform active:scale-95">Kembali ke Login</button>
             </div>
         </div>
@@ -7570,7 +7782,56 @@
             if (modal) modal.classList.add('hidden');
         };
 
+        // ★ UPDATE DISCUSSION STATUS AFTER EXAM (NEW) ★
+        window.updateDiscussionStatus = function() {
+            const btn = document.getElementById('btn-review');
+            const statusDiv = document.getElementById('discussion-status');
+
+            if (!window.showDiscussionAfterExam) {
+                // Pembahasan dinonaktifkan sama sekali
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                statusDiv.classList.remove('hidden');
+                statusDiv.innerHTML = '🔒 Admin telah menonaktifkan pembahasan untuk ujian ini.';
+                return;
+            }
+
+            if (window.discussionVisibility === 'never') {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                statusDiv.classList.remove('hidden');
+                statusDiv.innerHTML = '🔒 Pembahasan tidak tersedia.';
+                return;
+            }
+
+            if (window.discussionVisibility === 'manual') {
+                if (!window.manualDiscussionOpen) {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    statusDiv.classList.remove('hidden');
+                    statusDiv.innerHTML = '⏳ Pembahasan belum dibuka. Tunggu pengumuman dari admin.';
+                    return;
+                } else {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    statusDiv.classList.add('hidden');
+                    return;
+                }
+            }
+
+            // Mode 'after-exam' dan 'after-deadline' - pembahasan tersedia
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            statusDiv.classList.add('hidden');
+        };
+
         window.toggleReview = function() {
+            // ★ CEK IZIN PEMBAHASAN ★
+            if (!window.isDiscussionAllowed()) {
+                alert('⛔ Pembahasan belum tersedia. Admin akan membuka pembahasan pada waktu yang ditentukan.');
+                return;
+            }
+
             const reviewContainer = document.getElementById('review-container');
             const btn = document.getElementById('btn-review');
             
