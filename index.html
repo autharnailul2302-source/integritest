@@ -341,7 +341,7 @@
             }
         }
 
-                // --- SAVE SETTINGS ---
+                // --- SAVE SETTINGS (Pengaturan Sistem Ujian SAJA — Token, Durasi, Cooldown) ---
         window.saveSettings = async () => {
             const newToken = document.getElementById('teacher-token-input').value.trim().toUpperCase();
             const newDuration = parseInt(document.getElementById('teacher-duration-input').value);
@@ -353,8 +353,35 @@
             if(newMinDuration > newDuration) return alert("Durasi minimal tidak boleh lebih besar dari durasi ujian!");
             if(newCooldown < 10) return alert("Cooldown device minimal 10 menit!");
 
-            // Ambil pengaturan tampilan — langsung dari input tanpa fallback,
-            // sehingga jika dikosongkan user maka tersimpan kosong (bukan nilai lama)
+            // Ambil nilai tampilan yang sudah tersimpan agar tidak terhapus
+            const savedApp = window._savedAppearance || {};
+
+            if (window.isFirebaseReady && window.db) {
+                try {
+                    await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings'), {
+                        token: newToken,
+                        examDuration: newDuration,
+                        minDuration: newMinDuration,
+                        deviceCooldown: newCooldown,
+                        // Sertakan nilai tampilan yang sudah ada agar tidak tertimpa null
+                        judulUjian:   savedApp.judulUjian  ?? null,
+                        subJudul:     savedApp.subJudul    ?? null,
+                        motivasi:     savedApp.motivasi    ?? null,
+                        logoUrl:      savedApp.logoUrl     ?? null,
+                        nomorIdMode:  savedApp.nomorIdMode ?? 'nisn',
+                        timestamp: Date.now()
+                    });
+                    alert(`✅ Pengaturan sistem disimpan!\nToken: ${newToken} | Durasi: ${newDuration} mnt | Cooldown: ${newCooldown} mnt`);
+                } catch(saveErr) {
+                    alert(`❌ Gagal simpan ke server: ${saveErr.message}\n\nCek koneksi internet dan coba lagi.`);
+                }
+            } else {
+                alert("Mode Offline: Pengaturan sistem tidak tersimpan ke server.");
+            }
+        };
+
+        // --- SAVE APPEARANCE ONLY (Pengaturan Tampilan SAJA — dari tab Setting Tampilan) ---
+        window.saveAppearanceOnly = async () => {
             const savedApp = window._savedAppearance || {};
             const newJudulUjian   = (document.getElementById('setting-judul-ujian')?.value  ?? '').trim();
             const newSubJudul     = (document.getElementById('setting-sub-judul')?.value    ?? '').trim();
@@ -365,14 +392,15 @@
             if (window.isFirebaseReady && window.db) {
                 try {
                     await addDoc(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings'), {
-                        token: newToken,
-                        examDuration: newDuration,
-                        minDuration: newMinDuration,
-                        deviceCooldown: newCooldown,
-                        judulUjian:   newJudulUjian   || null,
-                        subJudul:     newSubJudul     || null,
-                        motivasi:     newMotivasi     || null,
-                        logoUrl:      newLogoUrl      || null,
+                        // Sertakan nilai sistem yang sudah ada agar tidak tertimpa
+                        token:        window.currentExamToken       || 'TKJ2025',
+                        examDuration: window.currentExamDuration    || 60,
+                        minDuration:  window.currentMinExamDuration || 0,
+                        deviceCooldown: window.deviceCooldownHours  || 30,
+                        judulUjian:   newJudulUjian || null,
+                        subJudul:     newSubJudul   || null,
+                        motivasi:     newMotivasi   || null,
+                        logoUrl:      newLogoUrl    || null,
                         nomorIdMode:  newNomorIdMode,
                         timestamp: Date.now()
                     });
@@ -380,7 +408,7 @@
                     window._savedAppearance = { judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode };
                     // Terapkan ke UI langsung
                     window.applyAppearanceSettings(window._savedAppearance);
-                    alert(`✅ Pengaturan disimpan!\nToken: ${newToken} | Durasi: ${newDuration} mnt | Cooldown: ${newCooldown} mnt`);
+                    alert(`✅ Pengaturan tampilan disimpan!`);
                 } catch(saveErr) {
                     alert(`❌ Gagal simpan ke server: ${saveErr.message}\n\nCek koneksi internet dan coba lagi.`);
                     window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode });
@@ -388,7 +416,7 @@
             } else {
                 // Offline — terapkan ke UI saja
                 window.applyAppearanceSettings({ judulUjian: newJudulUjian, subJudul: newSubJudul, motivasi: newMotivasi, logoUrl: newLogoUrl, nomorIdMode: newNomorIdMode });
-                alert("Mode Offline: Pengaturan tampilan diterapkan sementara, pengaturan ujian tidak tersimpan ke server.");
+                alert("Mode Offline: Pengaturan tampilan diterapkan sementara, tidak tersimpan ke server.");
             }
         };
 
@@ -1752,6 +1780,22 @@
         </div>
     </div>
 
+    <!-- MODAL BELUM WAKTUNYA SUBMIT (Menggantikan alert() agar tidak trigger anti-cheat) -->
+    <div id="modal-early-submit" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 text-center animate-fade-in">
+            <div class="w-16 h-16 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="clock" class="w-8 h-8"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">⛔ Belum Bisa Submit</h3>
+            <p class="text-gray-600 text-sm mb-2" id="early-submit-msg">Anda belum bisa mengumpulkan jawaban saat ini.</p>
+            <p class="text-orange-600 font-bold text-sm mb-6" id="early-submit-remaining"></p>
+            <button onclick="document.getElementById('modal-early-submit').classList.add('hidden'); window._suppressCheat = false;" 
+                class="w-full px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold shadow-md transition-all active:scale-95">
+                Oke, Periksa Jawaban Dulu
+            </button>
+        </div>
+    </div>
+
     <!-- MODAL ADD/EDIT QUESTION (REDESIGNED) -->
     <div id="modal-question" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-y-auto max-h-[94vh] flex flex-col">
@@ -2276,6 +2320,11 @@
                     <div id="pengawas-room-badge" class="hidden items-center gap-2 bg-amber-500/20 border border-amber-400/30 px-3 py-1.5 rounded-full">
                         <i data-lucide="door-open" class="w-4 h-4 text-amber-300"></i>
                         <span id="pengawas-room-label" class="text-sm font-bold text-amber-200">Ruang 1</span>
+                    </div>
+                    <!-- Info Ujian — hanya muncul saat login sebagai Admin -->
+                    <div id="admin-exam-info" class="hidden flex-col items-end text-right">
+                        <p id="admin-exam-judul" class="text-sm font-black text-white leading-tight"></p>
+                        <p id="admin-exam-sub" class="text-[11px] text-blue-300 font-semibold leading-tight"></p>
                     </div>
                     <button onclick="window.logout()" class="text-slate-300 hover:text-white flex items-center gap-2 text-sm"><i data-lucide="log-out" class="w-4 h-4"></i> Keluar</button>
                 </div>
@@ -3974,8 +4023,8 @@
                         <span><strong>Mode Performa Aktif</strong> — Animasi dinonaktifkan otomatis karena HP terdeteksi sebagai perangkat rendah spesifikasi.</span>
                     </div>
                     <div class="flex-1"></div>
-                    <button onclick="window.saveSettings()" class="bg-gray-800 hover:bg-gray-900 text-white px-8 py-3 rounded-xl font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2">
-                        <i data-lucide="save" class="w-4 h-4"></i> Simpan Semua Pengaturan
+                    <button onclick="window.saveAppearanceOnly()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2">
+                        <i data-lucide="palette" class="w-4 h-4"></i> Simpan Pengaturan Tampilan
                     </button>
                 </div>
             </div>
@@ -4173,7 +4222,7 @@
                 <button onclick="window.toggleReview()" id="btn-review" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-transform active:scale-95">
                     <i data-lucide="book-open" class="w-5 h-5"></i> Lihat Pembahasan
                 </button>
-                <button onclick="location.reload()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg transition-transform active:scale-95">Kembali ke Login</button>
+                <button onclick="if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().then(()=>location.reload()).catch(()=>location.reload());else location.reload();" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg transition-transform active:scale-95">Kembali ke Login</button>
             </div>
         </div>
         <div id="review-container" class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-6 hidden mb-10">
@@ -4182,7 +4231,7 @@
             </h3>
             <div id="review-list" class="space-y-6"></div>
             <div class="mt-8 pt-6 border-t border-gray-100">
-                <button onclick="location.reload()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95">
+                <button onclick="if(document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen().then(()=>location.reload()).catch(()=>location.reload());else location.reload();" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95">
                     <i data-lucide="log-out" class="w-5 h-5"></i> Selesai Belajar & Keluar
                 </button>
             </div>
@@ -4408,6 +4457,19 @@
             if (_piWrap) {
                 if (judul || sub) _piWrap.classList.remove('hidden');
                 else _piWrap.classList.add('hidden');
+            }
+
+            // Update judul + nama SMK di header dashboard saat login Admin
+            const _adJudulEl  = document.getElementById('admin-exam-judul');
+            const _adSubEl    = document.getElementById('admin-exam-sub');
+            const _adInfoWrap = document.getElementById('admin-exam-info');
+            if (_adJudulEl) _adJudulEl.textContent = judul;
+            if (_adSubEl)   _adSubEl.textContent   = sub;
+            // Tampilkan hanya jika sedang login sebagai admin (bukan pengawas) dan ada isinya
+            if (_adInfoWrap) {
+                const isAdmin = document.getElementById('pengawas-exam-info')?.classList.contains('hidden') ?? true;
+                if ((judul || sub) && isAdmin) { _adInfoWrap.classList.remove('hidden'); _adInfoWrap.style.display = 'flex'; }
+                else { _adInfoWrap.classList.add('hidden'); _adInfoWrap.style.display = ''; }
             }
         };
 
@@ -6807,6 +6869,17 @@
                 document.getElementById('dash-header-icon').className = 'bg-indigo-600 p-2 rounded-lg';
                 document.getElementById('pengawas-room-badge').classList.add('hidden');
                 document.getElementById('pengawas-exam-info').classList.add('hidden');
+                // Tampilkan info judul ujian di header admin (jika sudah diset)
+                const _adminInfoWrap = document.getElementById('admin-exam-info');
+                const _savedAppAdmin = window._savedAppearance || {};
+                if (_adminInfoWrap) {
+                    const _aj = document.getElementById('admin-exam-judul');
+                    const _as = document.getElementById('admin-exam-sub');
+                    if (_aj) _aj.textContent = (_savedAppAdmin.judulUjian || '').trim();
+                    if (_as) _as.textContent = (_savedAppAdmin.subJudul   || '').trim();
+                    if (_savedAppAdmin.judulUjian || _savedAppAdmin.subJudul) { _adminInfoWrap.classList.remove('hidden'); _adminInfoWrap.style.display = 'flex'; }
+                    else { _adminInfoWrap.classList.add('hidden'); _adminInfoWrap.style.display = ''; }
+                }
                 // Sembunyikan card token (khusus pengawas, bukan admin)
                 const _tkCardAdmin = document.getElementById('pengawas-token-card');
                 if (_tkCardAdmin) _tkCardAdmin.classList.add('hidden');
@@ -6884,6 +6957,9 @@
             document.getElementById('dash-header-title').textContent = 'Monitoring Ruang';
             document.getElementById('dash-header-subtitle').textContent = `Pengawas ${ruang.nama}`;
             document.getElementById('dash-header-icon').className = 'bg-amber-500 p-2 rounded-lg';
+            // Sembunyikan info ujian admin header
+            const _adminInfoHide = document.getElementById('admin-exam-info');
+            if (_adminInfoHide) { _adminInfoHide.classList.add('hidden'); _adminInfoHide.style.display = ''; }
             // Tampilkan info ujian di kanan header
             const _app = window._savedAppearance || {};
             const _judulEl = document.getElementById('pengawas-exam-judul');
@@ -6961,14 +7037,21 @@
 
         // --- CONFIRM FINISH EXAM WITH ANTI-SUBMIT CHECK ---
         window.confirmFinishExam = function() {
-            // NEW: Anti-Submit Check
+            // NEW: Anti-Submit Check — gunakan modal internal, BUKAN alert() agar tidak trigger anti-cheat
             if (window.currentMinExamDuration > 0 && window.examStartTime) {
                 const elapsedMs = Date.now() - window.examStartTime;
                 const elapsedMin = elapsedMs / 60000;
                 
                 if (elapsedMin < window.currentMinExamDuration) {
                     const remaining = Math.ceil(window.currentMinExamDuration - elapsedMin);
-                    alert(`⛔ BELUM BISA SUBMIT\n\nAnda baru bisa mengumpulkan jawaban setelah ${window.currentMinExamDuration} menit.\n\nSisa waktu tunggu: ${remaining} menit lagi.\nSilakan periksa kembali jawaban Anda.`);
+                    // Tampilkan modal internal (bukan alert browser) agar tidak memicu anti-cheat
+                    window._suppressCheat = true;
+                    document.getElementById('early-submit-msg').innerText = 
+                        `Anda baru bisa mengumpulkan jawaban setelah ${window.currentMinExamDuration} menit pertama berlalu.\nSilakan periksa kembali jawaban Anda.`;
+                    document.getElementById('early-submit-remaining').innerText = 
+                        `⏳ Sisa waktu tunggu: ${remaining} menit lagi`;
+                    document.getElementById('modal-early-submit').classList.remove('hidden');
+                    if(typeof lucide !== 'undefined') lucide.createIcons();
                     return;
                 }
             }
@@ -6988,6 +7071,8 @@
             
             document.getElementById('modal-desc').innerText = msg;
             
+            // Set suppress agar blur saat modal terbuka tidak dianggap curang
+            window._suppressCheat = true;
             const modal = document.getElementById('modal-confirm');
             modal.classList.remove('hidden');
             setTimeout(() => {
@@ -6996,6 +7081,7 @@
         };
 
         window.closeModal = function() {
+            window._suppressCheat = false;
             const modal = document.getElementById('modal-confirm');
             modal.classList.remove('show');
             setTimeout(() => {
@@ -7046,6 +7132,17 @@
                 document.getElementById('dash-header-icon').className = 'bg-indigo-600 p-2 rounded-lg';
                 document.getElementById('pengawas-room-badge').classList.add('hidden');
                 document.getElementById('pengawas-exam-info').classList.add('hidden');
+                // Tampilkan info judul ujian di header admin (jika sudah diset)
+                const _adminInfoWrapR = document.getElementById('admin-exam-info');
+                const _savedAppRestore = window._savedAppearance || {};
+                if (_adminInfoWrapR) {
+                    const _ajR = document.getElementById('admin-exam-judul');
+                    const _asR = document.getElementById('admin-exam-sub');
+                    if (_ajR) _ajR.textContent = (_savedAppRestore.judulUjian || '').trim();
+                    if (_asR) _asR.textContent = (_savedAppRestore.subJudul   || '').trim();
+                    if (_savedAppRestore.judulUjian || _savedAppRestore.subJudul) { _adminInfoWrapR.classList.remove('hidden'); _adminInfoWrapR.style.display = 'flex'; }
+                    else { _adminInfoWrapR.classList.add('hidden'); _adminInfoWrapR.style.display = ''; }
+                }
                 // Sembunyikan card token (khusus pengawas)
                 const _tkCardRestore = document.getElementById('pengawas-token-card');
                 if (_tkCardRestore) _tkCardRestore.classList.add('hidden');
@@ -7694,6 +7791,8 @@
         function handleVisibility() {
             // Visibility change (pindah tab total/minimize) tetap dianggap curang
             // meski sedang rotasi, karena pindah tab != rotasi
+            // Tapi JANGAN anggap curang jika modal submit sedang terbuka
+            if (window._suppressCheat) return;
             if (document.hidden) {
                 registerViolation("Anda meninggalkan tab ujian!");
             }
@@ -7702,6 +7801,8 @@
         function handleBlur() {
             // JIKA SEDANG ROTASI (isRotating = true), JANGAN ANGGAP CURANG
             if (isRotating) return;
+            // JIKA MODAL SUBMIT SEDANG TERBUKA, JANGAN ANGGAP CURANG
+            if (window._suppressCheat) return;
 
             if (!document.hidden) {
                 registerViolation("Terdeteksi interaksi di luar layar ujian (Aplikasi Mengambang/Notifikasi)!");
@@ -7955,7 +8056,12 @@
         function finishExam(forced = false) {
             clearInterval(examTimer);
             
-            // Hapus semua listener saat ujian selesai
+            // ★ HAPUS listener fullscreenchange SEBELUM apapun agar tidak memicu registerViolation
+            document.removeEventListener("fullscreenchange", handleFullscreenChange);
+            document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+            document.removeEventListener("msfullscreenchange", handleFullscreenChange);
+
+            // Hapus semua listener anti-cheat lainnya
             document.removeEventListener("visibilitychange", handleVisibility);
             window.removeEventListener("blur", handleBlur);
             window.removeEventListener("resize", handleResizeToleransi);
@@ -7967,10 +8073,16 @@
             const mw = document.getElementById('modal-warning-student');
             if (mw) mw.classList.add('hidden');
 
-            // Keluar dari fullscreen saat ujian selesai (agar halaman hasil bisa dilihat normal)
+            // ★ JANGAN keluar dari fullscreen — biarkan halaman hasil tetap fullscreen
+            // agar tidak ada celah curang setelah ujian. Fullscreen baru keluar saat klik "Kembali ke Login".
+            // Jika belum fullscreen karena alasan tertentu, paksa masuk fullscreen lagi
             try {
-                if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(()=>{});
-                else if (document.webkitExitFullscreen && document.webkitFullscreenElement) document.webkitExitFullscreen();
+                const el = document.documentElement;
+                const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+                if (!isFs) {
+                    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+                    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                }
             } catch(e) {}
 
             // ── Hitung skor (safe: jaga dari array kosong) ──
