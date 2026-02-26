@@ -2673,6 +2673,9 @@
                 <button onclick="window.switchDashTab('ruang')" id="tab-dash-ruang" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
                     <i data-lucide="door-open" class="w-4 h-4"></i><span class="hidden lg:inline">Manajemen</span> Ruang
                 </button>
+                <button onclick="window.switchDashTab('siswa')" id="tab-dash-siswa" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
+                    <i data-lucide="users-round" class="w-4 h-4"></i><span class="hidden lg:inline">Data</span> Siswa
+                </button>
                 <button onclick="window.switchDashTab('jadwal')" id="tab-dash-jadwal" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
                     <i data-lucide="calendar-clock" class="w-4 h-4"></i><span class="hidden lg:inline">Jadwal</span>
                 </button>
@@ -2704,7 +2707,7 @@
                         <div class="shrink-0 hidden md:flex flex-col items-end gap-2">
                             <div class="text-right">
                                 <p class="text-blue-200 text-xs font-semibold uppercase tracking-widest">Versi</p>
-                                <p class="text-white font-black text-2xl">2025</p>
+                                <p class="text-white font-black text-2xl">2026 v2</p>
                             </div>
                         </div>
                     </div>
@@ -4185,6 +4188,184 @@
             <!-- ══ END PANEL ANALITIK ══ -->
 
             <!-- ══════════════════════════════════════════════════════ -->
+            <!-- PANEL: DATA SISWA & NOTIFIKASI WA ORTU               -->
+            <!-- ══════════════════════════════════════════════════════ -->
+            <div id="panel-siswa" class="hidden-section admin-only-panel">
+                <!-- Header -->
+                <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            <i data-lucide="users-round" class="w-6 h-6 text-teal-600"></i>
+                            Data Siswa & Notifikasi WA Orang Tua
+                        </h2>
+                        <p class="text-gray-500 text-sm mt-1">Import data siswa (NISN + No. WA Ortu) dari Excel. Kirim notifikasi hasil ujian otomatis ke WA orang tua.</p>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="window.downloadTemplateSiswa()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                            <i data-lucide="download" class="w-4 h-4"></i> Template Excel
+                        </button>
+                        <button onclick="document.getElementById('siswa-file-input').click()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                            <i data-lucide="upload" class="w-4 h-4"></i> Import Excel
+                        </button>
+                        <input type="file" id="siswa-file-input" accept=".xlsx,.xls" class="hidden" onchange="window.handleSiswaImport(this)">
+                    </div>
+                </div>
+
+                <!-- Info Box: Cara Kerja -->
+                <div class="bg-teal-50 border border-teal-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+                    <i data-lucide="info" class="w-5 h-5 text-teal-600 shrink-0 mt-0.5"></i>
+                    <div class="text-sm text-teal-800 space-y-1">
+                        <p class="font-bold">Cara Kerja Sistem Notifikasi WA:</p>
+                        <p>1. Import Excel berisi <strong>NISN</strong> + <strong>No. WA Ortu</strong> (format: 628xxx) di halaman ini — cukup dilakukan sekali.</p>
+                        <p>2. Ketika siswa login dengan NISN-nya, sistem otomatis mencari nomor WA orang tuanya dari database ini.</p>
+                        <p>3. Setelah ujian selesai, tombol <strong>"Kirim ke Ortu"</strong> muncul di tabel monitoring nilai — klik untuk kirim via Fonnte/WhatsApp Gateway.</p>
+                        <p class="text-teal-600 font-semibold">⚙️ Atur Token Fonnte di pengaturan di bawah sebelum mengirim notifikasi.</p>
+                    </div>
+                </div>
+
+                <!-- Pengaturan Fonnte -->
+                <div class="bg-white rounded-xl border shadow-sm p-5 mb-6">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i data-lucide="settings" class="w-5 h-5 text-gray-600"></i> Pengaturan WA Gateway (Fonnte)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Token API Fonnte</label>
+                            <input type="text" id="fonnte-token-input" placeholder="Paste token dari fonnte.com..." 
+                                class="w-full px-3 py-2.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-gray-50 focus:bg-white font-mono">
+                            <p class="text-xs text-gray-400 mt-1">Daftar gratis di <a href="https://fonnte.com" target="_blank" class="text-teal-600 hover:underline font-semibold">fonnte.com</a> untuk mendapat token.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Template Pesan</label>
+                            <textarea id="fonnte-template-input" rows="3" 
+                                class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-gray-50 focus:bg-white resize-none"
+                                placeholder="Gunakan: {nama}, {kelas}, {nilai}, {status}">Assalamu'alaikum Bpk/Ibu Wali dari *{nama}*.
+
+Berikut hasil ujian putra/putri Anda:
+📚 Mata Ujian: {mapel}
+🏫 Kelas: {kelas}
+📊 Nilai: *{nilai}*
+🏆 Predikat: {status}
+
+Terima kasih 🙏</textarea>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <button onclick="window.saveFonnteSettings()" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                            <i data-lucide="save" class="w-4 h-4"></i> Simpan Pengaturan
+                        </button>
+                    </div>
+                    <div id="fonnte-save-status" class="hidden mt-3 text-sm font-semibold text-teal-700 flex items-center gap-2">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i> Pengaturan disimpan!
+                    </div>
+                </div>
+
+                <!-- Statistik database siswa -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+                        <p class="text-2xl font-black text-teal-600" id="siswa-stat-total">0</p>
+                        <p class="text-xs text-gray-500 font-semibold mt-1">Total Siswa</p>
+                    </div>
+                    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+                        <p class="text-2xl font-black text-green-600" id="siswa-stat-wa">0</p>
+                        <p class="text-xs text-gray-500 font-semibold mt-1">Ada No. WA Ortu</p>
+                    </div>
+                    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+                        <p class="text-2xl font-black text-amber-500" id="siswa-stat-nowa">0</p>
+                        <p class="text-xs text-gray-500 font-semibold mt-1">Belum Ada No. WA</p>
+                    </div>
+                    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+                        <p class="text-2xl font-black text-blue-600" id="siswa-stat-notif">0</p>
+                        <p class="text-xs text-gray-500 font-semibold mt-1">Notif Terkirim</p>
+                    </div>
+                </div>
+
+                <!-- Search & Filter -->
+                <div class="bg-white rounded-xl border shadow-sm p-4 mb-4">
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <div class="flex-1 relative">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="siswa-search" placeholder="Cari nama atau NISN..." 
+                                oninput="window.filterSiswaTable()"
+                                class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-gray-50 focus:bg-white">
+                        </div>
+                        <select id="siswa-filter-wa" onchange="window.filterSiswaTable()" class="px-3 py-2 border rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-teal-400">
+                            <option value="all">Semua Siswa</option>
+                            <option value="ada">Ada No. WA Ortu</option>
+                            <option value="tidak">Belum Ada No. WA</option>
+                        </select>
+                        <button onclick="window.kirimNotifikasiSemua()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm whitespace-nowrap">
+                            <i data-lucide="send" class="w-4 h-4"></i> Kirim Semua (Yang Sudah Ujian)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Import Preview -->
+                <div id="siswa-import-preview" class="hidden bg-white rounded-xl border border-teal-200 shadow-sm p-5 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="font-bold text-gray-800 flex items-center gap-2">
+                            <i data-lucide="eye" class="w-4 h-4 text-teal-600"></i>
+                            Preview Import — <span id="siswa-import-count" class="text-teal-600">0</span> siswa ditemukan
+                        </h4>
+                        <div class="flex gap-2">
+                            <button onclick="document.getElementById('siswa-import-preview').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-sm">Batal</button>
+                            <button onclick="window.uploadSiswaData()" id="btn-upload-siswa" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
+                                <i data-lucide="upload-cloud" class="w-4 h-4"></i> Simpan ke Database
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto max-h-48 border rounded-lg">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr class="border-b">
+                                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-500">NISN</th>
+                                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-500">Nama</th>
+                                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-500">Kelas</th>
+                                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-500">No. WA Ortu</th>
+                                </tr>
+                            </thead>
+                            <tbody id="siswa-preview-body" class="divide-y divide-gray-50"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Status import -->
+                <div id="siswa-import-status" class="hidden mb-4 px-4 py-3 rounded-lg border text-sm font-semibold"></div>
+
+                <!-- Tabel Data Siswa -->
+                <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+                    <div class="px-5 py-3 border-b bg-gray-50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-700 text-sm">Database Siswa</h3>
+                        <button onclick="window.clearAllSiswa()" class="text-xs text-red-500 hover:text-red-700 font-semibold flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus Semua
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm text-gray-600">
+                            <thead class="bg-gray-50 text-gray-800 font-semibold border-b">
+                                <tr>
+                                    <th class="px-4 py-3 w-10">No</th>
+                                    <th class="px-4 py-3">NISN</th>
+                                    <th class="px-4 py-3">Nama Siswa</th>
+                                    <th class="px-4 py-3">Kelas</th>
+                                    <th class="px-4 py-3">No. WA Ortu</th>
+                                    <th class="px-4 py-3 text-center">Status</th>
+                                    <th class="px-4 py-3 text-center w-32">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="siswa-table-body" class="divide-y divide-gray-100">
+                                <tr><td colspan="7" class="px-4 py-10 text-center text-gray-400">
+                                    <i data-lucide="users" class="w-8 h-8 mx-auto mb-2 text-gray-300"></i>
+                                    <p>Belum ada data siswa. Import dari Excel terlebih dahulu.</p>
+                                </td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="pager-siswa-wrap" class="px-4 py-3 border-t"></div>
+                </div>
+            </div><!-- end panel-siswa -->
+
+            <!-- ══════════════════════════════════════════════════════ -->
             <!-- PANEL: JADWAL UJIAN OTOMATIS                          -->
             <!-- ══════════════════════════════════════════════════════ -->
             <div id="panel-jadwal" class="hidden-section admin-only-panel">
@@ -4532,6 +4713,11 @@
                     class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="door-open" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">RUANG</span>
+                </button>
+                <button onclick="window.switchDashTab('siswa')" id="mob-tab-siswa"
+                    class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
+                    <i data-lucide="users-round" class="w-5 h-5"></i>
+                    <span class="text-[9px] font-bold tracking-wide">SISWA</span>
                 </button>
                 <button onclick="window.switchDashTab('jadwal')" id="mob-tab-jadwal"
                     class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
@@ -6129,10 +6315,10 @@
             const mobActive   = "flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 bg-blue-50 text-blue-600";
             const mobInactive = "flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400";
 
-            const tabs   = ['welcome','nilai','kelas','soal','ruang','analitik','jadwal','tampilan'];
-            const panels = { welcome:'panel-welcome', nilai:'panel-nilai', soal:'panel-soal', kelas:'panel-kelas', ruang:'panel-ruang', analitik:'panel-analitik', jadwal:'panel-jadwal', tampilan:'panel-tampilan' };
-            const btnIds = { welcome:'tab-dash-welcome', nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelas:'tab-dash-kelas', ruang:'tab-dash-ruang', analitik:'tab-dash-analitik', jadwal:'tab-dash-jadwal', tampilan:'tab-dash-tampilan' };
-            const mobIds = { welcome:'mob-tab-welcome', nilai:'mob-tab-nilai', soal:'mob-tab-soal', kelas:'mob-tab-kelas', ruang:'mob-tab-ruang', analitik:'mob-tab-analitik', jadwal:'mob-tab-jadwal', tampilan:'mob-tab-tampilan' };
+            const tabs   = ['welcome','nilai','kelas','soal','ruang','siswa','analitik','jadwal','tampilan'];
+            const panels = { welcome:'panel-welcome', nilai:'panel-nilai', soal:'panel-soal', kelas:'panel-kelas', ruang:'panel-ruang', siswa:'panel-siswa', analitik:'panel-analitik', jadwal:'panel-jadwal', tampilan:'panel-tampilan' };
+            const btnIds = { welcome:'tab-dash-welcome', nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelas:'tab-dash-kelas', ruang:'tab-dash-ruang', siswa:'tab-dash-siswa', analitik:'tab-dash-analitik', jadwal:'tab-dash-jadwal', tampilan:'tab-dash-tampilan' };
+            const mobIds = { welcome:'mob-tab-welcome', nilai:'mob-tab-nilai', soal:'mob-tab-soal', kelas:'mob-tab-kelas', ruang:'mob-tab-ruang', siswa:'mob-tab-siswa', analitik:'mob-tab-analitik', jadwal:'mob-tab-jadwal', tampilan:'mob-tab-tampilan' };
 
             tabs.forEach(t => {
                 // Desktop tab
@@ -6161,6 +6347,7 @@
             if (tab === 'soal') { window.backToPaketList(); window.renderPaketGrid(); }
             if (tab === 'kelas') window.renderKelasList();
             if (tab === 'ruang') window.renderRuangList();
+            if (tab === 'siswa') window.renderSiswaTable();
             if (tab === 'tampilan') window.loadTampilanFields();
             if (tab === 'jadwal') { window.renderJadwalList(); window.initJadwalForm(); }
             if(typeof lucide !== 'undefined') lucide.createIcons();
@@ -9124,6 +9311,7 @@
                                 <button onclick="window.deleteExamResult('${item.id}')" class="text-red-500 hover:bg-red-100 p-1.5 rounded transition-colors" title="Hapus Data">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                                 </button>
+                                ${(!isDoing && item.score !== undefined && item.score !== null) ? `<button onclick="window.kirimNotifikasiSatu('${item.id}')" class="text-green-600 hover:bg-green-50 p-1.5 rounded transition-colors border border-green-200 hover:border-green-400" title="Kirim Hasil ke WA Ortu"><i data-lucide="send" class="w-4 h-4"></i></button>` : ''}
                             </div>
                         </td>
                     </tr>
@@ -11240,5 +11428,326 @@ tr:nth-child(even) { background: #eff6ff; }
             }
         });
     </script>
-</body>
+
+    <!-- ══════════ FITUR DATA SISWA & NOTIFIKASI WA ORTU ══════════ -->
+    <script type="module">
+        import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        function waitFirebase(cb, tries=0) {
+            if (window.isFirebaseReady && window.db) { cb(); return; }
+            if (tries > 40) return;
+            setTimeout(() => waitFirebase(cb, tries+1), 300);
+        }
+
+        const COLL_SISWA   = () => collection(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa');
+        const COLL_SETTING = () => collection(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings');
+
+        window.saveFonnteSettings = async function() {
+            const token    = document.getElementById('fonnte-token-input').value.trim();
+            const template = document.getElementById('fonnte-template-input').value;
+            if (!token) { alert('Token Fonnte tidak boleh kosong!'); return; }
+            localStorage.setItem('integritest_fonnte_token', token);
+            localStorage.setItem('integritest_fonnte_template', template);
+            if (window.isFirebaseReady && window.db) {
+                try {
+                    const snap = await getDocs(COLL_SETTING());
+                    let settingDocId = null;
+                    snap.forEach(d => { if (d.data().timestamp) settingDocId = d.id; });
+                    const data = { fonnteToken: token, fonnteTemplate: template, updatedAt: Date.now() };
+                    if (settingDocId) {
+                        await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings', settingDocId), data);
+                    } else {
+                        await addDoc(COLL_SETTING(), { ...data, timestamp: Date.now() });
+                    }
+                } catch(e) { console.warn('Gagal simpan fonnte ke Firestore:', e); }
+            }
+            const status = document.getElementById('fonnte-save-status');
+            if (status) { status.classList.remove('hidden'); setTimeout(() => status.classList.add('hidden'), 2500); }
+        };
+
+        function loadFonnteLocal() {
+            const token    = localStorage.getItem('integritest_fonnte_token') || '';
+            const defTpl   = "Assalamu'alaikum Bpk/Ibu Wali dari *{nama}*.\n\nBerikut hasil ujian putra/putri Anda:\n📚 Mata Ujian: {mapel}\n🏫 Kelas: {kelas}\n📊 Nilai: *{nilai}*\n🏆 Predikat: {status}\n\nTerima kasih 🙏";
+            const template = localStorage.getItem('integritest_fonnte_template') || defTpl;
+            const ti = document.getElementById('fonnte-token-input');
+            const tm = document.getElementById('fonnte-template-input');
+            if (ti && !ti.value) ti.value = token;
+            if (tm && !tm.value) tm.value = template;
+        }
+
+        window.allSiswaDB = [];
+
+        function listenForSiswa() {
+            if (!window.isFirebaseReady || !window.db) return;
+            onSnapshot(query(COLL_SISWA()), (snap) => {
+                window.allSiswaDB = [];
+                snap.forEach(d => window.allSiswaDB.push({ id: d.id, ...d.data() }));
+                updateSiswaStats();
+                const panel = document.getElementById('panel-siswa');
+                if (panel && !panel.classList.contains('hidden-section')) window.renderSiswaTable();
+            });
+        }
+
+        function updateSiswaStats() {
+            const total    = window.allSiswaDB.length;
+            const withWa   = window.allSiswaDB.filter(s => s.waOrtu).length;
+            const noWa     = total - withWa;
+            const notifSent= window.allSiswaDB.filter(s => s.notifSent).length;
+            const s = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+            s('siswa-stat-total', total); s('siswa-stat-wa', withWa);
+            s('siswa-stat-nowa',  noWa);  s('siswa-stat-notif', notifSent);
+        }
+
+        window.renderSiswaTable = function() {
+            const search   = (document.getElementById('siswa-search')?.value || '').toLowerCase();
+            const filterWa = document.getElementById('siswa-filter-wa')?.value || 'all';
+            const data = window.allSiswaDB.filter(s => {
+                const matchSearch = !search || (s.nama||'').toLowerCase().includes(search) || (s.nisn||'').toString().includes(search);
+                const matchWa = filterWa==='all' || (filterWa==='ada' ? !!s.waOrtu : !s.waOrtu);
+                return matchSearch && matchWa;
+            });
+            const tbody = document.getElementById('siswa-table-body');
+            if (!tbody) return;
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-10 text-center text-gray-400"><i data-lucide="search-x" class="w-8 h-8 mx-auto mb-2 text-gray-300"></i><p>' + (window.allSiswaDB.length===0?'Belum ada data siswa. Import dari Excel terlebih dahulu.':'Tidak ada data yang cocok.') + '</p></td></tr>';
+                if(typeof lucide!=='undefined') lucide.createIcons(); return;
+            }
+            tbody.innerHTML = data.map((s,i) => {
+                const waStatus = s.waOrtu
+                    ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-bold"><i data-lucide="check-circle" class="w-3 h-3"></i>Ada</span>'
+                    : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold"><i data-lucide="alert-circle" class="w-3 h-3"></i>Belum</span>';
+                const notifBadge = s.notifSent ? '<span class="text-[10px] text-teal-600 font-semibold ml-1">✓ Terkirim</span>' : '';
+                const namaEsc = (s.nama||'').replace(/'/g,"&#39;");
+                return '<tr class="hover:bg-slate-50 border-b">' +
+                    '<td class="px-4 py-3 text-gray-500 text-sm">'+(i+1)+'</td>' +
+                    '<td class="px-4 py-3 font-mono text-sm text-gray-700">'+(s.nisn||'-')+'</td>' +
+                    '<td class="px-4 py-3 font-semibold text-gray-800">'+(s.nama||'-')+'</td>' +
+                    '<td class="px-4 py-3 text-gray-600 text-sm">'+(s.kelas||'-')+'</td>' +
+                    '<td class="px-4 py-3 font-mono text-sm text-gray-700">'+(s.waOrtu||'<span class="text-gray-300">—</span>')+'</td>' +
+                    '<td class="px-4 py-3 text-center">'+waStatus+notifBadge+'</td>' +
+                    '<td class="px-4 py-3 text-center"><div class="flex gap-1 justify-center">' +
+                        '<button onclick="window.editSiswaWa(''+s.id+'',''+s.nisn+'',''+namaEsc+'',''+(s.waOrtu||'')+'')" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded border border-blue-100" title="Edit No. WA Ortu"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>' +
+                        '<button onclick="window.hapusSiswa(''+s.id+'')" class="text-red-500 hover:bg-red-50 p-1.5 rounded border border-red-100" title="Hapus"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>' +
+                    '</div></td>' +
+                '</tr>';
+            }).join('');
+            if(typeof lucide!=='undefined') lucide.createIcons();
+        };
+
+        window.filterSiswaTable = function() { window.renderSiswaTable(); };
+
+        window.editSiswaWa = function(id, nisn, nama, waLama) {
+            const noWaBaru = prompt('Edit No. WA Ortu untuk ' + nama + ' (NISN: ' + nisn + ')\n\nFormat: 628xxxxxxxxxx\nKosongkan untuk menghapus.', waLama);
+            if (noWaBaru === null) return;
+            const cleaned = noWaBaru.trim().replace(/\D/g,'');
+            if (cleaned && !cleaned.startsWith('62')) { alert('Format nomor harus diawali 62 (contoh: 628123456789)'); return; }
+            if (!window.isFirebaseReady) { alert('Mode offline.'); return; }
+            updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', id), { waOrtu: cleaned })
+                .catch(e => alert('Gagal simpan: ' + e.message));
+        };
+
+        window.hapusSiswa = async function(id) {
+            if (!confirm('Hapus data siswa ini?')) return;
+            await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', id));
+        };
+
+        window.clearAllSiswa = async function() {
+            if (!window.allSiswaDB.length) { alert('Tidak ada data untuk dihapus.'); return; }
+            if (!confirm('Hapus SEMUA ' + window.allSiswaDB.length + ' data siswa? Tindakan ini tidak bisa dibatalkan!')) return;
+            for (const s of window.allSiswaDB) {
+                await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', s.id));
+            }
+        };
+
+        window.downloadTemplateSiswa = function() {
+            if (typeof XLSX === 'undefined') { alert('Library XLSX belum siap.'); return; }
+            const ws = XLSX.utils.aoa_to_sheet([
+                ['nisn', 'nama', 'kelas', 'wa_ortu'],
+                ['1234567890', 'Ahmad Fauzan', 'XI TKJ 1', '628123456789'],
+                ['0987654321', 'Siti Rahayu', 'XI TKJ 2', '628987654321'],
+            ]);
+            ws['!cols'] = [{wch:15},{wch:30},{wch:15},{wch:18}];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Data Siswa');
+            XLSX.writeFile(wb, 'template_data_siswa.xlsx');
+        };
+
+        window.handleSiswaImport = function(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (typeof XLSX === 'undefined') { alert('Library XLSX belum siap.'); return; }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const wb  = XLSX.read(e.target.result, { type: 'array' });
+                    const ws  = wb.Sheets[wb.SheetNames[0]];
+                    const rows= XLSX.utils.sheet_to_json(ws, { defval: '' });
+                    const parsed = rows.map(r => {
+                        const norm = {};
+                        Object.keys(r).forEach(k => norm[k.toLowerCase().trim().replace(/\s+/g,'_')] = r[k]);
+                        return {
+                            nisn:   (norm.nisn||norm.no_nisn||'').toString().trim(),
+                            nama:   (norm.nama||norm.nama_siswa||norm.name||'').toString().trim(),
+                            kelas:  (norm.kelas||norm.class||'').toString().trim(),
+                            waOrtu: (norm.wa_ortu||norm.no_wa_ortu||norm.wa||norm.whatsapp||'').toString().trim().replace(/\D/g,''),
+                        };
+                    }).filter(r => r.nisn && r.nama);
+                    if (!parsed.length) { showSiswaStatus('error', '❌ Tidak ada data valid. Pastikan kolom: nisn, nama, kelas, wa_ortu.'); return; }
+                    window._parsedSiswaData = parsed;
+                    document.getElementById('siswa-import-count').textContent = parsed.length;
+                    document.getElementById('siswa-preview-body').innerHTML = parsed.map(s =>
+                        '<tr class="border-b hover:bg-gray-50"><td class="px-4 py-2 font-mono text-xs">'+s.nisn+'</td><td class="px-4 py-2 text-sm">'+s.nama+'</td><td class="px-4 py-2 text-sm">'+s.kelas+'</td><td class="px-4 py-2 font-mono text-xs '+(s.waOrtu?'text-green-700':'text-amber-500')+'">'+(s.waOrtu||'—')+'</td></tr>'
+                    ).join('');
+                    document.getElementById('siswa-import-preview').classList.remove('hidden');
+                    if(typeof lucide!=='undefined') lucide.createIcons();
+                } catch(err) { showSiswaStatus('error', '❌ Gagal membaca: ' + err.message); }
+                input.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        window.uploadSiswaData = async function() {
+            if (!window.isFirebaseReady || !window.db) { alert('Mode offline.'); return; }
+            const data = window._parsedSiswaData || [];
+            if (!data.length) return;
+            const btn = document.getElementById('btn-upload-siswa');
+            btn.disabled = true;
+            btn.innerHTML = 'Menyimpan...';
+            let added=0, updated=0;
+            try {
+                for (const s of data) {
+                    const existing = window.allSiswaDB.find(d => d.nisn.toString()===s.nisn.toString());
+                    if (existing) {
+                        await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', existing.id), { nama:s.nama, kelas:s.kelas, waOrtu:s.waOrtu, updatedAt:Date.now() });
+                        updated++;
+                    } else {
+                        await addDoc(COLL_SISWA(), { ...s, createdAt:Date.now(), notifSent:false });
+                        added++;
+                    }
+                }
+                document.getElementById('siswa-import-preview').classList.add('hidden');
+                window._parsedSiswaData = [];
+                showSiswaStatus('success', '✅ ' + added + ' siswa ditambahkan, ' + updated + ' diperbarui!');
+            } catch(err) { showSiswaStatus('error', '❌ Gagal: ' + err.message); }
+            finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Simpan ke Database';
+                if(typeof lucide!=='undefined') lucide.createIcons();
+            }
+        };
+
+        function showSiswaStatus(type, msg) {
+            const el = document.getElementById('siswa-import-status');
+            if (!el) return;
+            el.className = type==='success'
+                ? 'mb-4 px-4 py-3 rounded-lg border text-sm font-semibold bg-green-50 border-green-200 text-green-800'
+                : 'mb-4 px-4 py-3 rounded-lg border text-sm font-semibold bg-red-50 border-red-200 text-red-800';
+            el.textContent = msg;
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 6000);
+        }
+
+        async function kirimWA(nomorWA, pesan) {
+            const token = localStorage.getItem('integritest_fonnte_token') || '';
+            if (!token) { alert('⚠️ Token Fonnte belum diatur! Buka tab Data Siswa → isi Token API Fonnte.'); return false; }
+            try {
+                const resp = await fetch('https://api.fonnte.com/send', {
+                    method: 'POST',
+                    headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target: nomorWA, message: pesan, countryCode: '62' })
+                });
+                const result = await resp.json();
+                return result.status === true;
+            } catch(e) { console.error('[Fonnte]', e); return false; }
+        }
+
+        function buildPesan(siswaDB, hasil) {
+            const defTpl = "Assalamu'alaikum Bpk/Ibu Wali dari *{nama}*.\n\nHasil ujian:\n📚 {mapel}\n🏫 Kelas: {kelas}\n📊 Nilai: *{nilai}*\n🏆 {status}\n\nTerima kasih 🙏";
+            const template = localStorage.getItem('integritest_fonnte_template') || defTpl;
+            const score = hasil.score ?? '-';
+            let statusLabel = '-';
+            if (typeof score === 'number') statusLabel = score>=90?'Sangat Baik (A)':score>=75?'Baik (B)':score>=60?'Cukup (C)':'Perlu Peningkatan (D)';
+            return template
+                .replace(/{nama}/g, hasil.studentName || siswaDB.nama || '-')
+                .replace(/{kelas}/g, hasil.className || siswaDB.kelas || '-')
+                .replace(/{nilai}/g, score)
+                .replace(/{status}/g, statusLabel)
+                .replace(/{mapel}/g, hasil.paketNama || hasil.sesiName || 'Ujian');
+        }
+
+        window.kirimNotifikasiSatu = async function(hasilId) {
+            const semua = [...(window._allDashboardData||[]), ...(window.currentFilteredData||[])];
+            const hasil = semua.find(d => d.id === hasilId);
+            if (!hasil) { alert('Data ujian tidak ditemukan.'); return; }
+            const nisn = (hasil.studentNisn||'').toString().trim();
+            let waOrtu = '';
+            if (nisn) {
+                const db = window.allSiswaDB.find(s => s.nisn.toString()===nisn);
+                if (db) waOrtu = db.waOrtu || '';
+            }
+            if (!waOrtu) {
+                const manual = prompt('No. WA Ortu untuk ' + hasil.studentName + ' tidak ada di database.\nMasukkan manual (628xxx) atau kosongkan untuk batal:');
+                if (!manual) return;
+                waOrtu = manual.trim().replace(/\D/g,'');
+            }
+            if (!waOrtu) return;
+            const siswaDB = window.allSiswaDB.find(s => s.nisn&&s.nisn.toString()===nisn) || {};
+            const ok = await kirimWA(waOrtu, buildPesan(siswaDB, hasil));
+            if (ok) {
+                alert('✅ Notifikasi terkirim ke ' + waOrtu);
+                if (siswaDB.id && window.isFirebaseReady) {
+                    await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', siswaDB.id), { notifSent:true, notifSentAt:Date.now() });
+                }
+            } else { alert('❌ Gagal kirim. Cek token Fonnte dan koneksi.'); }
+        };
+
+        window.kirimNotifikasiSemua = async function() {
+            const token = localStorage.getItem('integritest_fonnte_token') || '';
+            if (!token) { alert('⚠️ Token Fonnte belum diatur!'); return; }
+            const selesai = (window._allDashboardData||[]).filter(d => d.status==='SELESAI' && d.score!=null);
+            if (!selesai.length) { alert('Belum ada siswa yang selesai ujian.'); return; }
+            const adaWA = selesai.filter(d => {
+                const nisn = (d.studentNisn||'').toString().trim();
+                return window.allSiswaDB.find(s => s.nisn.toString()===nisn && s.waOrtu);
+            }).length;
+            if (!adaWA) { alert(selesai.length + ' siswa selesai, tapi tidak ada No. WA Ortu di database.\n\nImport data siswa terlebih dahulu.'); return; }
+            if (!confirm('Kirim notifikasi ke ' + adaWA + ' orang tua? (Siswa tanpa WA dilewati)')) return;
+            let berhasil=0, gagal=0, skip=0;
+            for (const d of selesai) {
+                const nisn = (d.studentNisn||'').toString().trim();
+                const siswaDB = window.allSiswaDB.find(s => s.nisn.toString()===nisn);
+                if (!siswaDB || !siswaDB.waOrtu) { skip++; continue; }
+                const ok = await kirimWA(siswaDB.waOrtu, buildPesan(siswaDB, d));
+                if (ok) {
+                    berhasil++;
+                    await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', siswaDB.id), { notifSent:true, notifSentAt:Date.now() });
+                } else { gagal++; }
+                await new Promise(r => setTimeout(r, 700));
+            }
+            alert('✅ Selesai!\n✓ Terkirim: ' + berhasil + '\n✗ Gagal: ' + gagal + '\n⊘ Dilewati: ' + skip);
+        };
+
+        window.getWaOrtuByNisn = function(nisn) {
+            if (!nisn) return null;
+            const found = window.allSiswaDB.find(s => s.nisn.toString().trim()===nisn.toString().trim());
+            return found ? found.waOrtu || null : null;
+        };
+
+        waitFirebase(() => {
+            listenForSiswa();
+            loadFonnteLocal();
+            getDocs(COLL_SETTING()).then(snap => {
+                snap.forEach(d => {
+                    const data = d.data();
+                    if (data.fonnteToken) {
+                        localStorage.setItem('integritest_fonnte_token', data.fonnteToken);
+                        if (data.fonnteTemplate) localStorage.setItem('integritest_fonnte_template', data.fonnteTemplate);
+                        loadFonnteLocal();
+                    }
+                });
+            }).catch(()=>{});
+        });
+
+    </script>
+
 </html>
