@@ -2664,14 +2664,11 @@
                 <button onclick="window.switchDashTab('analitik')" id="tab-dash-analitik" class="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
                     <i data-lucide="shield-check" class="w-4 h-4"></i><span class="hidden lg:inline">Analitik</span><span class="lg:hidden">Analitik</span>
                 </button>
-                <button onclick="window.switchDashTab('kelas')" id="tab-dash-kelas" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
-                    <i data-lucide="school" class="w-4 h-4"></i><span class="hidden lg:inline">Manajemen</span> Kelas
+                <button onclick="window.switchDashTab('kelasruang')" id="tab-dash-kelasruang" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i><span class="hidden lg:inline">Kelas &</span> Ruang
                 </button>
                 <button onclick="window.switchDashTab('soal')" id="tab-dash-soal" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
                     <i data-lucide="layers" class="w-4 h-4"></i><span class="hidden lg:inline">Manajemen</span> Soal
-                </button>
-                <button onclick="window.switchDashTab('ruang')" id="tab-dash-ruang" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
-                    <i data-lucide="door-open" class="w-4 h-4"></i><span class="hidden lg:inline">Manajemen</span> Ruang
                 </button>
                 <button onclick="window.switchDashTab('siswa')" id="tab-dash-siswa" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
                     <i data-lucide="users-round" class="w-4 h-4"></i><span class="hidden lg:inline">Data</span> Siswa
@@ -3696,81 +3693,95 @@
 
 
                         <!-- PANEL 4: MANAJEMEN KELAS -->
-            <div id="panel-kelas" class="hidden-section admin-only-panel">
-                <div class="bg-white rounded-xl shadow-sm border p-6">
-                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                        <div>
-                            <h2 class="text-xl font-bold text-gray-800">Manajemen Kelas</h2>
-                            <p class="text-gray-500 text-sm">Tambah, edit, dan hapus daftar kelas yang tersedia.</p>
+            <!-- PANEL: MANAJEMEN KELAS & RUANG (digabung) -->
+            <div id="panel-kelasruang" class="hidden-section admin-only-panel">
+
+                <!-- Sub-tab internal: Kelas | Ruang -->
+                <div class="flex gap-1 mb-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5">
+                    <button onclick="window.switchKelasRuangTab('kelas')" id="subtab-kelas"
+                        class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-blue-600 text-white font-bold text-sm transition-all">
+                        <i data-lucide="school" class="w-4 h-4"></i> Manajemen Kelas
+                    </button>
+                    <button onclick="window.switchKelasRuangTab('ruang')" id="subtab-ruang"
+                        class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
+                        <i data-lucide="door-open" class="w-4 h-4"></i> Manajemen Ruang Ujian
+                    </button>
+                </div>
+
+                <!-- Bagian Kelas -->
+                <div id="section-kelas-inner">
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">Manajemen Kelas</h2>
+                                <p class="text-gray-500 text-sm">Tambah, edit, dan hapus daftar kelas yang tersedia.</p>
+                            </div>
+                            <button onclick="window.openKelasModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Tambah Kelas
+                            </button>
                         </div>
-                        <button onclick="window.openKelasModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah Kelas
-                        </button>
-                    </div>
-
-                    <div class="overflow-x-auto border rounded-xl">
-                        <table class="w-full text-left text-sm text-gray-600">
-                            <thead class="bg-gray-50 text-gray-900 font-semibold border-b sticky top-0 z-10">
-                                <tr>
-                                    <th class="px-6 py-4 w-12">No</th>
-                                    <th class="px-6 py-4">Nama Kelas</th>
-                                    <th class="px-6 py-4">Keterangan</th>
-                                    <th class="px-6 py-4 text-center w-32">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="kelas-table-body" class="divide-y divide-gray-100">
-                                <tr><td colspan="4" class="px-6 py-10 text-center text-gray-400">Memuat data kelas...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div id="pager-kelas-wrap"></div>
-
-                    <div id="kelas-offline-warn" class="hidden mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center gap-2">
-                        <i data-lucide="wifi-off" class="w-4 h-4 shrink-0"></i>
-                        Mode Offline — perubahan kelas tidak tersimpan ke server.
+                        <div class="overflow-x-auto border rounded-xl">
+                            <table class="w-full text-left text-sm text-gray-600">
+                                <thead class="bg-gray-50 text-gray-900 font-semibold border-b sticky top-0 z-10">
+                                    <tr>
+                                        <th class="px-6 py-4 w-12">No</th>
+                                        <th class="px-6 py-4">Nama Kelas</th>
+                                        <th class="px-6 py-4">Keterangan</th>
+                                        <th class="px-6 py-4 text-center w-32">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kelas-table-body" class="divide-y divide-gray-100">
+                                    <tr><td colspan="4" class="px-6 py-10 text-center text-gray-400">Memuat data kelas...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="pager-kelas-wrap"></div>
+                        <div id="kelas-offline-warn" class="hidden mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center gap-2">
+                            <i data-lucide="wifi-off" class="w-4 h-4 shrink-0"></i>
+                            Mode Offline — perubahan kelas tidak tersimpan ke server.
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- PANEL: MANAJEMEN RUANG -->
-            <div id="panel-ruang" class="hidden-section admin-only-panel">
-                <div class="bg-white rounded-xl shadow-sm border p-6">
-                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                        <div>
-                            <h2 class="text-xl font-bold text-gray-800">Manajemen Ruang Ujian</h2>
-                            <p class="text-gray-500 text-sm">Atur ruang ujian beserta password pengawas per ruang.</p>
+                <!-- Bagian Ruang (disembunyikan awal) -->
+                <div id="section-ruang-inner" class="hidden">
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">Manajemen Ruang Ujian</h2>
+                                <p class="text-gray-500 text-sm">Atur ruang ujian beserta password pengawas per ruang.</p>
+                            </div>
+                            <button onclick="window.openRuangModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Tambah Ruang
+                            </button>
                         </div>
-                        <button onclick="window.openRuangModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah Ruang
-                        </button>
-                    </div>
-
-                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-start gap-3">
-                        <i data-lucide="info" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
-                        <div class="text-sm text-amber-800">
-                            <strong>Cara kerja sistem ruang:</strong> Siswa memilih ruang saat login → datanya otomatis masuk ke ruang tersebut. Pengawas login dengan password ruangnya → hanya bisa melihat siswa di ruangnya. Admin bisa melihat semua ruang.
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+                            <i data-lucide="info" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
+                            <div class="text-sm text-amber-800">
+                                <strong>Cara kerja sistem ruang:</strong> Siswa memilih ruang saat login → datanya otomatis masuk ke ruang tersebut. Pengawas login dengan password ruangnya → hanya bisa melihat siswa di ruangnya. Admin bisa melihat semua ruang.
+                            </div>
                         </div>
+                        <div class="overflow-x-auto border rounded-xl">
+                            <table class="w-full text-left text-sm text-gray-600">
+                                <thead class="bg-gray-50 text-gray-900 font-semibold border-b sticky top-0 z-10">
+                                    <tr>
+                                        <th class="px-6 py-4 w-12">No</th>
+                                        <th class="px-6 py-4">Nama Ruang</th>
+                                        <th class="px-6 py-4">Password Pengawas</th>
+                                        <th class="px-6 py-4">Keterangan</th>
+                                        <th class="px-6 py-4 text-center w-32">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ruang-table-body" class="divide-y divide-gray-100">
+                                    <tr><td colspan="5" class="px-6 py-10 text-center text-gray-400">Memuat data ruang...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="pager-ruang-wrap"></div>
                     </div>
-
-                    <div class="overflow-x-auto border rounded-xl">
-                        <table class="w-full text-left text-sm text-gray-600">
-                            <thead class="bg-gray-50 text-gray-900 font-semibold border-b sticky top-0 z-10">
-                                <tr>
-                                    <th class="px-6 py-4 w-12">No</th>
-                                    <th class="px-6 py-4">Nama Ruang</th>
-                                    <th class="px-6 py-4">Password Pengawas</th>
-                                    <th class="px-6 py-4">Keterangan</th>
-                                    <th class="px-6 py-4 text-center w-32">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ruang-table-body" class="divide-y divide-gray-100">
-                                <tr><td colspan="5" class="px-6 py-10 text-center text-gray-400">Memuat data ruang...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div id="pager-ruang-wrap"></div>
                 </div>
-            </div>
+
+            </div><!-- end panel-kelasruang -->
 
             <!-- PANEL: SETTING TAMPILAN -->
             <!-- ══════════════════════════════════════════════════════ -->
@@ -4699,20 +4710,15 @@ Terima kasih 🙏</textarea>
                     <i data-lucide="shield-check" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">ANALITIK</span>
                 </button>
-                <button onclick="window.switchDashTab('kelas')" id="mob-tab-kelas"
+                <button onclick="window.switchDashTab('kelasruang')" id="mob-tab-kelasruang"
                     class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
-                    <i data-lucide="school" class="w-5 h-5"></i>
-                    <span class="text-[9px] font-bold tracking-wide">KELAS</span>
+                    <i data-lucide="layout-grid" class="w-5 h-5"></i>
+                    <span class="text-[9px] font-bold tracking-wide">KELAS/RUANG</span>
                 </button>
                 <button onclick="window.switchDashTab('soal')" id="mob-tab-soal"
                     class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
                     <i data-lucide="layers" class="w-5 h-5"></i>
                     <span class="text-[9px] font-bold tracking-wide">SOAL</span>
-                </button>
-                <button onclick="window.switchDashTab('ruang')" id="mob-tab-ruang"
-                    class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
-                    <i data-lucide="door-open" class="w-5 h-5"></i>
-                    <span class="text-[9px] font-bold tracking-wide">RUANG</span>
                 </button>
                 <button onclick="window.switchDashTab('siswa')" id="mob-tab-siswa"
                     class="admin-only-tab min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400">
@@ -6315,10 +6321,10 @@ Terima kasih 🙏</textarea>
             const mobActive   = "flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 bg-blue-50 text-blue-600";
             const mobInactive = "flex-1 flex flex-col items-center justify-center gap-0.5 rounded-xl mx-0.5 my-1.5 transition-all duration-200 text-gray-400";
 
-            const tabs   = ['welcome','nilai','kelas','soal','ruang','siswa','analitik','jadwal','tampilan'];
-            const panels = { welcome:'panel-welcome', nilai:'panel-nilai', soal:'panel-soal', kelas:'panel-kelas', ruang:'panel-ruang', siswa:'panel-siswa', analitik:'panel-analitik', jadwal:'panel-jadwal', tampilan:'panel-tampilan' };
-            const btnIds = { welcome:'tab-dash-welcome', nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelas:'tab-dash-kelas', ruang:'tab-dash-ruang', siswa:'tab-dash-siswa', analitik:'tab-dash-analitik', jadwal:'tab-dash-jadwal', tampilan:'tab-dash-tampilan' };
-            const mobIds = { welcome:'mob-tab-welcome', nilai:'mob-tab-nilai', soal:'mob-tab-soal', kelas:'mob-tab-kelas', ruang:'mob-tab-ruang', siswa:'mob-tab-siswa', analitik:'mob-tab-analitik', jadwal:'mob-tab-jadwal', tampilan:'mob-tab-tampilan' };
+            const tabs   = ['welcome','nilai','kelasruang','soal','siswa','analitik','jadwal','tampilan'];
+            const panels = { welcome:'panel-welcome', nilai:'panel-nilai', soal:'panel-soal', kelasruang:'panel-kelasruang', siswa:'panel-siswa', analitik:'panel-analitik', jadwal:'panel-jadwal', tampilan:'panel-tampilan' };
+            const btnIds = { welcome:'tab-dash-welcome', nilai:'tab-dash-nilai', soal:'tab-dash-soal', kelasruang:'tab-dash-kelasruang', siswa:'tab-dash-siswa', analitik:'tab-dash-analitik', jadwal:'tab-dash-jadwal', tampilan:'tab-dash-tampilan' };
+            const mobIds = { welcome:'mob-tab-welcome', nilai:'mob-tab-nilai', soal:'mob-tab-soal', kelasruang:'mob-tab-kelasruang', siswa:'mob-tab-siswa', analitik:'mob-tab-analitik', jadwal:'mob-tab-jadwal', tampilan:'mob-tab-tampilan' };
 
             tabs.forEach(t => {
                 // Desktop tab
@@ -6345,8 +6351,7 @@ Terima kasih 🙏</textarea>
 
             if (tab === 'analitik') { setTimeout(() => window.renderIntegrityDashboard(), 300); }
             if (tab === 'soal') { window.backToPaketList(); window.renderPaketGrid(); }
-            if (tab === 'kelas') window.renderKelasList();
-            if (tab === 'ruang') window.renderRuangList();
+            if (tab === 'kelasruang') { window.renderKelasList(); window.switchKelasRuangTab('kelas'); }
             if (tab === 'siswa') window.renderSiswaTable();
             if (tab === 'tampilan') window.loadTampilanFields();
             if (tab === 'jadwal') { window.renderJadwalList(); window.initJadwalForm(); }
@@ -6354,6 +6359,23 @@ Terima kasih 🙏</textarea>
         };
 
         // Toggle import section di dalam panel soal
+        // Sub-tab internal Kelas / Ruang dalam satu panel
+        window.switchKelasRuangTab = function(sub) {
+            const activeClass   = 'flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-blue-600 text-white font-bold text-sm transition-all';
+            const inactiveClass = 'flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all';
+            const btnKelas = document.getElementById('subtab-kelas');
+            const btnRuang = document.getElementById('subtab-ruang');
+            const secKelas = document.getElementById('section-kelas-inner');
+            const secRuang = document.getElementById('section-ruang-inner');
+            if (btnKelas) btnKelas.className = sub === 'kelas' ? activeClass : inactiveClass;
+            if (btnRuang) btnRuang.className = sub === 'ruang' ? activeClass : inactiveClass;
+            if (secKelas) secKelas.classList.toggle('hidden', sub !== 'kelas');
+            if (secRuang) secRuang.classList.toggle('hidden', sub !== 'ruang');
+            if (sub === 'kelas') window.renderKelasList();
+            if (sub === 'ruang') window.renderRuangList();
+            if(typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
         window.toggleImportSection = function() {
             const sec = document.getElementById('section-import-inline');
             if (!sec) return;
@@ -9157,13 +9179,14 @@ Terima kasih 🙏</textarea>
             tbody.innerHTML = '';
 
             // ── DEDUPLICATION: 1 siswa = 1 entri di monitoring ──
-            // Jika ada duplikat (NISN sama atau nama+kelas sama), ambil dokumen terbaru.
-            // Dokumen yang status-nya SELESAI/DISKUALIFIKASI diprioritaskan di atas SEDANG MENGERJAKAN.
+            // Key: prioritaskan NISN jika ada dan tidak kosong/nol.
+            // Fallback ke nama+kelas HANYA jika benar-benar tidak ada NISN.
             const dedupMap = new Map();
             dashboardData.forEach(item => {
-                const key = item.studentNisn
-                    ? item.studentNisn.toString().trim()
-                    : `${(item.studentName||'').toLowerCase()}__${item.className||''}`;
+                const nisn = (item.studentNisn || '').toString().trim();
+                const key = (nisn && nisn !== '0' && nisn !== '-')
+                    ? `nisn_${nisn}`
+                    : `name_${(item.studentName||'').toLowerCase().trim()}__${(item.className||'').trim()}`;
                 
                 if (!dedupMap.has(key)) {
                     dedupMap.set(key, item);
@@ -9171,7 +9194,6 @@ Terima kasih 🙏</textarea>
                     const existing = dedupMap.get(key);
                     const existFinished = existing.status.includes('SELESAI') || existing.status.includes('DISKUALIFIKASI');
                     const newFinished   = item.status.includes('SELESAI') || item.status.includes('DISKUALIFIKASI');
-                    // Prioritas: SELESAI/DQ > MELANJUTKAN > SEDANG MENGERJAKAN; jika sama, ambil terbaru
                     if (!existFinished && newFinished) {
                         dedupMap.set(key, item);
                     } else if (existFinished === newFinished && item.timestamp > existing.timestamp) {
@@ -9191,17 +9213,21 @@ Terima kasih 🙏</textarea>
                 let matchSesi = true;
                 if (!isLive) { // live siswa selalu lolos filter sesi
                     if (filterSesi === 'active') {
-                        // Cocokkan dengan semua jadwal yang sedang aktif
                         const jadwalAktifIds = (window.allJadwalDB || [])
                             .filter(j => j.isActive === true)
                             .map(j => j.id);
+                        
+                        // Selalu tampilkan siswa yang ujian HARI INI — termasuk yang pakai token manual
+                        const today = new Date().toISOString().slice(0,10);
+                        const itemDate = item.timestamp ? new Date(item.timestamp).toISOString().slice(0,10) : '';
+                        const isToday = itemDate === today;
+
                         if (jadwalAktifIds.length > 0) {
-                            matchSesi = jadwalAktifIds.includes(item.sesiId);
+                            // Ada jadwal aktif: tampilkan yang sesiId cocok ATAU ujian hari ini
+                            matchSesi = jadwalAktifIds.includes(item.sesiId) || isToday;
                         } else {
-                            // Tidak ada jadwal aktif → tampilkan data terbaru (hari ini)
-                            const today = new Date().toISOString().slice(0,10);
-                            const itemDate = item.timestamp ? new Date(item.timestamp).toISOString().slice(0,10) : '';
-                            matchSesi = itemDate === today || item.sesiId === (window.currentSesiId || 'default');
+                            // Tidak ada jadwal aktif: tampilkan semua yang hari ini atau sesiId default
+                            matchSesi = isToday || item.sesiId === (window.currentSesiId || 'default') || !item.sesiId || item.sesiId === 'default';
                         }
                     } else if (filterSesi !== 'all') {
                         matchSesi = item.sesiId === filterSesi;
