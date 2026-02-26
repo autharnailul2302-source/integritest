@@ -392,6 +392,59 @@
                     try {
                         sessionStorage.removeItem('ukktkj_current_exam_doc_id');
                     } catch(e) {}
+
+                    // ★ AUTO KIRIM WA — jika diaktifkan admin
+                    try {
+                        const autoSendOn = localStorage.getItem('integritest_fonnte_auto_send') === '1';
+                        const fonnteToken = localStorage.getItem('integritest_fonnte_token') || '';
+                        if (autoSendOn && fonnteToken && data.studentNisn) {
+                            // Tunggu allSiswaDB siap (maks 5 detik)
+                            let _tries = 0;
+                            const _waitSiswa = () => new Promise(res => {
+                                const _chk = () => {
+                                    if ((window.allSiswaDB && window.allSiswaDB.length > 0) || _tries++ > 25) res();
+                                    else setTimeout(_chk, 200);
+                                };
+                                _chk();
+                            });
+                            await _waitSiswa();
+
+                            const _nisn = data.studentNisn.toString().trim();
+                            const _siswaDB = (window.allSiswaDB || []).find(s => s.nisn && s.nisn.toString().trim() === _nisn);
+                            const _waOrtu = _siswaDB ? (_siswaDB.waOrtu || '') : '';
+                            if (_waOrtu) {
+                                const _defTpl = "Assalamu'alaikum Bpk/Ibu Wali dari *{nama}*.\n\nBerikut hasil ujian putra/putri Anda:\n\ud83d\udcda Mata Ujian: {mapel}\n\ud83c\udfeb Kelas: {kelas}\n\ud83d\udcca Nilai: *{nilai}*\n\ud83c\udfc6 Predikat: {status}\n\nTerima kasih \ud83d\ude4f";
+                                const _tpl = localStorage.getItem('integritest_fonnte_template') || _defTpl;
+                                const _score = data.score ?? '-';
+                                let _statusLabel = '-';
+                                if (typeof _score === 'number') _statusLabel = _score>=90?'Sangat Baik (A)':_score>=75?'Baik (B)':_score>=60?'Cukup (C)':'Perlu Peningkatan (D)';
+                                const _pesan = _tpl
+                                    .replace(/{nama}/g, data.studentName || (_siswaDB ? _siswaDB.nama : '') || '-')
+                                    .replace(/{kelas}/g, data.className || (_siswaDB ? _siswaDB.kelas : '') || '-')
+                                    .replace(/{nilai}/g, _score)
+                                    .replace(/{status}/g, _statusLabel)
+                                    .replace(/{mapel}/g, data.paketNama || data.sesiName || 'Ujian');
+                                fetch('https://api.fonnte.com/send', {
+                                    method: 'POST',
+                                    headers: { 'Authorization': fonnteToken, 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ target: _waOrtu, message: _pesan, countryCode: '62' })
+                                }).then(r => r.json()).then(res => {
+                                    if (res.status === true) {
+                                        console.log('[AutoWA] \u2705 Notifikasi nilai terkirim ke', _waOrtu);
+                                        if (_siswaDB && _siswaDB.id && window.isFirebaseReady) {
+                                            updateDoc(doc(window.db,'artifacts',window.appId,'public','data','data_siswa',_siswaDB.id),{notifSent:true,notifSentAt:Date.now()}).catch(()=>{});
+                                        }
+                                    } else {
+                                        console.warn('[AutoWA] \u26a0\ufe0f Gagal kirim WA otomatis:', res);
+                                    }
+                                }).catch(eW => console.warn('[AutoWA] Error fetch:', eW));
+                            } else {
+                                console.log('[AutoWA] Tidak ada No. WA untuk NISN', _nisn);
+                            }
+                        }
+                    } catch(eAuto) {
+                        console.warn('[AutoWA] Error auto-send:', eAuto);
+                    }
                 } catch (e) {
                     console.warn('[IntegriTest] Gagal simpan, retry dalam 3 detik...', e);
                     // Tampilkan banner offline
@@ -949,19 +1002,25 @@
             const essayInfo    = document.getElementById('q-essay-info');
 
             const inactiveClass = 'py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+            const menjodohkanBtn  = document.getElementById('q-tipe-menjodohkan-btn');
+            const menjodohkanWrap = document.getElementById('q-menjodohkan-wrap');
+            const menjodohkanInfo = document.getElementById('q-menjodohkan-info');
 
             // Reset all — gunakan null-check agar tidak crash jika elemen tidak ada di HTML
-            if (singleWrap) singleWrap.classList.add('hidden');
-            if (multiWrap)  multiWrap.classList.add('hidden');
-            if (tfWrap)     tfWrap.classList.add('hidden');
-            if (essayWrap)  essayWrap.classList.add('hidden');
-            if (singleBtn)  singleBtn.className = inactiveClass;
-            if (multiBtn)   multiBtn.className  = inactiveClass;
-            if (tfBtn)      tfBtn.className     = inactiveClass;
-            if (essayBtn)   essayBtn.className  = inactiveClass;
-            if (optSection) optSection.classList.remove('hidden');
-            if (tfInfo)     tfInfo.classList.add('hidden');
-            if (essayInfo)  essayInfo.classList.add('hidden');
+            if (singleWrap)       singleWrap.classList.add('hidden');
+            if (multiWrap)        multiWrap.classList.add('hidden');
+            if (tfWrap)           tfWrap.classList.add('hidden');
+            if (essayWrap)        essayWrap.classList.add('hidden');
+            if (menjodohkanWrap)  menjodohkanWrap.classList.add('hidden');
+            if (menjodohkanInfo)  menjodohkanInfo.classList.add('hidden');
+            if (singleBtn)        singleBtn.className = inactiveClass;
+            if (multiBtn)         multiBtn.className  = inactiveClass;
+            if (tfBtn)            tfBtn.className     = inactiveClass;
+            if (essayBtn)         essayBtn.className  = inactiveClass;
+            if (menjodohkanBtn)   menjodohkanBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all col-span-2';
+            if (optSection)       optSection.classList.remove('hidden');
+            if (tfInfo)           tfInfo.classList.add('hidden');
+            if (essayInfo)        essayInfo.classList.add('hidden');
 
             if (tipe === 'multiple') {
                 if (multiWrap) multiWrap.classList.remove('hidden');
@@ -979,11 +1038,76 @@
                 if (hint) { hint.textContent = 'Esai: siswa menjawab dengan uraian. Dikoreksi AI atau manual guru setelah ujian.'; hint.className = 'text-xs text-purple-600 mt-2'; }
                 if (optSection) optSection.classList.add('hidden');
                 if (essayInfo)  essayInfo.classList.remove('hidden');
+            } else if (tipe === 'menjodohkan') {
+                if (menjodohkanBtn)  menjodohkanBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-teal-500 bg-teal-50 text-teal-700 font-bold text-sm flex items-center justify-center gap-2 transition-all col-span-2';
+                if (menjodohkanWrap) menjodohkanWrap.classList.remove('hidden');
+                if (menjodohkanInfo) menjodohkanInfo.classList.remove('hidden');
+                if (hint) { hint.textContent = 'Menjodohkan: siswa memasangkan kolom kiri dengan kolom kanan yang sesuai.'; hint.className = 'text-xs text-teal-600 mt-2'; }
+                if (optSection) optSection.classList.add('hidden');
+                // Auto-isi 3 pasang kosong jika belum ada
+                const pairsContainer = document.getElementById('q-menjodohkan-pairs');
+                if (pairsContainer && pairsContainer.children.length === 0) {
+                    window.addMenjodohkanPair();
+                    window.addMenjodohkanPair();
+                    window.addMenjodohkanPair();
+                }
             } else {
                 if (singleWrap) singleWrap.classList.remove('hidden');
                 if (singleBtn)  singleBtn.className = 'py-2.5 px-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 transition-all';
                 if (hint) { hint.textContent = 'Pilihan tunggal: hanya 1 jawaban benar.'; hint.className = 'text-xs text-gray-400 mt-2'; }
             }
+        };
+
+        // ★ MENJODOHKAN HELPER — tambah baris pasangan
+        window.addMenjodohkanPair = function() {
+            const container = document.getElementById('q-menjodohkan-pairs');
+            if (!container) return;
+            const idx = container.children.length;
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2';
+            row.dataset.pairIdx = idx;
+            row.innerHTML = `
+                <span class="text-xs font-bold text-teal-500 w-5 text-center shrink-0">${idx+1}</span>
+                <input type="text" placeholder="Pernyataan / Soal..." class="mj-kiri flex-1 px-3 py-2 border border-teal-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-white" oninput="window._menjodohkanDirty=true">
+                <span class="text-teal-400 font-bold shrink-0">↔</span>
+                <input type="text" placeholder="Pasangan / Jawaban..." class="mj-kanan flex-1 px-3 py-2 border border-orange-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-400 bg-white" oninput="window._menjodohkanDirty=true">
+                <button type="button" onclick="this.closest('[data-pair-idx]').remove(); window._renumberPairs()" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors shrink-0" title="Hapus baris">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>`;
+            container.appendChild(row);
+        };
+
+        window._renumberPairs = function() {
+            const rows = document.querySelectorAll('#q-menjodohkan-pairs [data-pair-idx]');
+            rows.forEach((r, i) => { r.querySelector('span').textContent = i+1; r.dataset.pairIdx = i; });
+        };
+
+        window._getMenjodohkanPairs = function() {
+            const rows = document.querySelectorAll('#q-menjodohkan-pairs [data-pair-idx]');
+            return Array.from(rows).map(r => ({
+                kiri:  r.querySelector('.mj-kiri').value.trim(),
+                kanan: r.querySelector('.mj-kanan').value.trim()
+            })).filter(p => p.kiri || p.kanan);
+        };
+
+        window._loadMenjodohkanPairs = function(pairs) {
+            const container = document.getElementById('q-menjodohkan-pairs');
+            if (!container) return;
+            container.innerHTML = '';
+            (pairs || []).forEach((p, idx) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-2';
+                row.dataset.pairIdx = idx;
+                row.innerHTML = `
+                    <span class="text-xs font-bold text-teal-500 w-5 text-center shrink-0">${idx+1}</span>
+                    <input type="text" value="${(p.kiri||'').replace(/"/g,'&quot;')}" placeholder="Pernyataan / Soal..." class="mj-kiri flex-1 px-3 py-2 border border-teal-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-white" oninput="window._menjodohkanDirty=true">
+                    <span class="text-teal-400 font-bold shrink-0">↔</span>
+                    <input type="text" value="${(p.kanan||'').replace(/"/g,'&quot;')}" placeholder="Pasangan / Jawaban..." class="mj-kanan flex-1 px-3 py-2 border border-orange-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-400 bg-white" oninput="window._menjodohkanDirty=true">
+                    <button type="button" onclick="this.closest('[data-pair-idx]').remove(); window._renumberPairs()" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors shrink-0" title="Hapus baris">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>`;
+                container.appendChild(row);
+            });
         };
 
         window.openQuestionModal = (id = null) => {
@@ -1043,6 +1167,9 @@
                         const skorEl = document.getElementById('q-essay-skor-maks');
                         if (rubrikEl) rubrikEl.value = q.essayRubrik || '';
                         if (skorEl) skorEl.value = q.essaySkorMaks || 10;
+                    } else if (tipe === 'menjodohkan') {
+                        // Load pasangan menjodohkan
+                        if (Array.isArray(q.pasangan)) window._loadMenjodohkanPairs(q.pasangan);
                     } else {
                         document.getElementById('q-correct').value = Array.isArray(q.correct) ? q.correct[0] : q.correct;
                     }
@@ -1205,6 +1332,8 @@
                 essaySkorMaks = skorEl ? parseInt(skorEl.value) || 10 : 10;
                 if (!essayRubrik) return alert("Soal esai harus memiliki rubrik/kunci jawaban untuk koreksi!");
                 correct = null; // essay tidak punya correct index
+            } else if (tipe === 'menjodohkan') {
+                correct = null; // menjodohkan tidak pakai correct biasa
             } else {
                 correct = parseInt(document.getElementById('q-correct').value);
             }
@@ -1223,11 +1352,20 @@
                 optionImages.push(imgData ? imgData.value : '');
             });
 
+            // Validasi menjodohkan
+            let pasangan = [];
+            if (tipe === 'menjodohkan') {
+                pasangan = window._getMenjodohkanPairs();
+                if (pasangan.length < 2) return alert("Soal menjodohkan minimal memiliki 2 pasangan!");
+                if (pasangan.some(p => !p.kiri || !p.kanan)) return alert("Semua baris menjodohkan harus terisi (kiri dan kanan)!");
+            }
+
             if (!text && !image) return alert("Soal harus memiliki teks pertanyaan atau gambar soal!");
-            if (tipe !== 'truefalse' && tipe !== 'essay' && options.every(o => !o) && optionImages.every(i => !i)) return alert("Minimal satu pilihan jawaban harus diisi!");
+            if (tipe !== 'truefalse' && tipe !== 'essay' && tipe !== 'menjodohkan' && options.every(o => !o) && optionImages.every(i => !i)) return alert("Minimal satu pilihan jawaban harus diisi!");
 
             const data = { paketId, packet, text, options, optionImages, correct, tipe, image, token, aktif, updatedAt: Date.now() };
             if (tipe === 'essay') { data.essayRubrik = essayRubrik; data.essaySkorMaks = essaySkorMaks; }
+            if (tipe === 'menjodohkan') { data.pasangan = pasangan; }
 
             try {
                 if (id) {
@@ -1525,7 +1663,17 @@
             #btn-prev span, #btn-next span { display: none; }
             #timer-display { font-size: 0.9rem; }
         }
-    </style>
+
+        /* Sub-tab siswa - override Tailwind hidden */
+        #siswa-sub-data, #siswa-sub-kartu, #siswa-sub-wa {
+            display: block;
+        }
+        #siswa-sub-data.siswa-hidden,
+        #siswa-sub-kartu.siswa-hidden,
+        #siswa-sub-wa.siswa-hidden {
+            display: none !important;
+        }
+        </style>
 </head>
 <body>
 
@@ -2164,6 +2312,10 @@
                                     class="py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all">
                                     <i data-lucide="pencil-line" class="w-4 h-4"></i> Esai / Uraian
                                 </button>
+                                <button type="button" id="q-tipe-menjodohkan-btn" onclick="window.setQuestionType('menjodohkan')"
+                                    class="py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-bold text-sm flex items-center justify-center gap-2 transition-all col-span-2">
+                                    <i data-lucide="git-merge" class="w-4 h-4"></i> Menjodohkan / Pasangkan
+                                </button>
                             </div>
                             <input type="hidden" id="q-tipe" value="single">
                             <p id="q-tipe-hint" class="text-xs text-gray-400 mt-2">Pilihan tunggal: hanya 1 jawaban benar.</p>
@@ -2328,6 +2480,35 @@
                             <p class="text-sm font-bold text-purple-800">Soal Esai / Uraian</p>
                         </div>
                         <p class="text-xs text-purple-700 leading-relaxed">Siswa akan menulis jawaban uraian bebas. Koreksi dilakukan setelah ujian: <strong>otomatis oleh AI</strong> berdasarkan rubrik, atau <strong>manual oleh guru</strong> dengan override nilai.</p>
+                    </div>
+
+                    <!-- ★ INPUT PASANGAN MENJODOHKAN -->
+                    <div id="q-menjodohkan-wrap" class="hidden">
+                        <div class="bg-teal-50 rounded-xl border border-teal-200 p-4 mb-3">
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-xs font-bold text-teal-700 uppercase tracking-wide flex items-center gap-1.5">
+                                    <i data-lucide="git-merge" class="w-3.5 h-3.5"></i> Pasangan Soal &amp; Jawaban
+                                    <span class="ml-1 text-[10px] font-normal text-teal-500">Minimal 2 pasang</span>
+                                </p>
+                                <button type="button" onclick="window.addMenjodohkanPair()" class="text-xs font-bold text-teal-700 bg-teal-100 hover:bg-teal-200 border border-teal-300 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Pasangan
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div class="text-xs font-bold text-teal-600 text-center bg-teal-100 rounded-lg py-1.5">Kolom Kiri (Soal/Pertanyaan)</div>
+                                <div class="text-xs font-bold text-orange-600 text-center bg-orange-100 rounded-lg py-1.5">Kolom Kanan (Jawaban)</div>
+                            </div>
+                            <div id="q-menjodohkan-pairs" class="space-y-2"></div>
+                            <p class="text-xs text-teal-600 mt-3 font-medium">ℹ️ Urutan kolom kanan akan diacak otomatis saat ujian siswa. Siswa menjodohkan dengan klik pasangan.</p>
+                        </div>
+                    </div>
+                    <!-- Info box menjodohkan -->
+                    <div id="q-menjodohkan-info" class="hidden bg-teal-50 rounded-xl border border-teal-200 p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="git-merge" class="w-4 h-4 text-teal-600 shrink-0"></i>
+                            <p class="text-sm font-bold text-teal-800">Soal Menjodohkan / Pasangkan</p>
+                        </div>
+                        <p class="text-xs text-teal-700 leading-relaxed">Siswa mencocokkan item di kolom kiri dengan kolom kanan. Kolom kanan diacak secara otomatis. Nilai penuh jika semua pasangan benar.</p>
                     </div>
 
                 </div>
@@ -2622,7 +2803,7 @@
     </div>
 
     <!-- SECTION: DASHBOARD GURU -->
-    <div id="section-dashboard" class="hidden-section min-h-screen bg-slate-50 flex flex-col">
+    <div id="section-dashboard" class="hidden-section min-h-screen bg-slate-50 flex flex-col" style="padding-bottom: 0px;">
         <header class="bg-slate-900 text-white shadow-lg">
             <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -2665,7 +2846,7 @@
                     <i data-lucide="shield-check" class="w-4 h-4"></i><span class="hidden lg:inline">Analitik</span><span class="lg:hidden">Analitik</span>
                 </button>
                 <button onclick="window.switchDashTab('kelasruang')" id="tab-dash-kelasruang" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
-                    <i data-lucide="layout-grid" class="w-4 h-4"></i><span class="hidden lg:inline">Kelas &</span> Ruang
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i><span>Kelas & Ruang</span>
                 </button>
                 <button onclick="window.switchDashTab('soal')" id="tab-dash-soal" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
                     <i data-lucide="layers" class="w-4 h-4"></i><span class="hidden lg:inline">Manajemen</span> Soal
@@ -2677,7 +2858,7 @@
                     <i data-lucide="calendar-clock" class="w-4 h-4"></i><span class="hidden lg:inline">Jadwal</span>
                 </button>
                 <button onclick="window.switchDashTab('tampilan')" id="tab-dash-tampilan" class="admin-only-tab flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all">
-                    <i data-lucide="palette" class="w-4 h-4"></i><span class="hidden lg:inline">Setting</span> Tampilan
+                    <i data-lucide="settings-2" class="w-4 h-4"></i><span>Setting</span>
                 </button>
             </div>
 
@@ -2704,7 +2885,7 @@
                         <div class="shrink-0 hidden md:flex flex-col items-end gap-2">
                             <div class="text-right">
                                 <p class="text-blue-200 text-xs font-semibold uppercase tracking-widest">Versi</p>
-                                <p class="text-white font-black text-2xl">2026 v2</p>
+                                <p class="text-white font-black text-2xl">2026 v3</p>
                             </div>
                         </div>
                     </div>
@@ -2776,6 +2957,43 @@
                             <h3 class="font-bold text-gray-800 text-sm mb-1">Nilai Fleksibel per Paket</h3>
                             <p class="text-gray-500 text-xs leading-relaxed">Atur nilai maksimal per paket soal. Sistem menghitung otomatis nilai tiap soal dan total nilai akhir siswa.</p>
                         </div>
+                        <!-- ★ FITUR BARU ★ -->
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow relative overflow-hidden">
+                            <div class="absolute top-3 right-3"><span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-blue-600 text-white tracking-wide">BARU</span></div>
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#ede9fe"><i data-lucide="id-card" class="w-5 h-5 text-violet-600"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Kartu Peserta Otomatis</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Generate nomor peserta ujian dan pembagian ruang otomatis. Cetak kartu peserta siap pakai langsung dari sistem.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow relative overflow-hidden">
+                            <div class="absolute top-3 right-3"><span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-blue-600 text-white tracking-wide">BARU</span></div>
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#f0fdf4"><i data-lucide="message-circle" class="w-5 h-5 text-teal-600"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Notifikasi WA Orang Tua</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Kirim hasil ujian langsung ke WhatsApp orang tua via Fonnte. Bisa manual per siswa atau kirim massal sekaligus.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow relative overflow-hidden">
+                            <div class="absolute top-3 right-3"><span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-blue-600 text-white tracking-wide">BARU</span></div>
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#fef9c3"><i data-lucide="book-marked" class="w-5 h-5 text-yellow-600"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Pembahasan Soal Terkontrol</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Admin mengatur kapan siswa boleh melihat pembahasan — setelah selesai ujian, setelah deadline, atau buka manual.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow relative overflow-hidden">
+                            <div class="absolute top-3 right-3"><span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white tracking-wide">BARU</span></div>
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#fff1f2"><i data-lucide="fingerprint" class="w-5 h-5 text-rose-500"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Device Fingerprinting</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Setiap perangkat dikenali unik. Mencegah 1 siswa mengerjakan ujian dari banyak perangkat berbeda secara bersamaan.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow relative overflow-hidden">
+                            <div class="absolute top-3 right-3"><span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white tracking-wide">BARU</span></div>
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#eff6ff"><i data-lucide="database" class="w-5 h-5 text-blue-600"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Database Siswa Terpusat</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Import data siswa massal via Excel (NISN, nama, kelas, No. WA ortu). Data tersimpan di cloud dan siap pakai untuk semua fitur.</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow relative overflow-hidden">
+                            <div class="absolute top-3 right-3"><span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white tracking-wide">BARU</span></div>
+                            <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background:#fdf4ff"><i data-lucide="image" class="w-5 h-5 text-purple-500"></i></div>
+                            <h3 class="font-bold text-gray-800 text-sm mb-1">Soal Bergambar & Media</h3>
+                            <p class="text-gray-500 text-xs leading-relaxed">Dukung soal dengan gambar inline. Upload soal bergambar via Word atau tambahkan URL gambar langsung dari editor.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -2789,7 +3007,7 @@
                         <table class="w-full text-sm border-separate border-spacing-0">
                             <thead>
                                 <tr>
-                                    <th class="text-left px-4 py-3 bg-gray-50 rounded-tl-xl text-gray-600 font-bold text-xs border-b border-gray-100">Fitur</th>
+                                    <th class="text-left px-4 py-3 bg-gray-50 rounded-tl-xl text-gray-600 font-bold text-xs border-b border-gray-100">Fitur / Kemampuan</th>
                                     <th class="px-4 py-3 bg-blue-600 text-white font-bold text-xs text-center">INTEGRITEST</th>
                                     <th class="px-4 py-3 bg-gray-100 text-gray-500 font-bold text-xs text-center rounded-tr-xl">CBT Umum</th>
                                 </tr>
@@ -2830,10 +3048,35 @@
                                     <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
                                     <td class="px-4 py-3 text-center text-gray-400 text-xs">Terbatas</td>
                                 </tr>
-                                <tr class="bg-gray-50/50">
-                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs rounded-bl-xl">Responsif di HP & PC</td>
+                                <tr class="border-b border-gray-50 bg-gray-50/50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Responsif di HP & PC</td>
                                     <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Penuh</span></td>
-                                    <td class="px-4 py-3 text-center text-gray-400 text-xs rounded-br-xl">Sebagian</td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Sebagian</td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs flex items-center gap-1.5">Kartu peserta otomatis <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600">BARU</span></td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
+                                </tr>
+                                <tr class="border-b border-gray-50 bg-gray-50/50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Notifikasi WA orang tua otomatis <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 ml-1">BARU</span></td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Pembahasan soal terkontrol admin <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 ml-1">BARU</span></td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
+                                </tr>
+                                <tr class="border-b border-gray-50 bg-gray-50/50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs">Device fingerprinting (1 siswa 1 HP) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-600 ml-1">BARU</span></td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
+                                </tr>
+                                <tr class="bg-gray-50/50">
+                                    <td class="px-4 py-3 text-gray-700 font-medium text-xs rounded-bl-xl">Soal bergambar (Word/URL) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-600 ml-1">BARU</span></td>
+                                    <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs rounded-br-xl">Terbatas</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -4201,17 +4444,17 @@
             <!-- ══════════════════════════════════════════════════════ -->
             <!-- PANEL: DATA SISWA & NOTIFIKASI WA ORTU               -->
             <!-- ══════════════════════════════════════════════════════ -->
-            <div id="panel-siswa" class="hidden-section admin-only-panel">
+            <div id="panel-siswa" class="hidden-section admin-only-panel" style="padding-bottom: 100px;">
                 <!-- Header -->
-                <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+                <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-4">
                     <div>
                         <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
                             <i data-lucide="users-round" class="w-6 h-6 text-teal-600"></i>
-                            Data Siswa & Notifikasi WA Orang Tua
+                            Data Siswa & Kartu Peserta
                         </h2>
-                        <p class="text-gray-500 text-sm mt-1">Import data siswa (NISN + No. WA Ortu) dari Excel. Kirim notifikasi hasil ujian otomatis ke WA orang tua.</p>
+                        <p class="text-gray-500 text-sm mt-1">Kelola data siswa, generate nomor peserta, atur pembagian ruang, dan cetak kartu ujian.</p>
                     </div>
-                    <div class="flex gap-2 flex-wrap">
+                    <div class="flex gap-2 flex-wrap" id="siswa-header-btns">
                         <button onclick="window.downloadTemplateSiswa()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
                             <i data-lucide="download" class="w-4 h-4"></i> Template Excel
                         </button>
@@ -4222,56 +4465,11 @@
                     </div>
                 </div>
 
-                <!-- Info Box: Cara Kerja -->
-                <div class="bg-teal-50 border border-teal-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-                    <i data-lucide="info" class="w-5 h-5 text-teal-600 shrink-0 mt-0.5"></i>
-                    <div class="text-sm text-teal-800 space-y-1">
-                        <p class="font-bold">Cara Kerja Sistem Notifikasi WA:</p>
-                        <p>1. Import Excel berisi <strong>NISN</strong> + <strong>No. WA Ortu</strong> (format: 628xxx) di halaman ini — cukup dilakukan sekali.</p>
-                        <p>2. Ketika siswa login dengan NISN-nya, sistem otomatis mencari nomor WA orang tuanya dari database ini.</p>
-                        <p>3. Setelah ujian selesai, tombol <strong>"Kirim ke Ortu"</strong> muncul di tabel monitoring nilai — klik untuk kirim via Fonnte/WhatsApp Gateway.</p>
-                        <p class="text-teal-600 font-semibold">⚙️ Atur Token Fonnte di pengaturan di bawah sebelum mengirim notifikasi.</p>
-                    </div>
-                </div>
+                <!-- Semua section ditampilkan langsung -->
 
-                <!-- Pengaturan Fonnte -->
-                <div class="bg-white rounded-xl border shadow-sm p-5 mb-6">
-                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <i data-lucide="settings" class="w-5 h-5 text-gray-600"></i> Pengaturan WA Gateway (Fonnte)
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Token API Fonnte</label>
-                            <input type="text" id="fonnte-token-input" placeholder="Paste token dari fonnte.com..." 
-                                class="w-full px-3 py-2.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-gray-50 focus:bg-white font-mono">
-                            <p class="text-xs text-gray-400 mt-1">Daftar gratis di <a href="https://fonnte.com" target="_blank" class="text-teal-600 hover:underline font-semibold">fonnte.com</a> untuk mendapat token.</p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Template Pesan</label>
-                            <textarea id="fonnte-template-input" rows="3" 
-                                class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-gray-50 focus:bg-white resize-none"
-                                placeholder="Gunakan: {nama}, {kelas}, {nilai}, {status}">Assalamu'alaikum Bpk/Ibu Wali dari *{nama}*.
-
-Berikut hasil ujian putra/putri Anda:
-📚 Mata Ujian: {mapel}
-🏫 Kelas: {kelas}
-📊 Nilai: *{nilai}*
-🏆 Predikat: {status}
-
-Terima kasih 🙏</textarea>
-                        </div>
-                    </div>
-                    <div class="mt-4 flex justify-end">
-                        <button onclick="window.saveFonnteSettings()" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
-                            <i data-lucide="save" class="w-4 h-4"></i> Simpan Pengaturan
-                        </button>
-                    </div>
-                    <div id="fonnte-save-status" class="hidden mt-3 text-sm font-semibold text-teal-700 flex items-center gap-2">
-                        <i data-lucide="check-circle" class="w-4 h-4"></i> Pengaturan disimpan!
-                    </div>
-                </div>
-
-                <!-- Statistik database siswa -->
+                <!-- SECTION: DATA SISWA -->
+                <!-- SECTION: DATA SISWA -->
+<!-- Statistik database siswa -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
                         <p class="text-2xl font-black text-teal-600" id="siswa-stat-total">0</p>
@@ -4374,6 +4572,201 @@ Terima kasih 🙏</textarea>
                     </div>
                     <div id="pager-siswa-wrap" class="px-4 py-3 border-t"></div>
                 </div>
+                <!-- END: DATA SISWA -->
+
+                <!-- SUB-PANEL: KARTU PESERTA -->
+                <hr class="my-8 border-t-2 border-indigo-100">
+<div class="flex items-center gap-2 mb-6"><span class="text-lg font-black text-indigo-700 flex items-center gap-2">🪪 Kartu Peserta Ujian</span></div>
+                    <!-- Pengaturan Generate -->
+                    <div class="bg-white rounded-xl border shadow-sm p-5 mb-6">
+                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i data-lucide="settings-2" class="w-5 h-5 text-indigo-500"></i>
+                            Pengaturan Generate Nomor Peserta & Ruang
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Judul Ujian (di Kartu)</label>
+                                <input id="kartu-judul" type="text" placeholder="Contoh: Ujian Akhir Semester Ganjil 2025" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Nama Sekolah (di Kartu)</label>
+                                <input id="kartu-sekolah" type="text" placeholder="Contoh: SMK Negeri 1 Brondong" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 bg-gray-50">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Prefiks No. Peserta</label>
+                                <input id="kartu-prefix" type="text" placeholder="Contoh: TKJ2025 → TKJ2025-001" value="TKJ2025" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 bg-gray-50 font-mono">
+                                <p class="text-xs text-gray-400 mt-1">Nomor akhir auto-urut: PREFIX-001, PREFIX-002, dst.</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Kapasitas Per Ruang (siswa)</label>
+                                <input id="kartu-kapasitas" type="number" value="30" min="1" max="200" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-400 bg-gray-50">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Mode Pembagian Ruang</label>
+                            <div class="flex flex-wrap gap-3">
+                                <label class="flex items-center gap-2 cursor-pointer bg-gray-50 border rounded-lg px-4 py-2.5 hover:border-indigo-400 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50">
+                                    <input type="radio" name="kartu-mode-ruang" value="kelas" checked class="accent-indigo-600">
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-700">Per Kelas (1 Ruang = 1 Kelas)</p>
+                                        <p class="text-xs text-gray-400">Siswa kelas yang sama dikumpulkan dalam 1 ruang, max. sesuai kapasitas.</p>
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer bg-gray-50 border rounded-lg px-4 py-2.5 hover:border-indigo-400 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50">
+                                    <input type="radio" name="kartu-mode-ruang" value="acak" class="accent-indigo-600">
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-700">Acak (Campur Semua Kelas)</p>
+                                        <p class="text-xs text-gray-400">Semua siswa diacak lalu dibagi rata ke ruang-ruang yang tersedia.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                            <strong>ℹ️ Ruang diambil dari tab Kelas & Ruang.</strong> Pastikan sudah menambahkan ruang ujian di tab tersebut sebelum generate kartu.
+                        </div>
+                    </div>
+
+                    <!-- Tombol Generate -->
+                    <div class="flex flex-wrap gap-3 mb-6">
+                        <button onclick="window.generateKartuPeserta()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                            <i data-lucide="wand-2" class="w-4 h-4"></i> Generate Nomor & Bagi Ruang
+                        </button>
+                        <button onclick="window.printAllKartu()" class="bg-gray-700 hover:bg-gray-800 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                            <i data-lucide="printer" class="w-4 h-4"></i> Cetak Semua Kartu
+                        </button>
+                        <button onclick="window.resetKartuPeserta()" class="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                            <i data-lucide="refresh-ccw" class="w-4 h-4"></i> Reset Nomor
+                        </button>
+                    </div>
+
+                    <!-- Statistik Kartu -->
+                    <div id="kartu-stats" class="hidden grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+                            <p class="text-2xl font-black text-indigo-600" id="kartu-stat-total">0</p>
+                            <p class="text-xs text-gray-500 font-semibold mt-1">Total Peserta</p>
+                        </div>
+                        <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+                            <p class="text-2xl font-black text-teal-600" id="kartu-stat-ruang">0</p>
+                            <p class="text-xs text-gray-500 font-semibold mt-1">Ruang Dipakai</p>
+                        </div>
+                        <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+                            <p class="text-2xl font-black text-amber-600" id="kartu-stat-kelas">0</p>
+                            <p class="text-xs text-gray-500 font-semibold mt-1">Kelas</p>
+                        </div>
+                        <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+                            <p class="text-2xl font-black text-green-600" id="kartu-stat-rataruang">0</p>
+                            <p class="text-xs text-gray-500 font-semibold mt-1">Rata-rata/Ruang</p>
+                        </div>
+                    </div>
+
+                    <!-- Filter & Tabel -->
+                    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+                        <div class="p-4 border-b bg-gray-50 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+                            <h3 class="font-bold text-gray-700 flex items-center gap-2">
+                                <i data-lucide="list" class="w-4 h-4"></i> Daftar Peserta & Nomor Kartu
+                            </h3>
+                            <div class="flex gap-2 flex-wrap">
+                                <input id="kartu-search" type="text" placeholder="Cari nama / no peserta..." oninput="if(window._pg&&window._pg.kartu)window._pg.kartu.page=1; window.renderKartuTable()" class="px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-300 bg-white w-48">
+                                <select id="kartu-filter-ruang" onchange="if(window._pg&&window._pg.kartu)window._pg.kartu.page=1; window.renderKartuTable()" class="px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-300 bg-white">
+                                    <option value="">Semua Ruang</option>
+                                </select>
+                                <select id="kartu-filter-kelas" onchange="if(window._pg&&window._pg.kartu)window._pg.kartu.page=1; window.renderKartuTable()" class="px-3 py-1.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-300 bg-white">
+                                    <option value="">Semua Kelas</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-gray-700">
+                                <thead class="bg-gray-50 border-b text-xs text-gray-500 uppercase tracking-wide">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left">No. Peserta</th>
+                                        <th class="px-4 py-3 text-left">Nama</th>
+                                        <th class="px-4 py-3 text-left">Kelas</th>
+                                        <th class="px-4 py-3 text-left">Ruang</th>
+                                        <th class="px-4 py-3 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kartu-table-body">
+                                    <tr><td colspan="5" class="px-4 py-12 text-center text-gray-400">
+                                        <i data-lucide="id-card" class="w-10 h-10 mx-auto mb-2 text-gray-200"></i>
+                                        <p class="font-semibold">Belum ada kartu peserta.</p>
+                                        <p class="text-xs mt-1">Klik "Generate Nomor & Bagi Ruang" untuk mulai.</p>
+                                    </td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="pager-kartu-wrap"></div>
+                    </div>
+                
+
+                <!-- SUB-PANEL: NOTIFIKASI WA -->
+                <hr class="my-8 border-t-2 border-teal-100">
+<div class="flex items-center gap-2 mb-6"><span class="text-lg font-black text-teal-700 flex items-center gap-2">💬 Notifikasi WhatsApp Orang Tua</span></div>
+
+                <!-- Info Box: Cara Kerja -->
+                <div class="bg-teal-50 border border-teal-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+                    <i data-lucide="info" class="w-5 h-5 text-teal-600 shrink-0 mt-0.5"></i>
+                    <div class="text-sm text-teal-800 space-y-1">
+                        <p class="font-bold">Cara Kerja Sistem Notifikasi WA:</p>
+                        <p>1. Import Excel berisi <strong>NISN</strong> + <strong>No. WA Ortu</strong> (format: 628xxx) di halaman ini — cukup dilakukan sekali.</p>
+                        <p>2. Ketika siswa login dengan NISN-nya, sistem otomatis mencari nomor WA orang tuanya dari database ini.</p>
+                        <p>3. Setelah ujian selesai, tombol <strong>"Kirim ke Ortu"</strong> muncul di tabel monitoring nilai — klik untuk kirim via Fonnte/WhatsApp Gateway.</p>
+                        <p class="text-teal-600 font-semibold">⚙️ Atur Token Fonnte di pengaturan di bawah sebelum mengirim notifikasi.</p>
+                    </div>
+                </div>
+
+                <!-- Pengaturan Fonnte -->
+                <div class="bg-white rounded-xl border shadow-sm p-5 mb-6">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i data-lucide="settings" class="w-5 h-5 text-gray-600"></i> Pengaturan WA Gateway (Fonnte)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Token API Fonnte</label>
+                            <input type="text" id="fonnte-token-input" placeholder="Paste token dari fonnte.com..." 
+                                class="w-full px-3 py-2.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-gray-50 focus:bg-white font-mono">
+                            <p class="text-xs text-gray-400 mt-1">Daftar gratis di <a href="https://fonnte.com" target="_blank" class="text-teal-600 hover:underline font-semibold">fonnte.com</a> untuk mendapat token.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Template Pesan</label>
+                            <textarea id="fonnte-template-input" rows="3" 
+                                class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-gray-50 focus:bg-white resize-none"
+                                placeholder="Gunakan: {nama}, {kelas}, {nilai}, {status}">Assalamu'alaikum Bpk/Ibu Wali dari *{nama}*.
+
+Berikut hasil ujian putra/putri Anda:
+📚 Mata Ujian: {mapel}
+🏫 Kelas: {kelas}
+📊 Nilai: *{nilai}*
+🏆 Predikat: {status}
+
+Terima kasih 🙏</textarea>
+                        </div>
+                    </div>
+                    <!-- Auto Kirim WA Toggle -->
+                    <div class="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-between gap-4">
+                        <div>
+                            <p class="text-sm font-bold text-teal-800 flex items-center gap-2">
+                                <i data-lucide="zap" class="w-4 h-4"></i>
+                                Auto Kirim WA Setelah Ujian Selesai
+                            </p>
+                            <p class="text-xs text-teal-600 mt-0.5">Nilai langsung dikirim otomatis ke WA ortu tanpa perlu klik tombol kirim. Hanya berlaku jika token Fonnte sudah diisi dan nomor WA ortu tersedia.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input type="checkbox" id="fonnte-auto-send-toggle" class="sr-only peer" onchange="window.toggleAutoSendWA(this.checked)">
+                            <div class="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                        </label>
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <button onclick="window.saveFonnteSettings()" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                            <i data-lucide="save" class="w-4 h-4"></i> Simpan Pengaturan
+                        </button>
+                    </div>
+                    <div id="fonnte-save-status" class="hidden mt-3 text-sm font-semibold text-teal-700 flex items-center gap-2">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i> Pengaturan disimpan!
+                    </div>
+                </div>
+
+                
             </div><!-- end panel-siswa -->
 
             <!-- ══════════════════════════════════════════════════════ -->
@@ -4473,7 +4866,7 @@ Terima kasih 🙏</textarea>
                         <div class="flex items-center justify-between mb-3">
                             <h3 class="font-bold text-gray-700 flex items-center gap-2"><i data-lucide="list" class="w-4 h-4 text-violet-600"></i> Daftar Jadwal</h3>
                             <div class="flex items-center gap-2">
-                                <select id="jdwl-filter-tanggal" onchange="window.renderJadwalList()" class="px-3 py-1.5 border rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-violet-500">
+                                <select id="jdwl-filter-tanggal" onchange="if(window._pg&&window._pg.jadwal)window._pg.jadwal.page=1; window.renderJadwalList()" class="px-3 py-1.5 border rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-violet-500">
                                     <option value="all">Semua Tanggal</option>
                                 </select>
                             </div>
@@ -4481,6 +4874,7 @@ Terima kasih 🙏</textarea>
                         <div id="jadwal-list-container" class="space-y-3">
                             <p class="text-sm text-gray-400 text-center py-8 bg-gray-50 rounded-xl border border-dashed">Memuat jadwal...</p>
                         </div>
+                        <div id="pager-jadwal-wrap" class="mt-2"></div>
                     </div>
                 </div>
             </div>
@@ -4679,14 +5073,14 @@ Terima kasih 🙏</textarea>
 
         </main>
         <!-- Footer Dashboard Guru -->
-        <footer class="bg-slate-900 border-t border-slate-700 mt-auto">
+        <footer class="bg-slate-900 border-t border-slate-700 mt-auto" style="margin-bottom:0">
             <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
                 <p class="text-[11px] text-slate-500 flex items-center gap-1.5">
                     <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                     &copy; 2026 <span class="text-slate-400 font-semibold">Nailul Authar</span> <span class="text-slate-600">•</span> SMK Negeri 1 Brondong
                 </p>
                 <p class="text-[10px] text-slate-600 font-mono hidden md:block">
-                    <span class="text-white font-black">INTEGRI</span><span style="color:#38bdf8" class="font-black">TEST</span> &nbsp;v2.0
+                    <span class="text-white font-black">INTEGRI</span><span style="color:#38bdf8" class="font-black">TEST</span> &nbsp;v3.0
                 </p>
             </div>
         </footer>
@@ -5079,6 +5473,7 @@ Terima kasih 🙏</textarea>
 
             // ── Ubah label & placeholder kolom ID siswa di form login ──
             window._nomorIdMode = mode;
+            try { localStorage.setItem('integritest_nomor_id_mode', mode); } catch(e) {}
             const labelEl = document.getElementById('label-nomor-id');
             const inputEl = document.getElementById('student-nisn');
             const welcomeNisnLabel = document.getElementById('welcome-nisn-label');
@@ -5799,15 +6194,24 @@ Terima kasih 🙏</textarea>
             const filterEl = document.getElementById('jdwl-filter-tanggal');
             const filterVal = filterEl ? filterEl.value : 'all';
 
-            let list = window.allJadwalDB;
+            let list = [...window.allJadwalDB].sort((a,b) => (a.tanggal||'').localeCompare(b.tanggal||'') || (a.jamMulai||'').localeCompare(b.jamMulai||''));
             if (filterVal && filterVal !== 'all') {
                 list = list.filter(j => j.tanggal === filterVal);
             }
 
+            const pwJadwal = document.getElementById('pager-jadwal-wrap');
             if (list.length === 0) {
                 container.innerHTML = '<p class="text-sm text-gray-400 text-center py-8 bg-gray-50 rounded-xl border border-dashed">Belum ada jadwal. Tambah jadwal di atas.</p>';
+                if (pwJadwal) pwJadwal.innerHTML = '';
                 return;
             }
+
+            // ★ PAGING
+            const pgJadwal = window._pg.jadwal;
+            const totalJadwal = list.length;
+            pgJadwal.page = Math.max(1, Math.min(pgJadwal.page, Math.ceil(totalJadwal / pgJadwal.perPage)));
+            const jStart = (pgJadwal.page - 1) * pgJadwal.perPage;
+            list = list.slice(jStart, jStart + pgJadwal.perPage);
 
             // Group by tanggal
             const groups = {};
@@ -5886,6 +6290,7 @@ Terima kasih 🙏</textarea>
                 </div>`;
             }).join('');
 
+            if (pwJadwal) pwJadwal.innerHTML = renderPagerHTML('jadwal', totalJadwal, pgJadwal.page, pgJadwal.perPage);
             if(typeof lucide !== 'undefined') lucide.createIcons();
         };
 
@@ -6313,6 +6718,9 @@ Terima kasih 🙏</textarea>
                 return;
             }
 
+            // ★ Simpan tab aktif ke sessionStorage agar tetap saat refresh
+            try { sessionStorage.setItem('integritest_active_tab', tab); } catch(e) {}
+
             // ── Desktop tab styles ──
             const activeClass   = "flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-blue-600 text-white font-bold text-sm transition-all";
             const inactiveClass = "flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-gray-500 hover:bg-gray-100 font-bold text-sm transition-all";
@@ -6352,7 +6760,7 @@ Terima kasih 🙏</textarea>
             if (tab === 'analitik') { setTimeout(() => window.renderIntegrityDashboard(), 300); }
             if (tab === 'soal') { window.backToPaketList(); window.renderPaketGrid(); }
             if (tab === 'kelasruang') { window.renderKelasList(); window.switchKelasRuangTab('kelas'); }
-            if (tab === 'siswa') window.renderSiswaTable();
+            if (tab === 'siswa') { window.renderSiswaTable(); window.switchSiswaSubTab('data'); }
             if (tab === 'tampilan') window.loadTampilanFields();
             if (tab === 'jadwal') { window.renderJadwalList(); window.initJadwalForm(); }
             if(typeof lucide !== 'undefined') lucide.createIcons();
@@ -6978,7 +7386,13 @@ Terima kasih 🙏</textarea>
                 const isMultiple = q.tipe === 'multiple';
                 const isTrueFalse = q.tipe === 'truefalse';
                 const isEssayQ = q.tipe === 'essay';
-                const optionsHtml = isEssayQ
+                const isMenjodohkanQ = q.tipe === 'menjodohkan';
+                const optionsHtml = isMenjodohkanQ
+                    ? `<div class="bg-teal-50 border border-teal-200 rounded-xl p-3 space-y-2">
+                        <p class="text-xs font-bold text-teal-700 mb-2 flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3v18M18 3v18M6 12h12"/></svg> Pasangan Menjodohkan (${(q.pasangan||[]).length} pasang)</p>
+                        ${(q.pasangan||[]).map((p,i) => `<div class="flex items-center gap-2 text-sm"><span class="w-5 h-5 rounded-full bg-teal-600 text-white text-xs font-black flex items-center justify-center shrink-0">${i+1}</span><span class="flex-1 bg-teal-100 px-2 py-1 rounded text-teal-800">${p.kiri}</span><span class="text-teal-400 font-bold">↔</span><span class="flex-1 bg-orange-100 px-2 py-1 rounded text-orange-800">${p.kanan}</span></div>`).join('')}
+                       </div>`
+                    : isEssayQ
                     ? `<div class="bg-purple-50 border border-purple-200 rounded-xl p-3">
                             <p class="text-xs font-bold text-purple-700 mb-1.5 flex items-center gap-1"><i data-lucide="pencil-line" class="w-3.5 h-3.5"></i> Rubrik / Kunci Jawaban</p>
                             <p class="text-sm text-purple-900 whitespace-pre-line leading-relaxed">${q.essayRubrik || '—'}</p>
@@ -7008,21 +7422,25 @@ Terima kasih 🙏</textarea>
                 const imgHtml = q.image ? `<div class="mt-3"><img src="${q.image}" class="max-h-32 rounded-xl border object-contain bg-gray-50 p-1"></div>` : '';
 
                 // Build kunci label for card header
-                const kunciLabel = isEssayQ
-                    ? `<i>Esai (skor maks: ${q.essaySkorMaks || 10})</i>`
-                    : isTrueFalse
-                        ? (q.correct === true || q.correct === 'true' ? '✓ Benar' : '✗ Salah')
-                        : isMultiple && Array.isArray(q.correct)
-                            ? q.correct.map(i => labels[i]||i).join(', ')
-                            : labels[Array.isArray(q.correct) ? q.correct[0] : q.correct] || q.correct;
+                const kunciLabel = isMenjodohkanQ
+                    ? `<i>${(q.pasangan||[]).length} pasang</i>`
+                    : isEssayQ
+                        ? `<i>Esai (skor maks: ${q.essaySkorMaks || 10})</i>`
+                        : isTrueFalse
+                            ? (q.correct === true || q.correct === 'true' ? '✓ Benar' : '✗ Salah')
+                            : isMultiple && Array.isArray(q.correct)
+                                ? q.correct.map(i => labels[i]||i).join(', ')
+                                : labels[Array.isArray(q.correct) ? q.correct[0] : q.correct] || q.correct;
 
-                const tipeBadge = isEssayQ
-                    ? `<span class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">Esai</span>`
-                    : isTrueFalse
-                        ? `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">B/S</span>`
-                        : isMultiple
-                            ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Ganda</span>`
-                            : '';
+                const tipeBadge = isMenjodohkanQ
+                    ? `<span class="text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded font-bold">Jodoh</span>`
+                    : isEssayQ
+                        ? `<span class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">Esai</span>`
+                        : isTrueFalse
+                            ? `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">B/S</span>`
+                            : isMultiple
+                                ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Ganda</span>`
+                                : '';
 
                 return `
                 <div class="bg-white rounded-2xl border shadow-sm overflow-hidden ${!isAktif ? 'opacity-60' : ''}" id="soal-card-${q.id}">
@@ -7056,7 +7474,7 @@ Terima kasih 🙏</textarea>
                             ${imgHtml}
                         </div>
                         <div>
-                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Pilihan Jawaban ${isMultiple ? '<span class="text-emerald-600">(Jawaban Ganda — ✓ = Kunci)</span>' : isTrueFalse ? '<span class="text-amber-600">(Benar/Salah)</span>' : ''}</p>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Pilihan Jawaban ${isMenjodohkanQ ? '<span class="text-teal-600">(Pasangan Menjodohkan)</span>' : isMultiple ? '<span class="text-emerald-600">(Jawaban Ganda — ✓ = Kunci)</span>' : isTrueFalse ? '<span class="text-amber-600">(Benar/Salah)</span>' : ''}</p>
                             <div class="space-y-1.5">${optionsHtml}</div>
                         </div>
                     </div>
@@ -7098,8 +7516,45 @@ Terima kasih 🙏</textarea>
                 const room        = document.getElementById('student-room').value;
                 const tokenInput  = document.getElementById('student-token').value.trim().toUpperCase();
 
+                // ── MODE KARTU PESERTA: Validasi No. Peserta → auto-fill data siswa ──
+                const loginMode = localStorage.getItem('integritest_nomor_id_mode') || 'nisn';
+                if (loginMode === 'kartu') {
+                    // studentNisn field berisi noPeserta
+                    const noPeserta = studentNisn.toUpperCase().trim();
+                    if (!noPeserta) { alert('Masukkan Nomor Peserta!'); return; }
+                    // Cari dari allSiswaDB berdasarkan noPeserta
+                    const swData = (window.allSiswaDB || []).find(s => (s.noPeserta||'').toUpperCase() === noPeserta);
+                    if (!swData) {
+                        alert('\u26a0\ufe0f Nomor Peserta tidak ditemukan di database!\nPastikan nomor peserta yang Anda masukkan benar.');
+                        return;
+                    }
+                    // Kalau siswa belum isi nama/kelas manual, auto-fill
+                    if (!name) {
+                        alert('Silakan isi nama lengkap sesuai kartu peserta.');
+                        return;
+                    }
+                    // Override cls & room dari data kartu peserta jika belum dipilih
+                    if (!cls && swData.kelas) {
+                        const selKelas = document.getElementById('student-class');
+                        if (selKelas) {
+                            selKelas.value = swData.kelas;
+                            cls = swData.kelas;
+                        }
+                    }
+                    if (!room && swData.ruangKartu) {
+                        const selRoom = document.getElementById('student-room');
+                        if (selRoom) {
+                            selRoom.value = swData.ruangKartu;
+                            room = swData.ruangKartu;
+                        }
+                    }
+                    // Ambil cls/room dari data kartu jika masih kosong
+                    if (!cls) cls = swData.kelas || '-';
+                    if (!room) room = swData.ruangKartu || '-';
+                }
+
                 if (!name || !studentNisn || !cls || !room || !tokenInput) {
-                    alert("Mohon lengkapi semua kolom: Nama, NISN, Kelas, Ruang Ujian, dan Token!");
+                    alert("Mohon lengkapi semua kolom: Nama, NISN/No. Peserta, Kelas, Ruang Ujian, dan Token!");
                     return;
                 }
 
@@ -7575,7 +8030,13 @@ Terima kasih 🙏</textarea>
                 document.getElementById('section-login').classList.add('hidden-section');
                 document.getElementById('section-dashboard').classList.remove('hidden-section');
                 // Delay kecil agar DOM selesai render (terutama di HP)
-                requestAnimationFrame(() => { window.switchDashTab('welcome'); });
+                // ★ Restore ke tab terakhir yang aktif sebelum refresh
+                const _lastTab = (() => {
+                    try { return sessionStorage.getItem('integritest_active_tab') || 'welcome'; } catch(e) { return 'welcome'; }
+                })();
+                const _adminTabs = ['welcome','nilai','kelasruang','soal','siswa','analitik','jadwal','tampilan'];
+                const _tabToRestore = _adminTabs.includes(_lastTab) ? _lastTab : 'welcome';
+                requestAnimationFrame(() => { window.switchDashTab(_tabToRestore); });
 
                 const teacherInput = document.getElementById('teacher-token-input');
                 if(teacherInput) teacherInput.value = window.currentExamToken;
@@ -7743,6 +8204,7 @@ Terima kasih 🙏</textarea>
                 const v = userAnswers[k];
                 const q = (currentQuestionList || []).find(x => x.id === k);
                 if (q && q.tipe === 'essay') return v && v.text && v.text.trim().length > 0;
+                if (q && q.tipe === 'menjodohkan') return v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length > 0;
                 return !(Array.isArray(v) && v.length === 0);
             }).length;
             const total = currentQuestionList.length;
@@ -7785,6 +8247,8 @@ Terima kasih 🙏</textarea>
 
         window.logout = function() {
             sessionStorage.removeItem('integritest_staff_session');
+            // Hapus tab tersimpan saat logout agar mulai fresh
+            try { sessionStorage.removeItem('integritest_active_tab'); } catch(e) {}
             location.reload();
         };
 
@@ -7841,14 +8305,18 @@ Terima kasih 🙏</textarea>
 
                 document.getElementById('section-login').classList.add('hidden-section');
                 document.getElementById('section-dashboard').classList.remove('hidden-section');
-                requestAnimationFrame(() => { window.switchDashTab('welcome'); });
+                // ★ Restore ke tab terakhir aktif sebelum refresh
+                const _lastTabR = (() => { try { return sessionStorage.getItem('integritest_active_tab') || 'welcome'; } catch(e) { return 'welcome'; } })();
+                const _validTabs = ['welcome','nilai','kelasruang','soal','siswa','analitik','jadwal','tampilan'];
+                const _tabToRestoreR = _validTabs.includes(_lastTabR) ? _lastTabR : 'welcome';
+                requestAnimationFrame(() => { window.switchDashTab(_tabToRestoreR); });
 
                 const teacherInput = document.getElementById('teacher-token-input');
                 if (teacherInput) teacherInput.value = window.currentExamToken;
                 if (typeof lucide !== 'undefined') lucide.createIcons();
                 setTimeout(() => { if (window.renderIntegrityDashboard) window.renderIntegrityDashboard(); }, 800);
 
-                console.log('[Session] Admin session restored');
+                console.log('[Session] Admin session restored, tab:', _tabToRestoreR);
 
             } else if (session.role === 'pengawas' && session.ruang) {
                 // ── Restore pengawas session ──
@@ -7911,6 +8379,9 @@ Terima kasih 🙏</textarea>
             kelas:      { page: 1, perPage: 15 },
             ruang:      { page: 1, perPage: 15 },
             analitik:   { page: 1, perPage: 15 },
+            siswa:      { page: 1, perPage: 15 },
+            kartu:      { page: 1, perPage: 15 },
+            jadwal:     { page: 1, perPage: 10 },
         };
 
         // Render a pager control into a wrapper element
@@ -7964,6 +8435,9 @@ Terima kasih 🙏</textarea>
                 kelas:      () => window.renderKelasList(),
                 ruang:      () => window.renderRuangList(),
                 analitik:   () => window.renderIntegrityDashboard(),
+                siswa:      () => window.renderSiswaTable(),
+                kartu:      () => window.renderKartuTable(),
+                jadwal:     () => window.renderJadwalList(),
             };
             if (map[section]) map[section]();
         };
@@ -8193,10 +8667,46 @@ Terima kasih 🙏</textarea>
             const isMultiple = q.tipe === 'multiple';
             const isTrueFalse = q.tipe === 'truefalse';
             const isEssay = q.tipe === 'essay';
+            const isMenjodohkan = q.tipe === 'menjodohkan';
 
             let optionsHTML = '';
 
-            if (isEssay) {
+            if (isMenjodohkan && Array.isArray(q.pasangan)) {
+                const pairs = q.pasangan;
+                const userMatch = userAnswers[q.id] || {}; // { leftIdx: rightIdx, ... }
+                // Acak kolom kanan hanya sekali per soal (pakai ID soal sebagai seed)
+                const rightItems = pairs.map((p, i) => ({ val: p.kanan, origIdx: i }));
+                // Deterministic shuffle berdasarkan q.id
+                let seed = 0; for (let c of (q.id||'')) seed = (seed*31 + c.charCodeAt(0)) & 0xffffffff;
+                rightItems.sort((a,b) => {
+                    seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+                    return seed % 2 === 0 ? 1 : -1;
+                });
+                // Simpan urutan acak agar konsisten
+                if (!q._shuffledRight) q._shuffledRight = rightItems;
+                const shuffled = q._shuffledRight;
+                optionsHTML = `
+                <div class="mt-2 space-y-1">
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div class="text-xs font-bold text-teal-700 text-center bg-teal-50 rounded-lg py-1.5 border border-teal-200">Kolom Kiri</div>
+                        <div class="text-xs font-bold text-orange-600 text-center bg-orange-50 rounded-lg py-1.5 border border-orange-200">Kolom Kanan (Pilih pasangan)</div>
+                    </div>
+                    ${pairs.map((p, li) => {
+                        const selectedRight = userMatch[li] !== undefined ? userMatch[li] : '';
+                        return `<div class="grid grid-cols-2 gap-3 items-center">
+                            <div class="px-4 py-3 bg-teal-50 border-2 border-teal-200 rounded-xl text-sm font-semibold text-teal-800 min-h-[48px] flex items-center">
+                                <span class="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-black flex items-center justify-center mr-2 shrink-0">${li+1}</span>
+                                ${p.kiri}
+                            </div>
+                            <select onchange="saveMenjodohkanAnswer('${q.id}',${li},this.value)"
+                                class="w-full px-3 py-2.5 border-2 ${selectedRight !== '' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-white'} rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-orange-400 transition-colors cursor-pointer">
+                                <option value="">— Pilih pasangan —</option>
+                                ${shuffled.map(ri => `<option value="${ri.origIdx}" ${selectedRight == ri.origIdx ? 'selected' : ''}>${ri.val}</option>`).join('')}
+                            </select>
+                        </div>`;
+                    }).join('')}
+                </div>`;
+            } else if (isEssay) {
                 const userText = (userAnswers[q.id] && userAnswers[q.id].text) ? userAnswers[q.id].text : '';
                 optionsHTML = `
                     <div class="mt-2">
@@ -8300,9 +8810,11 @@ Terima kasih 🙏</textarea>
                 ? `<span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg> Esai</span>`
                 : isTrueFalse
                     ? `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Benar / Salah</span>`
-                    : isMultiple
-                        ? `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Jawaban Ganda</span>`
-                        : '';
+                    : isMenjodohkan
+                        ? `<span class="inline-flex items-center gap-1 bg-teal-100 text-teal-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3v18M18 3v18M6 12h12"/></svg> Menjodohkan</span>`
+                        : isMultiple
+                            ? `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg text-xs font-bold ml-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Jawaban Ganda</span>`
+                            : '';
 
             // Gambar soal
             const qImgHtml = q.image
@@ -8331,7 +8843,12 @@ Terima kasih 🙏</textarea>
                                 <svg class="w-4 h-4 text-purple-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                 <p class="text-xs text-purple-700 font-semibold">Soal uraian — tulis jawaban selengkap mungkin. Dikoreksi guru/AI setelah ujian.</p>
                            </div>`
-                        : '';
+                        : isMenjodohkan
+                            ? `<div class="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-xl px-3 py-2 mb-3">
+                                    <svg class="w-4 h-4 text-teal-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <p class="text-xs text-teal-700 font-semibold">Pasangkan setiap item di kolom kiri dengan jawaban yang tepat di kolom kanan.</p>
+                               </div>`
+                            : '';
 
             const html = `
                 <div class="bg-white rounded-xl shadow-sm border p-6 md:p-8 animate-fade-in">
@@ -8400,10 +8917,20 @@ Terima kasih 🙏</textarea>
         window.saveEssayAnswer = function(qId, text) {
             if (!userAnswers[qId]) userAnswers[qId] = {};
             userAnswers[qId].text = text;
-            // Update char count without re-rendering (avoids losing focus)
             const cc = document.getElementById('essay-charcount-' + qId);
             if (cc) cc.textContent = text.length + ' karakter';
-            // Update sidebar dot (answered if non-empty)
+            renderSidebarButtons();
+        };
+
+        window.saveMenjodohkanAnswer = function(qId, leftIdx, rightVal) {
+            if (!userAnswers[qId] || typeof userAnswers[qId] !== 'object' || Array.isArray(userAnswers[qId])) {
+                userAnswers[qId] = {};
+            }
+            if (rightVal === '') {
+                delete userAnswers[qId][leftIdx];
+            } else {
+                userAnswers[qId][leftIdx] = parseInt(rightVal);
+            }
             renderSidebarButtons();
         };
 
@@ -8435,9 +8962,12 @@ Terima kasih 🙏</textarea>
             currentQuestionList.forEach((q, idx) => {
                 const ans = userAnswers[q.id];
                 const isEssayQ = q.tipe === 'essay';
+                const isMenjodohkanQ = q.tipe === 'menjodohkan';
                 const isAnswered = isEssayQ
                     ? (ans && ans.text && ans.text.trim().length > 0)
-                    : ans !== undefined && !(Array.isArray(ans) && ans.length === 0);
+                    : isMenjodohkanQ
+                        ? (ans && typeof ans === 'object' && !Array.isArray(ans) && Object.keys(ans).length === (q.pasangan||[]).length)
+                        : ans !== undefined && !(Array.isArray(ans) && ans.length === 0);
                 const isActive = idx === currentQuestionIndex;
                 
                 let btnClass = "h-10 w-full rounded font-bold text-sm flex items-center justify-center transition-colors ";
@@ -8892,6 +9422,18 @@ Terima kasih 🙏</textarea>
                     return; // essay tidak dihitung dalam skor otomatis
                 }
                 nonEssayCount++;
+                // ★ MENJODOHKAN: tiap pasangan benar = poin parsial
+                if (q.tipe === 'menjodohkan' && Array.isArray(q.pasangan)) {
+                    const userMatch = userAnswers[q.id] || {};
+                    const totalPairs = q.pasangan.length;
+                    let benarPairs = 0;
+                    q.pasangan.forEach((_, idx) => {
+                        if (userMatch[idx] === idx) benarPairs++;
+                    });
+                    // Hitung sebagai pecahan dari 1 soal penuh
+                    correctCount += totalPairs > 0 ? benarPairs / totalPairs : 0;
+                    return;
+                }
                 if (typeof q.correct === 'undefined') return;
                 const isMultiple = q.tipe === 'multiple';
                 const isTrueFalse = q.tipe === 'truefalse';
@@ -11429,17 +11971,505 @@ tr:nth-child(even) { background: #eff6ff; }
     </script>
 
     <!-- ══════════ FITUR DATA SISWA & NOTIFIKASI WA ORTU ══════════ -->
-    <script type="module">
-        import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+    <!-- FIX: script biasa (bukan module) agar semua fungsi window.xxx bisa dipanggil dari onclick HTML -->
+    <script>
         function waitFirebase(cb, tries=0) {
-            if (window.isFirebaseReady && window.db) { cb(); return; }
-            if (tries > 40) return;
+            if (window.isFirebaseReady && window.db && window.collection && window.onSnapshot) { cb(); return; }
+            if (tries > 60) { console.warn('[Siswa] Firebase tidak siap.'); return; }
             setTimeout(() => waitFirebase(cb, tries+1), 300);
         }
 
-        const COLL_SISWA   = () => collection(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa');
-        const COLL_SETTING = () => collection(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings');
+        const COLL_SISWA   = () => window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa');
+        const COLL_SETTING = () => window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings');
+
+        // ══════════════════════════════════════════════
+        // SUB-TAB SWITCHER (Data Siswa / Kartu / WA)
+        // ══════════════════════════════════════════════
+        window.switchSiswaSubTab = function(tab) {
+            // Pastikan tabel dirender ulang setiap kali sub-tab data dibuka
+            if (tab === 'data' || !tab) {
+                window.renderSiswaTable();
+            }
+        };
+
+        // ══════════════════════════════════════════════
+        // KARTU PESERTA — Core Logic
+        // ══════════════════════════════════════════════
+        window.allKartuData = [];
+
+        window.generateKartuPeserta = async function() {
+            if (!window.allSiswaDB || !window.allSiswaDB.length) {
+                alert('Belum ada data siswa. Import Excel terlebih dahulu di tab Data Siswa.'); return;
+            }
+            const prefix   = (document.getElementById('kartu-prefix').value.trim() || 'PES').toUpperCase();
+            const kapasitas= parseInt(document.getElementById('kartu-kapasitas').value) || 30;
+            const mode     = document.querySelector('input[name="kartu-mode-ruang"]:checked').value;
+
+            let ruangList = [];
+            if (window.isFirebaseReady && window.db) {
+                try {
+                    const snap = await window.getDocs(window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'ruang_ujian'));
+                    snap.forEach(d => ruangList.push({ id: d.id, ...d.data() }));
+                } catch(e) { console.warn('[Kartu] Gagal ambil ruang:', e); }
+            }
+            if (!ruangList.length) {
+                alert('Belum ada ruang ujian.\nTambahkan ruang di tab Kelas & Ruang terlebih dahulu.'); return;
+            }
+
+            let siswaList = [...window.allSiswaDB];
+            const hasil = [];
+
+            if (mode === 'kelas') {
+                const kelasList = [...new Set(siswaList.map(s => s.kelas || ''))].sort();
+                let ruangIdx = 0, slotSisa = kapasitas;
+                for (const kelas of kelasList) {
+                    const siswaKelas = siswaList.filter(s => (s.kelas || '') === kelas);
+                    for (let i = 0; i < siswaKelas.length; i++) {
+                        if (slotSisa <= 0) { ruangIdx++; slotSisa = kapasitas; }
+                        if (ruangIdx >= ruangList.length) ruangIdx = ruangList.length - 1;
+                        hasil.push({ siswa: siswaKelas[i], ruangObj: ruangList[ruangIdx] });
+                        slotSisa--;
+                    }
+                    if (slotSisa < kapasitas && slotSisa > 0) { ruangIdx++; slotSisa = kapasitas; }
+                }
+            } else {
+                // Acak
+                for (let i = siswaList.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [siswaList[i], siswaList[j]] = [siswaList[j], siswaList[i]];
+                }
+                let ruangIdx = 0, slot = 0;
+                for (const sw of siswaList) {
+                    if (slot >= kapasitas) { ruangIdx++; slot = 0; }
+                    if (ruangIdx >= ruangList.length) ruangIdx = ruangList.length - 1;
+                    hasil.push({ siswa: sw, ruangObj: ruangList[ruangIdx] });
+                    slot++;
+                }
+            }
+
+            hasil.sort((a, b) => {
+                const ra = (a.ruangObj.nama||a.ruangObj.name||'').localeCompare(b.ruangObj.nama||b.ruangObj.name||'');
+                if (ra !== 0) return ra;
+                const ka = (a.siswa.kelas||'').localeCompare(b.siswa.kelas||'');
+                if (ka !== 0) return ka;
+                return (a.siswa.nama||'').localeCompare(b.siswa.nama||'');
+            });
+
+            window.allKartuData = hasil.map((item, idx) => ({
+                siswaId: item.siswa.id,
+                nisn: item.siswa.nisn || '',
+                nama: item.siswa.nama || '',
+                kelas: item.siswa.kelas || '',
+                waOrtu: item.siswa.waOrtu || '',
+                noPeserta: prefix + '-' + String(idx + 1).padStart(3, '0'),
+                ruang: item.ruangObj.nama || item.ruangObj.name || ('Ruang '+(idx+1)),
+                ruangId: item.ruangObj.id || '',
+            }));
+
+            if (window.isFirebaseReady && window.db) {
+                const batchPromises = window.allKartuData.map(k =>
+                    window.updateDoc(
+                        window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', k.siswaId),
+                        { noPeserta: k.noPeserta, ruangKartu: k.ruang, ruangKartuId: k.ruangId }
+                    ).catch(() => {})
+                );
+                await Promise.all(batchPromises);
+            }
+
+            _updateKartuFilters();
+            _updateKartuStats();
+            window.renderKartuTable();
+            alert('\u2705 Berhasil generate ' + window.allKartuData.length + ' nomor peserta!\nData tersimpan ke database.');
+        };
+
+        function _updateKartuFilters() {
+            const ruangSet = [...new Set(window.allKartuData.map(k => k.ruang))].sort();
+            const kelasSet = [...new Set(window.allKartuData.map(k => k.kelas))].sort();
+            const selR = document.getElementById('kartu-filter-ruang');
+            const selK = document.getElementById('kartu-filter-kelas');
+            if (selR) selR.innerHTML = '<option value="">Semua Ruang</option>' + ruangSet.map(r => '<option>'+r+'</option>').join('');
+            if (selK) selK.innerHTML = '<option value="">Semua Kelas</option>' + kelasSet.map(k => '<option>'+k+'</option>').join('');
+        }
+
+        function _updateKartuStats() {
+            const statsEl = document.getElementById('kartu-stats');
+            if (statsEl) { statsEl.classList.remove('hidden'); statsEl.style.display = 'grid'; }
+            const ruangSet = new Set(window.allKartuData.map(k => k.ruang));
+            const kelasSet = new Set(window.allKartuData.map(k => k.kelas));
+            const total = window.allKartuData.length;
+            const rataRuang = ruangSet.size > 0 ? Math.round(total / ruangSet.size) : 0;
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            set('kartu-stat-total', total);
+            set('kartu-stat-ruang', ruangSet.size);
+            set('kartu-stat-kelas', kelasSet.size);
+            set('kartu-stat-rataruang', rataRuang);
+        }
+
+        window.renderKartuTable = function() {
+            if (!window.allKartuData.length && window.allSiswaDB && window.allSiswaDB.length) {
+                const hasPeserta = window.allSiswaDB.filter(s => s.noPeserta);
+                if (hasPeserta.length) {
+                    window.allKartuData = hasPeserta.map(s => ({
+                        siswaId: s.id, nisn: s.nisn||'', nama: s.nama||'', kelas: s.kelas||'',
+                        waOrtu: s.waOrtu||'', noPeserta: s.noPeserta, ruang: s.ruangKartu||'-', ruangId: s.ruangKartuId||''
+                    }));
+                    _updateKartuFilters();
+                    _updateKartuStats();
+                }
+            }
+            const search = (document.getElementById('kartu-search')?.value || '').toLowerCase();
+            const fRuang = document.getElementById('kartu-filter-ruang')?.value || '';
+            const fKelas = document.getElementById('kartu-filter-kelas')?.value || '';
+            let data = window.allKartuData.filter(k => {
+                if (fRuang && k.ruang !== fRuang) return false;
+                if (fKelas && k.kelas !== fKelas) return false;
+                if (search && !(k.nama.toLowerCase().includes(search) || k.noPeserta.toLowerCase().includes(search))) return false;
+                return true;
+            });
+            const tbody = document.getElementById('kartu-table-body');
+            if (!tbody) return;
+            const pwKartu = document.getElementById('pager-kartu-wrap');
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-12 text-center text-gray-400">Tidak ada data.</td></tr>';
+                if (pwKartu) pwKartu.innerHTML = '';
+                return;
+            }
+            // ★ PAGING
+            const pgKartu = window._pg.kartu;
+            const totalKartu = data.length;
+            pgKartu.page = Math.max(1, Math.min(pgKartu.page, Math.ceil(totalKartu / pgKartu.perPage)));
+            const ksStart = (pgKartu.page - 1) * pgKartu.perPage;
+            const pageKartu = data.slice(ksStart, ksStart + pgKartu.perPage);
+            tbody.innerHTML = pageKartu.map(k =>
+                '<tr class="hover:bg-slate-50 border-b">' +
+                '<td class="px-4 py-3 font-mono font-bold text-indigo-700 text-sm">' + k.noPeserta + '</td>' +
+                '<td class="px-4 py-3 font-semibold text-gray-800">' + k.nama + '</td>' +
+                '<td class="px-4 py-3 text-gray-600 text-sm">' + k.kelas + '</td>' +
+                '<td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">' + k.ruang + '</span></td>' +
+                '<td class="px-4 py-3 text-center"><button onclick="window.printSatuKartu(\'' + k.siswaId + '\')" class="text-indigo-500 hover:bg-indigo-50 p-1.5 rounded border border-indigo-100" title="Cetak Kartu"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"6 9 6 2 18 2 18 9\"/><path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><rect width=\"12\" height=\"8\" x=\"6\" y=\"14\"/></svg></button></td>' +
+                '</tr>'
+            ).join('');
+            if (pwKartu) pwKartu.innerHTML = renderPagerHTML('kartu', totalKartu, pgKartu.page, pgKartu.perPage);
+        };
+
+        window.resetKartuPeserta = async function() {
+            if (!confirm('Reset semua nomor peserta & pembagian ruang?')) return;
+            window.allKartuData = [];
+            if (window.isFirebaseReady && window.db) {
+                const promises = (window.allSiswaDB || []).filter(s => s.noPeserta).map(s =>
+                    window.updateDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', s.id), { noPeserta: '', ruangKartu: '', ruangKartuId: '' }).catch(()=>{})
+                );
+                await Promise.all(promises);
+            }
+            window.renderKartuTable();
+            const statsEl = document.getElementById('kartu-stats');
+            if (statsEl) statsEl.style.display = 'none';
+            alert('\u2705 Nomor peserta berhasil direset.');
+        };
+
+        // PRINT KARTU
+        function _buildKartuHTML(kartuList) {
+            const judul   = document.getElementById('kartu-judul')?.value.trim()   || 'Ujian Sekolah';
+            const sekolah = document.getElementById('kartu-sekolah')?.value.trim() || 'Sekolah';
+
+            const cards = kartuList.map((k, idx) =>
+                `<div class="kartu">
+                  <!-- HEADER -->
+                  <div class="kartu-header">
+                    <div class="header-left">
+                      <div class="logo-integri">
+                        <span class="logo-integri-text">INTEGRI<span class="logo-test">TEST</span></span>
+                        <span class="logo-tagline">Computer Based Test</span>
+                      </div>
+                    </div>
+                    <div class="header-divider"></div>
+                    <div class="header-right">
+                      <div class="sekolah-name">${sekolah}</div>
+                      <div class="ujian-name">${judul}</div>
+                      <div class="kartu-badge">KARTU PESERTA UJIAN</div>
+                    </div>
+                  </div>
+
+                  <!-- NOMOR PESERTA — area utama -->
+                  <div class="nomor-section">
+                    <div class="nomor-label">NOMOR PESERTA</div>
+                    <div class="nomor-value">${k.noPeserta}</div>
+                    <div class="nomor-keterangan">⚠ Nomor ini bersifat unik dan tidak dapat digunakan oleh peserta lain. Tunjukkan kartu ini kepada pengawas sebelum ujian dimulai.</div>
+                  </div>
+
+                  <!-- DATA PESERTA -->
+                  <div class="data-section">
+                    <div class="data-row">
+                      <div class="data-item">
+                        <span class="data-label">Nama Peserta</span>
+                        <span class="data-value bold">${k.nama}</span>
+                      </div>
+                      <div class="data-item">
+                        <span class="data-label">NISN</span>
+                        <span class="data-value mono">${k.nisn || '—'}</span>
+                      </div>
+                    </div>
+                    <div class="data-row">
+                      <div class="data-item">
+                        <span class="data-label">Kelas</span>
+                        <span class="data-value">${k.kelas}</span>
+                      </div>
+                      <div class="data-item ruang-highlight">
+                        <span class="data-label">Ruang Ujian</span>
+                        <span class="data-value bold ruang-val">📍 ${k.ruang}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- FOOTER TTD -->
+                  <div class="kartu-footer">
+                    <div class="ttd-col">
+                      <div class="ttd-label">Mengetahui,</div>
+                      <div class="ttd-label">Panitia / Pengawas Ruang</div>
+                      <div class="ttd-space"></div>
+                      <div class="ttd-line"></div>
+                      <div class="ttd-nama">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
+                    </div>
+                    <div class="ttd-col">
+                      <div class="ttd-label">Tanda Tangan</div>
+                      <div class="ttd-label">Peserta Ujian</div>
+                      <div class="ttd-space"></div>
+                      <div class="ttd-line"></div>
+                      <div class="ttd-nama">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
+                    </div>
+                  </div>
+                </div>`
+            ).join('<div class="page-break"></div>');
+
+            const css = `
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
+
+.kartu {
+  width: 15cm;
+  margin: 0.6cm auto;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  page-break-inside: avoid;
+  border: 1px solid #d1d9e6;
+}
+
+/* HEADER */
+.kartu-header {
+  background: linear-gradient(135deg, #0f2057 0%, #1e40af 55%, #1d4ed8 100%);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #fff;
+}
+.header-left { flex-shrink: 0; }
+.logo-integri {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.logo-integri-text {
+  font-size: 15pt;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #fff;
+  font-family: 'Segoe UI Black', Arial Black, sans-serif;
+  line-height: 1;
+}
+.logo-test { color: #60a5fa; }
+.logo-tagline {
+  font-size: 6pt;
+  color: rgba(255,255,255,0.65);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 3px;
+  font-weight: 500;
+}
+.header-divider {
+  width: 1.5px;
+  height: 44px;
+  background: rgba(255,255,255,0.25);
+  flex-shrink: 0;
+}
+.header-right { flex: 1; }
+.sekolah-name {
+  font-size: 9.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #fff;
+  line-height: 1.2;
+}
+.ujian-name {
+  font-size: 8pt;
+  color: rgba(255,255,255,0.8);
+  margin: 3px 0 5px;
+  font-style: italic;
+}
+.kartu-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  font-size: 6pt;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  padding: 2px 10px;
+  border-radius: 20px;
+}
+
+/* NOMOR PESERTA */
+.nomor-section {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-bottom: 2px solid #1e40af;
+  padding: 12px 18px 10px;
+  text-align: center;
+  position: relative;
+}
+.nomor-label {
+  font-size: 6.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: #1e40af;
+  margin-bottom: 4px;
+}
+.nomor-value {
+  font-size: 26pt;
+  font-weight: 900;
+  color: #0f2057;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 3px;
+  line-height: 1.1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.nomor-keterangan {
+  font-size: 6pt;
+  color: #2563eb;
+  margin-top: 5px;
+  background: rgba(37,99,235,0.08);
+  border: 1px solid rgba(37,99,235,0.2);
+  border-radius: 6px;
+  padding: 3px 8px;
+  display: inline-block;
+  line-height: 1.4;
+}
+
+/* DATA PESERTA */
+.data-section {
+  padding: 10px 18px 8px;
+}
+.data-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.data-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 5px 9px;
+}
+.data-item.ruang-highlight {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+.data-label {
+  font-size: 6.5pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+.data-value {
+  font-size: 9.5pt;
+  color: #1e293b;
+  line-height: 1.2;
+}
+.data-value.bold { font-weight: 700; }
+.data-value.mono { font-family: 'Courier New', monospace; font-size: 9pt; }
+.ruang-val { color: #15803d; font-weight: 700; }
+
+/* FOOTER TTD */
+.kartu-footer {
+  display: flex;
+  gap: 0;
+  border-top: 1.5px dashed #cbd5e1;
+  margin-top: 4px;
+  padding: 10px 18px 12px;
+}
+.ttd-col {
+  flex: 1;
+  text-align: center;
+  padding: 0 8px;
+}
+.ttd-col:first-child {
+  border-right: 1px dashed #e2e8f0;
+}
+.ttd-label {
+  font-size: 7pt;
+  color: #64748b;
+  line-height: 1.5;
+}
+.ttd-space { height: 26px; }
+.ttd-line {
+  border-bottom: 1px solid #334155;
+  width: 85%;
+  margin: 0 auto 4px;
+}
+.ttd-nama {
+  font-size: 7pt;
+  color: #475569;
+}
+
+.page-break { page-break-after: always; height: 0; display: block; }
+@media print {
+  body { background: #fff; }
+  .page-break { page-break-after: always; }
+  .kartu { box-shadow: none; margin: 0.4cm auto; }
+}
+`;
+
+            return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Kartu Peserta Ujian — ${judul}</title><style>${css}</style></head><body>${cards}</body></html>`;
+        }
+
+        window.printSatuKartu = function(siswaId) {
+            const k = window.allKartuData.find(k => k.siswaId === siswaId);
+            if (!k) { alert('Data kartu tidak ditemukan. Klik "Generate" terlebih dahulu.'); return; }
+            const html = _buildKartuHTML([k]);
+            const win = window.open('', '_blank', 'width=700,height=600');
+            if (!win) { alert('Popup diblokir browser.'); return; }
+            win.document.write(html);
+            win.document.close();
+            win.onload = () => { win.focus(); win.print(); };
+        };
+
+        window.printAllKartu = function() {
+            const fRuang = document.getElementById('kartu-filter-ruang')?.value || '';
+            const fKelas = document.getElementById('kartu-filter-kelas')?.value || '';
+            const search = (document.getElementById('kartu-search')?.value || '').toLowerCase();
+            let data = window.allKartuData.filter(k => {
+                if (fRuang && k.ruang !== fRuang) return false;
+                if (fKelas && k.kelas !== fKelas) return false;
+                if (search && !(k.nama.toLowerCase().includes(search) || k.noPeserta.toLowerCase().includes(search))) return false;
+                return true;
+            });
+            if (!data.length) { alert('Tidak ada kartu untuk dicetak.'); return; }
+            const html = _buildKartuHTML(data);
+            const win = window.open('', '_blank', 'width=800,height=700');
+            if (!win) { alert('Popup diblokir browser.'); return; }
+            win.document.write(html);
+            win.document.close();
+            win.onload = () => { win.focus(); win.print(); };
+        };
 
         window.saveFonnteSettings = async function() {
             const token    = document.getElementById('fonnte-token-input').value.trim();
@@ -11447,47 +12477,80 @@ tr:nth-child(even) { background: #eff6ff; }
             if (!token) { alert('Token Fonnte tidak boleh kosong!'); return; }
             localStorage.setItem('integritest_fonnte_token', token);
             localStorage.setItem('integritest_fonnte_template', template);
-            if (window.isFirebaseReady && window.db) {
+            // Simpan juga state auto-send
+            const autoSendChk = document.getElementById('fonnte-auto-send-toggle');
+            if (autoSendChk) {
+                localStorage.setItem('integritest_fonnte_auto_send', autoSendChk.checked ? '1' : '0');
+            }
+            if (window.isFirebaseReady && window.db && window.setDoc && window.doc) {
                 try {
-                    const snap = await getDocs(COLL_SETTING());
-                    let settingDocId = null;
-                    snap.forEach(d => { if (d.data().timestamp) settingDocId = d.id; });
-                    const data = { fonnteToken: token, fonnteTemplate: template, updatedAt: Date.now() };
-                    if (settingDocId) {
-                        await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings', settingDocId), data);
-                    } else {
-                        await addDoc(COLL_SETTING(), { ...data, timestamp: Date.now() });
-                    }
-                } catch(e) { console.warn('Gagal simpan fonnte ke Firestore:', e); }
+                    await window.setDoc(
+                        window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'app_settings', 'fonnte_settings'),
+                        { fonnteToken: token, fonnteTemplate: template, updatedAt: Date.now(), timestamp: Date.now() },
+                        { merge: true }
+                    );
+                } catch(e) { console.warn('[Fonnte] Gagal simpan ke Firestore:', e); }
             }
             const status = document.getElementById('fonnte-save-status');
             if (status) { status.classList.remove('hidden'); setTimeout(() => status.classList.add('hidden'), 2500); }
+            alert('\u2705 Pengaturan WA berhasil disimpan!');
         };
 
-        function loadFonnteLocal() {
+        window.toggleAutoSendWA = function(checked) {
+            localStorage.setItem('integritest_fonnte_auto_send', checked ? '1' : '0');
+            console.log('[AutoWA] Auto kirim WA', checked ? 'AKTIF' : 'NONAKTIF');
+        };
+
+        function _loadFonnteLocal() {
             const token    = localStorage.getItem('integritest_fonnte_token') || '';
             const defTpl   = "Assalamu'alaikum Bpk/Ibu Wali dari *{nama}*.\n\nBerikut hasil ujian putra/putri Anda:\n📚 Mata Ujian: {mapel}\n🏫 Kelas: {kelas}\n📊 Nilai: *{nilai}*\n🏆 Predikat: {status}\n\nTerima kasih 🙏";
             const template = localStorage.getItem('integritest_fonnte_template') || defTpl;
             const ti = document.getElementById('fonnte-token-input');
             const tm = document.getElementById('fonnte-template-input');
-            if (ti && !ti.value) ti.value = token;
-            if (tm && !tm.value) tm.value = template;
+            if (ti) ti.value = token;
+            if (tm) tm.value = template;
+            // Load state auto-send toggle
+            const autoSend = localStorage.getItem('integritest_fonnte_auto_send') === '1';
+            const chk = document.getElementById('fonnte-auto-send-toggle');
+            if (chk) chk.checked = autoSend;
         }
 
         window.allSiswaDB = [];
 
-        function listenForSiswa() {
+        function _listenForSiswa() {
             if (!window.isFirebaseReady || !window.db) return;
-            onSnapshot(query(COLL_SISWA()), (snap) => {
+            window.onSnapshot(window.query(COLL_SISWA()), (snap) => {
                 window.allSiswaDB = [];
                 snap.forEach(d => window.allSiswaDB.push({ id: d.id, ...d.data() }));
-                updateSiswaStats();
-                const panel = document.getElementById('panel-siswa');
-                if (panel && !panel.classList.contains('hidden-section')) window.renderSiswaTable();
+                _updateSiswaStats();
+                // Selalu render tabel siswa
+                window.renderSiswaTable();
+
+                // AUTO-REBUILD allKartuData dari Firestore setiap kali data siswa siap
+                // Ini memastikan kartu tidak hilang setelah pindah halaman / refresh
+                const hasPeserta = window.allSiswaDB.filter(s => s.noPeserta);
+                if (hasPeserta.length) {
+                    window.allKartuData = hasPeserta.map(s => ({
+                        siswaId: s.id,
+                        nisn: s.nisn || '',
+                        nama: s.nama || '',
+                        kelas: s.kelas || '',
+                        waOrtu: s.waOrtu || '',
+                        noPeserta: s.noPeserta,
+                        ruang: s.ruangKartu || '-',
+                        ruangId: s.ruangKartuId || ''
+                    }));
+                    window.allKartuData.sort((a, b) => a.noPeserta.localeCompare(b.noPeserta));
+                    if (typeof _updateKartuFilters === 'function') _updateKartuFilters();
+                    if (typeof _updateKartuStats === 'function') _updateKartuStats();
+                    if (typeof window.renderKartuTable === 'function') {
+                        window.renderKartuTable();
+                    }
+                }
             });
         }
 
-        function updateSiswaStats() {
+        function _updateSiswaStats() {
             const total    = window.allSiswaDB.length;
             const withWa   = window.allSiswaDB.filter(s => s.waOrtu).length;
             const noWa     = total - withWa;
@@ -11508,53 +12571,158 @@ tr:nth-child(even) { background: #eff6ff; }
             const tbody = document.getElementById('siswa-table-body');
             if (!tbody) return;
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-10 text-center text-gray-400"><i data-lucide="search-x" class="w-8 h-8 mx-auto mb-2 text-gray-300"></i><p>' + (window.allSiswaDB.length===0?'Belum ada data siswa. Import dari Excel terlebih dahulu.':'Tidak ada data yang cocok.') + '</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-10 text-center text-gray-400"><i data-lucide="search-x" class="w-8 h-8 mx-auto mb-2 text-gray-300"></i><p>' + (window.allSiswaDB.length===0?'Belum ada data siswa. Import dari Excel terlebih dahulu.':'Tidak ada data yang cocok.') + '</p></td></tr>';
+                const pw2 = document.getElementById('pager-siswa-wrap'); if(pw2) pw2.innerHTML='';
                 if(typeof lucide!=='undefined') lucide.createIcons(); return;
             }
-            tbody.innerHTML = data.map((s,i) => {
+            // ★ PAGING
+            const pgSiswa = window._pg.siswa;
+            const total = data.length;
+            pgSiswa.page = Math.max(1, Math.min(pgSiswa.page, Math.ceil(total / pgSiswa.perPage)));
+            const sliceStart = (pgSiswa.page - 1) * pgSiswa.perPage;
+            const pageData = data.slice(sliceStart, sliceStart + pgSiswa.perPage);
+            tbody.innerHTML = pageData.map((s,i) => {
+                const globalIdx = sliceStart + i;
                 const waStatus = s.waOrtu
                     ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-bold"><i data-lucide="check-circle" class="w-3 h-3"></i>Ada</span>'
                     : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold"><i data-lucide="alert-circle" class="w-3 h-3"></i>Belum</span>';
-                const notifBadge = s.notifSent ? '<span class="text-[10px] text-teal-600 font-semibold ml-1">✓ Terkirim</span>' : '';
+                const notifBadge = s.notifSent ? '<span class="text-[10px] text-teal-600 font-semibold ml-1">\u2713 Terkirim</span>' : '';
                 const namaEsc = (s.nama||'').replace(/'/g,"&#39;");
+                // Tombol kirim WA langsung per baris
+                const kirimBtn = s.waOrtu
+                    ? '<button onclick="window.kirimWALangsung(\'' + s.id + '\')" class="text-green-600 hover:bg-green-50 p-1.5 rounded border border-green-200 hover:border-green-400" title="Kirim WA ke Ortu Sekarang"><i data-lucide="send" class="w-3.5 h-3.5"></i></button>'
+                    : '<button disabled class="text-gray-300 p-1.5 rounded border border-gray-100 cursor-not-allowed" title="Tidak ada No. WA"><i data-lucide="send" class="w-3.5 h-3.5"></i></button>';
                 return '<tr class="hover:bg-slate-50 border-b">' +
-                    '<td class="px-4 py-3 text-gray-500 text-sm">'+(i+1)+'</td>' +
+                    '<td class="px-4 py-3 text-gray-500 text-sm">'+(globalIdx+1)+'</td>' +
                     '<td class="px-4 py-3 font-mono text-sm text-gray-700">'+(s.nisn||'-')+'</td>' +
                     '<td class="px-4 py-3 font-semibold text-gray-800">'+(s.nama||'-')+'</td>' +
                     '<td class="px-4 py-3 text-gray-600 text-sm">'+(s.kelas||'-')+'</td>' +
-                    '<td class="px-4 py-3 font-mono text-sm text-gray-700">'+(s.waOrtu||'<span class="text-gray-300">—</span>')+'</td>' +
+                    '<td class="px-4 py-3 font-mono text-sm text-gray-700">'+(s.waOrtu||'<span class="text-gray-300">\u2014</span>')+'</td>' +
                     '<td class="px-4 py-3 text-center">'+waStatus+notifBadge+'</td>' +
                     '<td class="px-4 py-3 text-center"><div class="flex gap-1 justify-center">' +
-                        '<button onclick="window.editSiswaWa(''+s.id+'',''+s.nisn+'',''+namaEsc+'',''+(s.waOrtu||'')+'')" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded border border-blue-100" title="Edit No. WA Ortu"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>' +
-                        '<button onclick="window.hapusSiswa(''+s.id+'')" class="text-red-500 hover:bg-red-50 p-1.5 rounded border border-red-100" title="Hapus"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>' +
+                        kirimBtn +
+                        '<button onclick="window.openEditSiswa(\'' + s.id + '\')" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded border border-blue-100" title="Edit Data Siswa"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>' +
+                        '<button onclick="window.hapusSiswa(\'' + s.id + '\')" class="text-red-500 hover:bg-red-50 p-1.5 rounded border border-red-100" title="Hapus"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>' +
                     '</div></td>' +
                 '</tr>';
             }).join('');
+            // Render pager siswa
+            const pwSiswa = document.getElementById('pager-siswa-wrap');
+            if (pwSiswa) pwSiswa.innerHTML = renderPagerHTML('siswa', total, pgSiswa.page, pgSiswa.perPage);
             if(typeof lucide!=='undefined') lucide.createIcons();
         };
 
-        window.filterSiswaTable = function() { window.renderSiswaTable(); };
+        window.filterSiswaTable = function() {
+            if (window._pg && window._pg.siswa) window._pg.siswa.page = 1;
+            window.renderSiswaTable();
+        };
 
         window.editSiswaWa = function(id, nisn, nama, waLama) {
-            const noWaBaru = prompt('Edit No. WA Ortu untuk ' + nama + ' (NISN: ' + nisn + ')\n\nFormat: 628xxxxxxxxxx\nKosongkan untuk menghapus.', waLama);
-            if (noWaBaru === null) return;
-            const cleaned = noWaBaru.trim().replace(/\D/g,'');
-            if (cleaned && !cleaned.startsWith('62')) { alert('Format nomor harus diawali 62 (contoh: 628123456789)'); return; }
-            if (!window.isFirebaseReady) { alert('Mode offline.'); return; }
-            updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', id), { waOrtu: cleaned })
-                .catch(e => alert('Gagal simpan: ' + e.message));
+            window.openEditSiswa(id);
+        };
+
+        // ★ MODAL EDIT SISWA LENGKAP (NISN, Nama, Kelas, No WA Ortu)
+        window.openEditSiswa = function(id) {
+            const siswa = window.allSiswaDB.find(s => s.id === id);
+            if (!siswa) { alert('Data siswa tidak ditemukan.'); return; }
+
+            // Buat modal jika belum ada
+            let modal = document.getElementById('modal-edit-siswa');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modal-edit-siswa';
+                modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+                        <div class="flex items-center justify-between mb-5">
+                            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                </span>
+                                Edit Data Siswa
+                            </h3>
+                            <button onclick="document.getElementById('modal-edit-siswa').remove()" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">NISN</label>
+                                <input id="edit-siswa-nisn" type="text" placeholder="Contoh: 1234567890" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Nama Lengkap</label>
+                                <input id="edit-siswa-nama" type="text" placeholder="Nama siswa" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Kelas</label>
+                                <input id="edit-siswa-kelas" type="text" placeholder="Contoh: XI TKJ 1" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">No. WA Orang Tua</label>
+                                <input id="edit-siswa-wa" type="text" placeholder="Contoh: 628123456789 (kosongkan jika tidak ada)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                                <p class="text-xs text-gray-400 mt-1">Format: diawali 62, tanpa spasi/tanda hubung</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="document.getElementById('modal-edit-siswa').remove()" class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50">Batal</button>
+                            <button onclick="window.simpanEditSiswa()" class="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
+                                Simpan
+                            </button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(modal);
+                // Tutup modal jika klik di luar
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+            }
+
+            // Isi nilai saat ini
+            document.getElementById('edit-siswa-nisn').value = siswa.nisn || '';
+            document.getElementById('edit-siswa-nama').value = siswa.nama || '';
+            document.getElementById('edit-siswa-kelas').value = siswa.kelas || '';
+            document.getElementById('edit-siswa-wa').value = siswa.waOrtu || '';
+            modal.dataset.editId = id;
+            modal.style.display = 'flex';
+        };
+
+        window.simpanEditSiswa = async function() {
+            const modal = document.getElementById('modal-edit-siswa');
+            if (!modal) return;
+            const id = modal.dataset.editId;
+            const nisn = document.getElementById('edit-siswa-nisn').value.trim();
+            const nama = document.getElementById('edit-siswa-nama').value.trim();
+            const kelas = document.getElementById('edit-siswa-kelas').value.trim();
+            const waRaw = document.getElementById('edit-siswa-wa').value.trim().replace(/\D/g,'');
+
+            if (!nisn) { alert('NISN tidak boleh kosong!'); document.getElementById('edit-siswa-nisn').focus(); return; }
+            if (!nama) { alert('Nama tidak boleh kosong!'); document.getElementById('edit-siswa-nama').focus(); return; }
+            if (waRaw && !waRaw.startsWith('62')) { alert('Format No. WA harus diawali 62 (contoh: 628123456789)'); document.getElementById('edit-siswa-wa').focus(); return; }
+            if (!window.isFirebaseReady) { alert('Mode offline. Tidak bisa menyimpan.'); return; }
+
+            try {
+                await window.updateDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', id), {
+                    nisn: nisn,
+                    nama: nama,
+                    kelas: kelas,
+                    waOrtu: waRaw,
+                });
+                modal.remove();
+            } catch(e) {
+                alert('Gagal menyimpan: ' + e.message);
+            }
         };
 
         window.hapusSiswa = async function(id) {
             if (!confirm('Hapus data siswa ini?')) return;
-            await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', id));
+            await window.deleteDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', id));
         };
 
         window.clearAllSiswa = async function() {
             if (!window.allSiswaDB.length) { alert('Tidak ada data untuk dihapus.'); return; }
             if (!confirm('Hapus SEMUA ' + window.allSiswaDB.length + ' data siswa? Tindakan ini tidak bisa dibatalkan!')) return;
             for (const s of window.allSiswaDB) {
-                await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', s.id));
+                await window.deleteDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', s.id));
             }
         };
 
@@ -11617,10 +12785,10 @@ tr:nth-child(even) { background: #eff6ff; }
                 for (const s of data) {
                     const existing = window.allSiswaDB.find(d => d.nisn.toString()===s.nisn.toString());
                     if (existing) {
-                        await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', existing.id), { nama:s.nama, kelas:s.kelas, waOrtu:s.waOrtu, updatedAt:Date.now() });
+                        await window.updateDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', existing.id), { nama:s.nama, kelas:s.kelas, waOrtu:s.waOrtu, updatedAt:Date.now() });
                         updated++;
                     } else {
-                        await addDoc(COLL_SISWA(), { ...s, createdAt:Date.now(), notifSent:false });
+                        await window.addDoc(COLL_SISWA(), { ...s, createdAt:Date.now(), notifSent:false });
                         added++;
                     }
                 }
@@ -11646,7 +12814,7 @@ tr:nth-child(even) { background: #eff6ff; }
             setTimeout(() => el.classList.add('hidden'), 6000);
         }
 
-        async function kirimWA(nomorWA, pesan) {
+        async function _kirimWA(nomorWA, pesan) {
             const token = localStorage.getItem('integritest_fonnte_token') || '';
             if (!token) { alert('⚠️ Token Fonnte belum diatur! Buka tab Data Siswa → isi Token API Fonnte.'); return false; }
             try {
@@ -11660,7 +12828,7 @@ tr:nth-child(even) { background: #eff6ff; }
             } catch(e) { console.error('[Fonnte]', e); return false; }
         }
 
-        function buildPesan(siswaDB, hasil) {
+        function _buildPesan(siswaDB, hasil) {
             const defTpl = "Assalamu'alaikum Bpk/Ibu Wali dari *{nama}*.\n\nHasil ujian:\n📚 {mapel}\n🏫 Kelas: {kelas}\n📊 Nilai: *{nilai}*\n🏆 {status}\n\nTerima kasih 🙏";
             const template = localStorage.getItem('integritest_fonnte_template') || defTpl;
             const score = hasil.score ?? '-';
@@ -11674,15 +12842,36 @@ tr:nth-child(even) { background: #eff6ff; }
                 .replace(/{mapel}/g, hasil.paketNama || hasil.sesiName || 'Ujian');
         }
 
+        // Helper ambil hasil ujian dari Firestore langsung (tidak bergantung _allDashboardData)
+        async function _getHasilUjianDariFirestore() {
+            if (!window.isFirebaseReady || !window.db) return [];
+            try {
+                const snap = await window.getDocs(window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
+                const hasil = [];
+                snap.forEach(d => hasil.push({ id: d.id, ...d.data() }));
+                return hasil;
+            } catch(e) {
+                console.warn('[Fonnte] Gagal ambil exam_results dari Firestore:', e);
+                return [];
+            }
+        }
+
+        // Kirim WA dari tombol di tab Monitoring (pakai hasilId)
         window.kirimNotifikasiSatu = async function(hasilId) {
-            const semua = [...(window._allDashboardData||[]), ...(window.currentFilteredData||[])];
-            const hasil = semua.find(d => d.id === hasilId);
+            // Cari di cache dulu, kalau tidak ada ambil dari Firestore
+            let semua = [...(window._allDashboardData||[]), ...(window.currentFilteredData||[])];
+            let hasil = semua.find(d => d.id === hasilId);
+            if (!hasil) {
+                // Ambil langsung dari Firestore
+                const allHasil = await _getHasilUjianDariFirestore();
+                hasil = allHasil.find(d => d.id === hasilId);
+            }
             if (!hasil) { alert('Data ujian tidak ditemukan.'); return; }
             const nisn = (hasil.studentNisn||'').toString().trim();
             let waOrtu = '';
             if (nisn) {
-                const db = window.allSiswaDB.find(s => s.nisn.toString()===nisn);
-                if (db) waOrtu = db.waOrtu || '';
+                const sw = window.allSiswaDB.find(s => s.nisn.toString()===nisn);
+                if (sw) waOrtu = sw.waOrtu || '';
             }
             if (!waOrtu) {
                 const manual = prompt('No. WA Ortu untuk ' + hasil.studentName + ' tidak ada di database.\nMasukkan manual (628xxx) atau kosongkan untuk batal:');
@@ -11691,39 +12880,103 @@ tr:nth-child(even) { background: #eff6ff; }
             }
             if (!waOrtu) return;
             const siswaDB = window.allSiswaDB.find(s => s.nisn&&s.nisn.toString()===nisn) || {};
-            const ok = await kirimWA(waOrtu, buildPesan(siswaDB, hasil));
+            const token = localStorage.getItem('integritest_fonnte_token') || '';
+            if (!token) { alert('\u26a0\ufe0f Token Fonnte belum diatur! Buka tab Data Siswa \u2192 isi Token API Fonnte.'); return; }
+            const pesan = _buildPesan(siswaDB, hasil);
+            const ok = await _kirimWA(waOrtu, pesan);
             if (ok) {
-                alert('✅ Notifikasi terkirim ke ' + waOrtu);
+                alert('\u2705 Notifikasi terkirim ke ' + waOrtu);
                 if (siswaDB.id && window.isFirebaseReady) {
-                    await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', siswaDB.id), { notifSent:true, notifSentAt:Date.now() });
+                    await window.updateDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', siswaDB.id), { notifSent:true, notifSentAt:Date.now() });
                 }
-            } else { alert('❌ Gagal kirim. Cek token Fonnte dan koneksi.'); }
+            } else { alert('\u274c Gagal kirim. Cek token Fonnte dan pastikan device WhatsApp sudah Connect.'); }
         };
 
+        // ★ Kirim WA langsung dari baris tabel Data Siswa
+        window.kirimWALangsung = async function(siswaId) {
+            const siswa = window.allSiswaDB.find(s => s.id === siswaId);
+            if (!siswa || !siswa.waOrtu) { alert('Nomor WA tidak ditemukan.'); return; }
+            const token = localStorage.getItem('integritest_fonnte_token') || '';
+            if (!token) { alert('\u26a0\ufe0f Token Fonnte belum diatur! Isi dulu di pengaturan di atas.'); return; }
+            // Cari hasil ujian siswa ini — dari cache dulu, lalu Firestore
+            let allHasil = [...(window._allDashboardData||[]), ...(window.currentFilteredData||[])];
+            if (!allHasil.length) allHasil = await _getHasilUjianDariFirestore();
+            const hasilUjian = allHasil.find(d =>
+                d.studentNisn && d.studentNisn.toString() === siswa.nisn.toString() && d.score != null
+            );
+            let pesan;
+            const defTpl = "Assalamu'alaikum Bpk/Ibu Wali dari *{nama}*.\n\nBerikut hasil ujian putra/putri Anda:\n\ud83d\udcda Mata Ujian: {mapel}\n\ud83c\udfeb Kelas: {kelas}\n\ud83d\udcca Nilai: *{nilai}*\n\ud83c\udfc6 Predikat: {status}\n\nTerima kasih \ud83d\ude4f";
+            const tpl = localStorage.getItem('integritest_fonnte_template') || defTpl;
+            if (hasilUjian) {
+                pesan = _buildPesan(siswa, hasilUjian);
+            } else {
+                pesan = tpl.replace(/{nama}/g,siswa.nama||'-').replace(/{kelas}/g,siswa.kelas||'-').replace(/{nilai}/g,'-').replace(/{status}/g,'-').replace(/{mapel}/g,'Ujian');
+            }
+            const preview = pesan.length > 150 ? pesan.substring(0,150)+'...' : pesan;
+            if (!confirm('Kirim WA ke orang tua ' + (siswa.nama||'') + '?\nNomor: ' + siswa.waOrtu + '\n\nPreview:\n' + preview)) return;
+            const ok = await _kirimWA(siswa.waOrtu, pesan);
+            if (ok) {
+                alert('\u2705 Pesan terkirim ke ' + siswa.waOrtu);
+                await window.updateDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', siswaId), { notifSent:true, notifSentAt:Date.now() });
+            } else {
+                alert('\u274c Gagal kirim. Cek token Fonnte dan pastikan device WhatsApp sudah Connect di fonnte.com');
+            }
+        };
+
+        // ★ Kirim Semua — ambil langsung dari Firestore, tidak perlu buka tab Monitoring dulu
         window.kirimNotifikasiSemua = async function() {
             const token = localStorage.getItem('integritest_fonnte_token') || '';
-            if (!token) { alert('⚠️ Token Fonnte belum diatur!'); return; }
-            const selesai = (window._allDashboardData||[]).filter(d => d.status==='SELESAI' && d.score!=null);
-            if (!selesai.length) { alert('Belum ada siswa yang selesai ujian.'); return; }
-            const adaWA = selesai.filter(d => {
-                const nisn = (d.studentNisn||'').toString().trim();
-                return window.allSiswaDB.find(s => s.nisn.toString()===nisn && s.waOrtu);
-            }).length;
-            if (!adaWA) { alert(selesai.length + ' siswa selesai, tapi tidak ada No. WA Ortu di database.\n\nImport data siswa terlebih dahulu.'); return; }
-            if (!confirm('Kirim notifikasi ke ' + adaWA + ' orang tua? (Siswa tanpa WA dilewati)')) return;
-            let berhasil=0, gagal=0, skip=0;
-            for (const d of selesai) {
-                const nisn = (d.studentNisn||'').toString().trim();
-                const siswaDB = window.allSiswaDB.find(s => s.nisn.toString()===nisn);
-                if (!siswaDB || !siswaDB.waOrtu) { skip++; continue; }
-                const ok = await kirimWA(siswaDB.waOrtu, buildPesan(siswaDB, d));
+            if (!token) { alert('\u26a0\ufe0f Token Fonnte belum diatur! Isi dulu di pengaturan di atas.'); return; }
+
+            // Ambil semua siswa yang ada No. WA
+            const siswaAdaWA = window.allSiswaDB.filter(s => s.waOrtu);
+            if (!siswaAdaWA.length) {
+                alert('Tidak ada siswa dengan No. WA Ortu di database.\nImport data siswa dengan kolom wa_ortu terlebih dahulu.');
+                return;
+            }
+
+            // Ambil semua hasil ujian langsung dari Firestore (tidak perlu buka tab Monitoring dulu)
+            const btnKirim = document.querySelector('button[onclick="window.kirimNotifikasiSemua()"]');
+            if (btnKirim) { btnKirim.disabled = true; btnKirim.innerHTML = '\u23f3 Memuat data...'; }
+            let allHasil = [...(window._allDashboardData||[]), ...(window.currentFilteredData||[])];
+            if (!allHasil.length) {
+                allHasil = await _getHasilUjianDariFirestore();
+            }
+            if (btnKirim) { btnKirim.disabled = false; btnKirim.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Kirim Semua (Yang Sudah Ujian)'; if(typeof lucide!=='undefined') lucide.createIcons(); }
+
+            // Hitung yang punya nilai vs yang belum
+            const punyaHasil = siswaAdaWA.filter(s =>
+                allHasil.some(d => d.studentNisn && d.studentNisn.toString()===s.nisn.toString() && d.score!=null)
+            );
+            const tanpaHasil = siswaAdaWA.filter(s => !punyaHasil.includes(s));
+
+            let konfirmMsg = 'Kirim WA ke ' + siswaAdaWA.length + ' orang tua?';
+            if (punyaHasil.length) konfirmMsg += '\n\u2705 ' + punyaHasil.length + ' siswa: dikirim hasil ujian dengan nilai';
+            if (tanpaHasil.length) konfirmMsg += '\n\ud83d\udccb ' + tanpaHasil.length + ' siswa: belum ujian (nilai ditampilkan -)';
+            konfirmMsg += '\n\nLanjutkan?';
+            if (!confirm(konfirmMsg)) return;
+
+            let berhasil=0, gagal=0;
+            for (const siswa of siswaAdaWA) {
+                const hasilUjian = allHasil.find(d =>
+                    d.studentNisn && d.studentNisn.toString()===siswa.nisn.toString() && d.score!=null
+                );
+                let pesan;
+                const defTpl = "Assalamu'alaikum Bpk/Ibu Wali dari *{nama}*.\n\nBerikut hasil ujian putra/putri Anda:\n\ud83d\udcda Mata Ujian: {mapel}\n\ud83c\udfeb Kelas: {kelas}\n\ud83d\udcca Nilai: *{nilai}*\n\ud83c\udfc6 Predikat: {status}\n\nTerima kasih \ud83d\ude4f";
+                const tpl = localStorage.getItem('integritest_fonnte_template') || defTpl;
+                if (hasilUjian) {
+                    pesan = _buildPesan(siswa, hasilUjian);
+                } else {
+                    pesan = tpl.replace(/{nama}/g,siswa.nama||'-').replace(/{kelas}/g,siswa.kelas||'-').replace(/{nilai}/g,'-').replace(/{status}/g,'-').replace(/{mapel}/g,'Ujian');
+                }
+                const ok = await _kirimWA(siswa.waOrtu, pesan);
                 if (ok) {
                     berhasil++;
-                    await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa', siswaDB.id), { notifSent:true, notifSentAt:Date.now() });
+                    await window.updateDoc(window.doc(window.db,'artifacts',window.appId,'public','data','data_siswa',siswa.id),{notifSent:true,notifSentAt:Date.now()});
                 } else { gagal++; }
                 await new Promise(r => setTimeout(r, 700));
             }
-            alert('✅ Selesai!\n✓ Terkirim: ' + berhasil + '\n✗ Gagal: ' + gagal + '\n⊘ Dilewati: ' + skip);
+            alert('\u2705 Selesai!\n\u2713 Terkirim: ' + berhasil + '\n\u2717 Gagal: ' + gagal);
         };
 
         window.getWaOrtuByNisn = function(nisn) {
@@ -11733,15 +12986,15 @@ tr:nth-child(even) { background: #eff6ff; }
         };
 
         waitFirebase(() => {
-            listenForSiswa();
-            loadFonnteLocal();
-            getDocs(COLL_SETTING()).then(snap => {
+            _listenForSiswa();
+            _loadFonnteLocal();
+            window.getDocs(COLL_SETTING()).then(snap => {
                 snap.forEach(d => {
                     const data = d.data();
                     if (data.fonnteToken) {
                         localStorage.setItem('integritest_fonnte_token', data.fonnteToken);
                         if (data.fonnteTemplate) localStorage.setItem('integritest_fonnte_template', data.fonnteTemplate);
-                        loadFonnteLocal();
+                        _loadFonnteLocal();
                     }
                 });
             }).catch(()=>{});
