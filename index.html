@@ -27,7 +27,12 @@
                 // Tandai body agar CSS perf-mode aktif
                 document.addEventListener('DOMContentLoaded', () => {
                     document.body.classList.add('perf-mode');
-                    window._perfMode = true;
+                    window._perfMode = (
+                        navigator.hardwareConcurrency <= 4 ||
+                        (navigator.deviceMemory !== undefined && navigator.deviceMemory <= 2) ||
+                        /Android|iPhone|iPad/i.test(navigator.userAgent) ||
+                        window.innerWidth <= 480
+                    );
                     console.log('[PerfMode] HP Kentang terdeteksi — animasi dinonaktifkan.');
                 });
             } else {
@@ -40,13 +45,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://unpkg.com/lucide@latest"></script>
     
     <!-- SheetJS for Excel import -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <!-- Mammoth.js for Word import -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
     <!-- Firebase SDK (Modular) -->
     <script type="module">
@@ -173,6 +178,18 @@
                 
                 window.isFirebaseReady = true;
                 console.log("Firebase Connected");
+                
+                // ★ Auto-reconnect saat browser kembali online
+                window.addEventListener('online', function() {
+                    console.log('[Firebase] Browser online - checking listeners...');
+                    // Re-trigger listener yang belum aktif
+                    setTimeout(function() {
+                        if (window.listenForJadwal && !window._unsub_listenForJadwal) window.listenForJadwal();
+                        if (window.listenForPaket && !window._unsub_listenForPaket) window.listenForPaket();
+                        if (window.listenForKelas && !window._unsub_listenForKelas) window.listenForKelas();
+                        if (window.listenForRuang && !window._unsub_listenForRuang) window.listenForRuang();
+                    }, 1000);
+                }, { once: false });
                 updateConnectionStatus(true, "Terhubung ke Server");
                 
                 listenForSettings(); 
@@ -590,7 +607,7 @@
                 btn.innerHTML = '<i data-lucide="unlock" class="w-5 h-5"></i> Buka Pembahasan untuk Siswa';
             }
 
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
             window.updateDiscussionUIStatus();
             
             // Broadcast ke Firestore (untuk update real-time di tab lain)
@@ -771,7 +788,7 @@
                 if(btn) {
                     btn.disabled = false;
                     btn.innerHTML = `<i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload Soal Bawaan ke DB (+ Buat Paket A/B/C)`;
-                    if(typeof lucide !== 'undefined') lucide.createIcons();
+                    if(typeof lucide !== 'undefined') window._createIconsSafe();
                 }
             }
         };
@@ -887,7 +904,7 @@
                 console.error(e);
                 alert("Gagal mereset data: " + e.message);
             } finally {
-                if(btn) { btn.disabled = false; btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i> Reset Jadwal Ini`; if(typeof lucide !== 'undefined') lucide.createIcons(); }
+                if(btn) { btn.disabled = false; btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i> Reset Jadwal Ini`; if(typeof lucide !== 'undefined') window._createIconsSafe(); }
             }
         };
 
@@ -1192,7 +1209,7 @@
                 for(let i=0; i<5; i++) addOptionInput('', '');
             }
             modal.classList.remove('hidden');
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.closeQuestionModal = () => { document.getElementById('modal-question').classList.add('hidden'); };
@@ -1238,7 +1255,7 @@
                 img.style.display = '';
                 img.src = imgValue;
             }
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.reindexOptions = function() {
@@ -1443,6 +1460,7 @@
 
         window.setupRealtimeListener = () => {
             if (!window.isFirebaseReady || !window.db) return;
+            if (window._unsub_realtimeMonitor) return; // ★ guard: sudah aktif
 
             const q = query(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
 
@@ -1452,7 +1470,7 @@
             // tapi tabel monitoring tetap langsung menampilkan SEMUA data (termasuk SEDANG MENGERJAKAN).
             let knownIds = null;
 
-            onSnapshot(q, (snapshot) => {
+            window._unsub_realtimeMonitor = onSnapshot(q, (snapshot) => {
                 const results = [];
                 snapshot.forEach((docSnap) => {
                     results.push({ id: docSnap.id, ...docSnap.data() });
@@ -1673,7 +1691,15 @@
         #siswa-sub-wa.siswa-hidden {
             display: none !important;
         }
-        </style>
+        
+/* ★ HP Kentang: skip rendering elemen yang tidak terlihat */
+.tab-panel { content-visibility: auto; }
+.perf-mode .animate-fade-in { animation: none !important; }
+.perf-mode .transition-all { transition: none !important; }
+.perf-mode .animate-spin { animation: spin 1.5s linear infinite !important; }
+/* Paksa GPU layer hanya untuk elemen penting */
+.exam-container, #question-display { transform: translateZ(0); }
+</style>
 </head>
 <body>
 
@@ -5291,12 +5317,11 @@ Terima kasih 🙏</textarea>
             let _lucideTimer = null;
             window._createIconsSafe = function() {
                 if (typeof lucide === 'undefined') return;
-                if (window._perfMode) {
-                    clearTimeout(_lucideTimer);
-                    _lucideTimer = setTimeout(() => lucide.createIcons(), 80);
-                } else {
-                    lucide.createIcons();
-                }
+                // Selalu debounce (HP kentang safe - max 1 call per 100ms)
+                clearTimeout(_lucideTimer);
+                _lucideTimer = setTimeout(() => {
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }, window._perfMode ? 200 : 80);
             };
         })();
 
@@ -5312,7 +5337,6 @@ Terima kasih 🙏</textarea>
         // --- DATA SOAL STATIC (FALLBACK & SEED) ---
         window.questionBank = {
             A: [
-                // LITERASI
                 { id: 1, text: "Rizki adalah siswa kelas XI TKJ di SMKN 1 Brondong. Gurunya memberi tugas membuat project jaringan komputer, namun Rizki selalu gagal dalam konfigurasi router. Ia merasa dirinya tidak berbakat di bidang networking dan menyerah. \"Saya memang tidak punya bakat jadi teknisi jaringan,\" katanya. Berdasarkan cerita di atas, pola pikir yang dimiliki Rizki adalah...", options: ["Growth mindset karena mau mencoba mengerjakan tugas", "Fixed mindset karena menganggap kemampuannya sudah terbatas dan tidak bisa berkembang", "Pola pikir inovatif dalam networking", "Pola pikir kreatif dalam pemrograman", "Pola pikir pantang menyerah"], correct: 1 },
                 { id: 2, text: "Fahrul, lulusan TKJ SMKN 1 Brondong, membuka usaha service komputer. Ia melihat banyak warga kesulitan akses internet. Fahrul berinovasi menawarkan jasa instalasi jaringan RT/RW Net dengan harga terjangkau. Usahanya berkembang pesat. Karakter wirausaha yang paling menonjol ditunjukkan Fahrul adalah...", options: ["Jujur dalam memberikan pelayanan", "Inovatif dan kreatif melihat peluang bisnis", "Berani mengambil risiko saja", "Rasa ingin tahu terhadap teknologi saja", "Pantang menyerah dalam bekerja"], correct: 1 },
                 { id: 3, text: "Devi, siswi kelas XII TKJ SMKN 1 Brondong, membuat website untuk UMKM lokal. Awalnya sepi dan teman-temannya pesimis. Devi tidak menyerah, belajar SEO dan digital marketing, hingga kini websitenya ramai. Sikap Devi menunjukkan ia memiliki...", options: ["Fixed mindset karena awalnya gagal", "Growth mindset karena terus belajar dan tidak menyerah mengembangkan kemampuannya", "Sikap mudah terpengaruh pendapat orang", "Kemampuan yang terbatas dalam web development", "Bakat alami dalam bisnis digital"], correct: 1 },
@@ -5323,8 +5347,6 @@ Terima kasih 🙏</textarea>
                 { id: 8, text: "Dalam pembelajaran PKK di kelas TKJ SMKN 1 Brondong, guru menjelaskan perbedaan pola pikir. Perbedaan utama antara growth mindset dan fixed mindset dalam kewirausahaan adalah...", options: ["Growth mindset percaya kemampuan bisa berkembang dengan usaha, fixed mindset percaya kemampuan sudah tetap sejak lahir", "Growth mindset hanya untuk orang kaya, fixed mindset untuk orang miskin", "Growth mindset tidak pernah mengalami kegagalan, fixed mindset selalu gagal", "Growth mindset tidak perlu belajar lagi, fixed mindset harus terus belajar", "Keduanya sama saja tidak ada bedanya dalam berwirausaha"], correct: 0 },
                 { id: 9, text: "Bayu, alumni TKJ SMKN 1 Brondong, 3 kali gagal bisnis (aksesoris, jasa setting, pulsa). Ia tidak menyerah, belajar dari kesalahan, dan mencoba lagi konsep baru hingga sukses di jasa website. Karakter wirausaha yang paling menonjol dari Bayu adalah...", options: ["Jujur kepada pelanggan", "Pantang menyerah dan terus berusaha", "Rasa ingin tahu tentang teknologi", "Inovatif membuat produk baru", "Berani mengambil risiko besar"], correct: 1 },
                 { id: 10, text: "Di laboratorium TKJ SMKN 1 Brondong, siswa diajarkan menerapkan kreativitas. Kreativitas dalam kehidupan sehari-hari khususnya bidang TKJ dapat diterapkan dengan cara...", options: ["Hanya mengikuti tutorial yang ada di internet tanpa modifikasi", "Selalu menunggu guru memberikan solusi untuk setiap masalah", "Mencari solusi unik dan berbeda untuk masalah teknis yang dihadapi", "Menghindari hal-hal baru yang belum pernah dipelajari di sekolah", "Hanya fokus mengerjakan tugas rutin yang sudah diajarkan"], correct: 2 },
-                
-                // NUMERASI
                 { id: 11, text: "Rina, siswi kelas XI TKJ, mengikuti pelatihan 5 hari dengan materi berbeda tiap hari. Jika ia harus memilih kombinasi 3 karakter paling tepat untuk membuka usaha service komputer baru, kombinasi mana yang paling diperlukan?", options: ["Rasa ingin tahu, Berani mengambil risiko, Jujur", "Pantang menyerah, Inovatif, Jujur", "Berani mengambil risiko, Pantang menyerah, Inovatif", "Rasa ingin tahu, Inovatif, Pantang menyerah", "Semua karakter sama pentingnya (5 karakter)"], correct: 2 },
                 { id: 12, text: "Pak Hendra memberikan 4 pernyataan tentang mindset. (1) Tidak berbakat, (2) Kegagalan adalah belajar, (3) Kemampuan sudah maksimal, (4) Dengan latihan bisa lebih baik. Berapa jumlah pernyataan yang menunjukkan growth mindset?", options: ["1 pernyataan", "2 pernyataan", "3 pernyataan", "4 pernyataan", "Tidak ada yang menunjukkan growth mindset"], correct: 1 },
                 { id: 13, text: "Dimas ikut lomba LKS. Tahun 1: Gagal penyisihan. Tahun 2: Semifinal. Tahun 3: Juara 2 Provinsi. Ini menunjukkan konsep mindset apa dan berapa tingkat peningkatan prestasinya (jumlah tahap)?", options: ["Fixed mindset, peningkatan 1 tahap", "Growth mindset, peningkatan 2 tahap", "Growth mindset, peningkatan 3 tahap", "Fixed mindset, peningkatan 3 tahap", "Growth mindset, tidak ada peningkatan"], correct: 1 },
@@ -5337,7 +5359,6 @@ Terima kasih 🙏</textarea>
                 { id: 20, text: "Andi memilih ide bisnis: Riset 5 ide -> Pilih 3 -> Uji coba 2 -> Luncurkan 1. Berapa total ide yang diriset dan berapa yang diluncurkan?", options: ["Riset 5 ide, luncurkan 3 ide", "Riset 5 ide, luncurkan 2 ide", "Riset 5 ide, luncurkan 1 ide", "Riset 3 ide, luncurkan 1 ide", "Riset 3 ide, luncurkan 2 ide"], correct: 2 }
             ],
             B: [
-                // LITERASI
                 { id: 1, text: "Ahmad, siswa kelas XII TKJ SMKN 1 Brondong, mendapat nilai jelek saat ujian praktik instalasi server. Ia berkata kepada temannya, \"Saya memang bodoh, tidak akan pernah bisa menguasai materi server. Lebih baik saya fokus ke hal lain saja.\" Ahmad pun tidak mau belajar lagi tentang server. Pola pikir yang ditunjukkan Ahmad adalah...", options: ["Growth mindset karena mau mencari fokus baru", "Growth mindset karena realistis dengan kemampuan", "Fixed mindset karena percaya kemampuannya tidak bisa berkembang", "Pola pikir inovatif dalam belajar", "Pola pikir kreatif dalam menyelesaikan masalah"], correct: 2 },
                 { id: 2, text: "Ibu Zahra, alumni TKJ SMKN 1 Brondong, membuka usaha fotocopy dan print di dekat sekolah. Ia melihat banyak siswa yang kesulitan mengedit dokumen. Ibu Zahra kemudian menambah layanan jasa pengetikan, editing dokumen, dan desain grafis sederhana. Kini usahanya menjadi one-stop service untuk kebutuhan siswa dan tidak hanya bergantung pada fotocopy saja. Karakter wirausaha yang paling dominan ditunjukkan Ibu Zahra adalah...", options: ["Jujur dalam memberikan layanan terbaik", "Pantang menyerah menghadapi persaingan", "Kreatif dan inovatif mengembangkan layanan bisnis", "Berani mengambil risiko membuka usaha", "Rasa ingin tahu tentang kebutuhan pasar"], correct: 2 },
                 { id: 3, text: "Yoga, siswa kelas XI TKJ, membuat aplikasi mobile untuk mencatat tugas sekolah. Aplikasi pertamanya crash terus dan tidak ada yang mau pakai. Teman-temannya bilang \"kamu tidak cocok jadi programmer.\" Namun Yoga tidak putus asa. Ia bertanya ke kakak kelasnya, menonton tutorial YouTube, belajar dari forum online, dan terus memperbaiki coding-nya. Setelah 3 bulan, aplikasinya berhasil dan digunakan 100 siswa TKJ. Sikap Yoga menunjukkan ia memiliki...", options: ["Fixed mindset karena awalnya gagal membuat aplikasi", "Bakat alami sebagai programmer sejak lahir", "Growth mindset karena percaya kemampuan bisa berkembang dengan belajar", "Sikap mudah terpengaruh pendapat negatif orang lain", "Kemampuan yang terbatas dalam programming"], correct: 2 },
@@ -5348,8 +5369,6 @@ Terima kasih 🙏</textarea>
                 { id: 8, text: "Di kelas PKK, guru menjelaskan perbedaan cara berpikir antara growth mindset dan fixed mindset saat menghadapi kegagalan dalam bisnis. Perbedaan respons terhadap kegagalan antara growth mindset dan fixed mindset adalah...", options: ["Growth mindset melihat kegagalan sebagai pembelajaran, fixed mindset melihat kegagalan sebagai bukti ketidakmampuan", "Growth mindset tidak pernah gagal, fixed mindset selalu gagal", "Growth mindset untuk orang pintar, fixed mindset untuk orang bodoh", "Keduanya sama-sama takut gagal dalam bisnis", "Growth mindset langsung menyerah, fixed mindset terus mencoba"], correct: 0 },
                 { id: 9, text: "Hasan, alumni TKJ SMKN 1 Brondong, sudah 4 kali mencoba berbagai bisnis teknologi namun gagal: warnet tutup, jual aksesoris komputer sepi, jasa instalasi jaringan tidak berkembang, dan rental PS bangkrut. Namun ia tidak menyerah. Di percobaan kelima, ia membuka kursus komputer untuk anak-anak dan berhasil dengan 30 siswa tetap. Hasan berkata, \"Setiap kegagalan mengajarkan saya sesuatu yang berharga.\" Karakter wirausaha yang paling menonjol dari Hasan adalah...", options: ["Jujur kepada diri sendiri", "Inovatif menciptakan produk baru", "Pantang menyerah dan terus berusaha", "Berani mengambil risiko besar", "Rasa ingin tahu yang tinggi"], correct: 2 },
                 { id: 10, text: "Siswa TKJ SMKN 1 Brondong belajar bahwa kreativitas adalah keterampilan yang bisa dilatih dan dikembangkan dalam kehidupan sehari-hari. Cara melatih kreativitas dalam kehidupan sehari-hari sebagai siswa TKJ adalah...", options: ["Selalu mengerjakan tugas dengan cara yang sama seperti contoh guru", "Menghindari hal-hal baru karena takut salah", "Mencoba berbagai cara berbeda untuk menyelesaikan masalah teknis", "Hanya fokus pada teori tanpa praktik", "Meniru pekerjaan teman tanpa modifikasi"], correct: 2 },
-                
-                // NUMERASI
                 { id: 11, text: "Kelas XII TKJ SMKN 1 Brondong mengadakan workshop kewirausahaan selama 6 hari. Materi yang diajarkan adalah: Hari 1: Pentingnya kreativitas (2 jam), Hari 2: Growth mindset vs Fixed mindset (3 jam), Hari 3: Karakter jujur dan berani mengambil risiko (2 jam), Hari 4: Karakter inovatif dan pantang menyerah (3 jam), Hari 5: Karakter rasa ingin tahu (2 jam), Hari 6: Praktik membuat business plan (4 jam). Berapa total jam pembelajaran tentang karakter wirausaha (hari 3, 4, dan 5)?", options: ["5 jam", "6 jam", "7 jam", "8 jam", "9 jam"], correct: 2 },
                 { id: 12, text: "Dalam diskusi kelompok, guru memberikan 6 pernyataan dan meminta siswa mengidentifikasi mana yang termasuk growth mindset: 1. \"Saya belum bisa, tapi saya akan terus belajar\", 2. \"Ini terlalu sulit untuk saya\", 3. \"Kesalahan membantu saya belajar\", 4. \"Saya tidak berbakat di bidang ini\", 5. \"Usaha saya akan membuat saya lebih baik\", 6. \"Kemampuan saya sudah mentok\". Berapa jumlah pernyataan yang menunjukkan growth mindset?", options: ["1 pernyataan", "2 pernyataan", "3 pernyataan", "4 pernyataan", "5 pernyataan"], correct: 2 },
                 { id: 13, text: "Fitri mengikuti kompetisi web design tingkat nasional selama 4 tahun berturut-turut dengan hasil: Tahun 1: Tidak lolos seleksi awal (skor 0), Tahun 2: Lolos seleksi, masuk 20 besar (skor 2), Tahun 3: Masuk 10 besar (skor 3), Tahun 4: Juara 3 nasional (skor 4). Jika kita beri nilai untuk setiap pencapaian (tidak lolos = 0, lolos = 1, 20 besar = 2, 10 besar = 3, juara 3 = 4), berapa total nilai pencapaian Fitri dalam 4 tahun?", options: ["7", "8", "9", "10", "11"], correct: 2 },
@@ -5362,7 +5381,6 @@ Terima kasih 🙏</textarea>
                 { id: 20, text: "Riko melatih kreativitasnya dengan mengembangkan ide bisnis teknologi secara bertahap: Tahap 1: Brainstorming 8 ide bisnis, Tahap 2: Seleksi menjadi 5 ide potensial, Tahap 3: Riset mendalam untuk 3 ide terbaik, Tahap 4: Prototype untuk 2 ide teratas, Tahap 5: Launching 1 ide terbaik. Dari proses kreatif Riko, berapa total ide yang ia kumpulkan di awal, dan berapa ide yang akhirnya dijalankan?", options: ["Kumpulkan 5 ide, jalankan 1 ide", "Kumpulkan 6 ide, jalankan 2 ide", "Kumpulkan 8 ide, jalankan 1 ide", "Kumpulkan 8 ide, jalankan 2 ide", "Kumpulkan 10 ide, jalankan 1 ide"], correct: 2 }
             ],
             C: [
-                // SOAL HOTS KEAMANAN JARINGAN (LITERASI 1-10)
                 { id: 1, text: "Sebuah server sekolah mengalami kelambatan luar biasa. Tim IT menemukan log yang menunjukkan jutaan request dari ribuan alamat IP berbeda dalam waktu bersamaan, menyebabkan CPU server mencapai 100%. Serangan ini dikategorikan sebagai...", options: ["Phishing", "Man in the Middle", "DDoS (Distributed Denial of Service)", "SQL Injection", "Ransomware"], correct: 2 },
                 { id: 2, text: "Admin jaringan sedang mengkonfigurasi Firewall untuk Web Server. Ia ingin memastikan server bisa diakses publik untuk website, tetapi tidak ingin orang asing bisa mengakses remote SSH. Konfigurasi aturan firewall mana yang paling efektif dan aman?", options: ["Allow All Traffic", "Block All Traffic", "Allow Port 80 & 443 Only, Block Others", "Allow Port 21 (FTP) & 22 (SSH) Only", "Allow ICMP Ping Only"], correct: 2 },
                 { id: 3, text: "Dalam Vulnerability Assessment, ditemukan bahwa server menggunakan versi Apache yang sudah usang (outdated) dan memiliki celah keamanan CVE-2023-XXXX. Risiko terbesar jika hal ini dibiarkan adalah...", options: ["Internet menjadi lambat", "Kerusakan hardware server", "Penyerang bisa mengeksploitasi celah (Exploit) untuk mengambil alih sistem", "Server akan mati otomatis karena lisensi habis", "Tidak ada risiko karena server masih berjalan normal"], correct: 2 },
@@ -5373,8 +5391,6 @@ Terima kasih 🙏</textarea>
                 { id: 8, text: "Untuk mengantisipasi bencana alam atau serangan siber yang merusak data server utama, strategi backup data yang paling direkomendasikan menurut standar industri adalah...", options: ["Simpan backup di folder C: komputer yang sama", "Copy file ke satu Flashdisk dan dibawa pulang", "Strategi 3-2-1 (3 salinan data, 2 media berbeda, 1 disimpan di lokasi berbeda/cloud)", "Upload ke Google Drive saja tanpa backup lokal", "Print semua dokumen penting sebagai arsip"], correct: 2 },
                 { id: 9, text: "Jaringan Wi-Fi tamu (Guest) di sekolah seringkali menyebabkan jaringan utama (Admin/Guru) menjadi lambat dan berisiko terkena virus dari perangkat tamu. Solusi jaringan terbaik untuk masalah ini adalah...", options: ["Mematikan Wi-Fi tamu selamanya", "Membeli router yang lebih mahal", "Menerapkan VLAN (Virtual Local Area Network) untuk memisahkan segmentasi jaringan", "Meminta tamu tidak menggunakan internet", "Menggunakan Hub agar semua terhubung jadi satu"], correct: 2 },
                 { id: 10, text: "Jika terjadi insiden peretasan pada server sekolah, langkah pertama yang harus dilakukan menurut prosedur Incident Response adalah...", options: ["Format ulang semua komputer segera", "Panik dan mematikan listrik gedung", "Containment (Isolasi sistem yang terdampak agar serangan tidak menyebar)", "Membayar uang tebusan kepada peretas", "Membiarkan saja sampai peretas bosan"], correct: 2 },
-                
-                // SOAL HOTS KEAMANAN JARINGAN (NUMERASI 11-20)
                 { id: 11, text: "Sebuah password hash sederhana membutuhkan waktu 54.000 detik untuk dipecahkan menggunakan teknik Brute Force dengan hardware standar. Berapa jam waktu yang dibutuhkan penyerang untuk menembus password tersebut?", options: ["10 Jam", "15 Jam", "20 Jam", "24 Jam", "12 Jam"], correct: 1 },
                 { id: 12, text: "Sistem firewall baru berhasil memblokir serangan siber secara signifikan. Dari rata-rata 1.000 percobaan serangan per hari, setelah firewall dipasang, hanya tersisa 127 serangan yang lolos atau terdeteksi sebagai anomali. Berapa persen tingkat keberhasilan pengurangan (reduction) serangan tersebut?", options: ["80%", "85%", "87.3%", "90%", "75.5%"], correct: 2 },
                 { id: 13, text: "Traffic normal sebuah jaringan kantor adalah 110 Mbps. Tiba-tiba terjadi serangan DDoS sehingga total traffic melonjak menjadi 500 Mbps. Berapa besar traffic anomali (serangan) yang membanjiri jaringan tersebut?", options: ["390 Mbps", "400 Mbps", "500 Mbps", "610 Mbps", "110 Mbps"], correct: 0 },
@@ -5604,8 +5620,9 @@ Terima kasih 🙏</textarea>
 
         window.listenForJadwal = function() {
             if (!window.db || !window.isFirebaseReady) return;
+            if (window._unsub_listenForJadwal) return; // ★ guard: sudah listening, skip
             const q = query(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'jadwal_ujian'));
-            onSnapshot(q, (snapshot) => {
+            window._unsub_listenForJadwal = onSnapshot(q, (snapshot) => {
                 window.allJadwalDB = [];
                 snapshot.forEach(d => window.allJadwalDB.push({ id: d.id, ...d.data() }));
                 // Sort: tanggal asc, jamMulai asc
@@ -5696,7 +5713,7 @@ Terima kasih 🙏</textarea>
             window._keRenderQuestions();
 
             document.getElementById('modal-koreksi-essay').classList.remove('hidden');
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.closeKoreksiEssay = function() {
@@ -5783,7 +5800,7 @@ Terima kasih 🙏</textarea>
                 qNum++;
             });
             container.innerHTML = html || '<p class="text-center text-gray-400 py-8">Tidak ada soal esai.</p>';
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window._keUpdateGuru = function(qId, val) {
@@ -5920,7 +5937,7 @@ Terima kasih 🙏</textarea>
             for (const qId of Object.keys(_keEssayData)) {
                 await window.koreksiAISatu(qId);
             }
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Koreksi Semua dengan AI'; if (typeof lucide !== 'undefined') lucide.createIcons(); }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Koreksi Semua dengan AI'; if (typeof lucide !== 'undefined') window._createIconsSafe(); }
         };
 
         window.simpanKoreksiEssay = async function() {
@@ -6002,7 +6019,7 @@ Terima kasih 🙏</textarea>
             }
 
             document.getElementById('modal-edit-jadwal').classList.remove('hidden');
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.closeEditJadwal = function() {
@@ -6291,7 +6308,7 @@ Terima kasih 🙏</textarea>
             }).join('');
 
             if (pwJadwal) pwJadwal.innerHTML = renderPagerHTML('jadwal', totalJadwal, pgJadwal.page, pgJadwal.perPage);
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         // Update filter tanggal dropdown
@@ -6499,8 +6516,9 @@ Terima kasih 🙏</textarea>
 
                 window.listenForRuang = function() {
             if (!window.db || !window.isFirebaseReady) return;
+            if (window._unsub_listenForRuang) return; // ★ guard: sudah listening, skip
             const q = query(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'ruang_ujian'));
-            onSnapshot(q, (snapshot) => {
+            window._unsub_listenForRuang = onSnapshot(q, (snapshot) => {
                 window.ruangList = [];
                 snapshot.forEach((d) => {
                     window.ruangList.push({ id: d.id, ...d.data() });
@@ -6549,7 +6567,7 @@ Terima kasih 🙏</textarea>
                 </tr>`;
             }).join('');
             if (pw) pw.innerHTML = renderPagerHTML('ruang', total, pgR.page, pgR.perPage);
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.updateRuangDropdowns = function() {
@@ -6603,7 +6621,7 @@ Terima kasih 🙏</textarea>
                 }
             }
             modal.classList.remove('hidden');
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.closeRuangModal = function() {
@@ -6705,7 +6723,7 @@ Terima kasih 🙏</textarea>
                  }
                  
                 document.getElementById('selected-packet').value = pkt;
-                if(typeof lucide !== 'undefined') lucide.createIcons();
+                if(typeof lucide !== 'undefined') window._createIconsSafe();
             }
         };
 
@@ -6763,7 +6781,7 @@ Terima kasih 🙏</textarea>
             if (tab === 'siswa') { window.renderSiswaTable(); window.switchSiswaSubTab('data'); }
             if (tab === 'tampilan') window.loadTampilanFields();
             if (tab === 'jadwal') { window.renderJadwalList(); window.initJadwalForm(); }
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         // Toggle import section di dalam panel soal
@@ -6781,7 +6799,7 @@ Terima kasih 🙏</textarea>
             if (secRuang) secRuang.classList.toggle('hidden', sub !== 'ruang');
             if (sub === 'kelas') window.renderKelasList();
             if (sub === 'ruang') window.renderRuangList();
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.toggleImportSection = function() {
@@ -6792,7 +6810,7 @@ Terima kasih 🙏</textarea>
             if (isHidden) {
                 setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
             }
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         // ==================== PAKET SOAL MANAGEMENT ====================
@@ -6801,8 +6819,9 @@ Terima kasih 🙏</textarea>
 
         window.listenForPaket = function() {
             if (!window.db || !window.isFirebaseReady) return;
+            if (window._unsub_listenForPaket) return; // ★ guard: sudah listening, skip
             const q = query(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'paket_soal'));
-            onSnapshot(q, (snapshot) => {
+            window._unsub_listenForPaket = onSnapshot(q, (snapshot) => {
                 window.allPaketDB = [];
                 snapshot.forEach((d) => window.allPaketDB.push({ id: d.id, ...d.data() }));
                 window.allPaketDB.sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
@@ -6859,7 +6878,7 @@ Terima kasih 🙏</textarea>
                     </div>`;
                 const pw = document.getElementById('pager-paket-wrap');
                 if (pw) pw.innerHTML = '';
-                if(typeof lucide !== 'undefined') lucide.createIcons();
+                if(typeof lucide !== 'undefined') window._createIconsSafe();
                 return;
             }
 
@@ -6919,7 +6938,7 @@ Terima kasih 🙏</textarea>
             const pw = document.getElementById('pager-paket-wrap');
             if (pw) pw.innerHTML = renderPagerHTML('paket', total, pgP.page, pgP.perPage);
 
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.openPaketSoal = function(paketId) {
@@ -6937,7 +6956,7 @@ Terima kasih 🙏</textarea>
             // Update breadcrumb & info card
             window.refreshActivePaketInfo();
             window.filterQuestionBank();
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.refreshActivePaketInfo = function() {
@@ -7033,7 +7052,7 @@ Terima kasih 🙏</textarea>
             };
 
             modal.classList.remove('hidden');
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.closePaketModal = function() { document.getElementById('modal-paket').classList.add('hidden'); };
@@ -7098,8 +7117,9 @@ Terima kasih 🙏</textarea>
 
         window.listenForKelas = function() {
             if (!window.db || !window.isFirebaseReady) return;
+            if (window._unsub_listenForKelas) return; // ★ guard: sudah listening, skip
             const q = query(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'kelas'));
-            onSnapshot(q, (snapshot) => {
+            window._unsub_listenForKelas = onSnapshot(q, (snapshot) => {
                 window.kelasList = [];
                 snapshot.forEach((d) => {
                     window.kelasList.push({ id: d.id, ...d.data() });
@@ -7206,7 +7226,7 @@ Terima kasih 🙏</textarea>
                 </tr>
             `).join('');
             if (pw) pw.innerHTML = renderPagerHTML('kelas', total, pgK.page, pgK.perPage);
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.openKelasModal = function(id = null) {
@@ -7228,7 +7248,7 @@ Terima kasih 🙏</textarea>
                 titleEl.textContent = 'Tambah Kelas Baru';
             }
             modal.classList.remove('hidden');
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.closeKelasModal = function() {
@@ -7369,7 +7389,7 @@ Terima kasih 🙏</textarea>
                         </div>
                     </div>`;
                 if (pw) pw.innerHTML = '';
-                if(typeof lucide !== 'undefined') lucide.createIcons();
+                if(typeof lucide !== 'undefined') window._createIconsSafe();
                 return;
             }
 
@@ -7482,7 +7502,7 @@ Terima kasih 🙏</textarea>
             }).join('');
 
             if (pw) pw.innerHTML = renderPagerHTML('soal', total, pgS.page, pgS.perPage);
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.toggleSoalCard = function(id) {
@@ -7673,7 +7693,7 @@ Terima kasih 🙏</textarea>
 
                 document.getElementById('section-login').classList.add('hidden-section');
                 document.getElementById('section-welcome').classList.remove('hidden-section');
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                if (typeof lucide !== 'undefined') window._createIconsSafe();
 
             } catch(err) {
                 console.error(err);
@@ -7715,7 +7735,7 @@ Terima kasih 🙏</textarea>
                         </p>
                     </div>
                 </div>`;
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                if (typeof lucide !== 'undefined') window._createIconsSafe();
                 return;
             }
 
@@ -7743,7 +7763,7 @@ Terima kasih 🙏</textarea>
                     </button>
                     <p class="text-[10px] text-gray-400 mt-2.5">Paket ditentukan otomatis oleh sistem secara acak untuk menjaga integritas ujian.</p>
                 </div>`;
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                if (typeof lucide !== 'undefined') window._createIconsSafe();
                 return;
             }
 
@@ -7775,7 +7795,7 @@ Terima kasih 🙏</textarea>
                     </div>
                 </button>`;
             }).join('');
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof lucide !== 'undefined') window._createIconsSafe();
         };;
 
         // ──────────────────────────────────────────────────────
@@ -8040,7 +8060,7 @@ Terima kasih 🙏</textarea>
 
                 const teacherInput = document.getElementById('teacher-token-input');
                 if(teacherInput) teacherInput.value = window.currentExamToken;
-                if(typeof lucide !== 'undefined') lucide.createIcons();
+                if(typeof lucide !== 'undefined') window._createIconsSafe();
 
                 // Pastikan dropdown analitik terisi setelah semua listener siap
                 // Delay cukup panjang agar Firestore sempat mengembalikan data
@@ -8148,7 +8168,7 @@ Terima kasih 🙏</textarea>
                     window.filterDashboard();
                 }, 900);
             }
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.handleTeacherLogin = function(e) {
@@ -8195,7 +8215,7 @@ Terima kasih 🙏</textarea>
                     document.getElementById('early-submit-remaining').innerText = 
                         `⏳ Sisa waktu tunggu: ${remaining} menit lagi`;
                     document.getElementById('modal-early-submit').classList.remove('hidden');
-                    if(typeof lucide !== 'undefined') lucide.createIcons();
+                    if(typeof lucide !== 'undefined') window._createIconsSafe();
                     return;
                 }
             }
@@ -8313,7 +8333,7 @@ Terima kasih 🙏</textarea>
 
                 const teacherInput = document.getElementById('teacher-token-input');
                 if (teacherInput) teacherInput.value = window.currentExamToken;
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                if (typeof lucide !== 'undefined') window._createIconsSafe();
                 setTimeout(() => { if (window.renderIntegrityDashboard) window.renderIntegrityDashboard(); }, 800);
 
                 console.log('[Session] Admin session restored, tab:', _tabToRestoreR);
@@ -8364,7 +8384,7 @@ Terima kasih 🙏</textarea>
                 const filterRuangEl = document.getElementById('filter-ruang');
                 if (filterRuangEl) { filterRuangEl.value = ruang.nama; filterRuangEl.disabled = true; }
 
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                if (typeof lucide !== 'undefined') window._createIconsSafe();
                 console.log('[Session] Pengawas session restored:', ruang.nama);
             }
         };
@@ -8459,7 +8479,7 @@ Terima kasih 🙏</textarea>
             const modal = document.getElementById('modal-kelas-statistik');
             if (!modal) return;
             modal.classList.remove('hidden');
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof lucide !== 'undefined') window._createIconsSafe();
 
             const data = (window.currentFilteredData || window._allDashboardData || [])
                 .filter(r => r.status !== 'SEDANG MENGERJAKAN' && !r.status.includes('MELANJUTKAN'));
@@ -8473,7 +8493,7 @@ Terima kasih 🙏</textarea>
                     <p class="font-semibold">Belum ada data yang selesai ujian</p>
                     <p class="text-xs mt-1">Statistik akan muncul setelah siswa menyelesaikan ujian.</p>
                 </div>`;
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                if (typeof lucide !== 'undefined') window._createIconsSafe();
                 return;
             }
 
@@ -8584,7 +8604,7 @@ Terima kasih 🙏</textarea>
 
             html += `</div>`;
             content.innerHTML = html;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.closeKelasStatistikModal = function() {
@@ -8648,7 +8668,7 @@ Terima kasih 🙏</textarea>
                 btn.innerHTML = `<i data-lucide="book-open" class="w-5 h-5"></i> Lihat Pembahasan`;
                 document.getElementById('section-result').scrollTo({ top: 0, behavior: 'smooth' });
             }
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         }
 
         function shuffleArray(array) {
@@ -9122,7 +9142,7 @@ Terima kasih 🙏</textarea>
             const iv = setInterval(() => {
                 flash.style.opacity = n % 2 === 0 ? '0.45' : '0';
                 if (++n >= 8) { clearInterval(iv); flash.style.opacity = '0'; }
-            }, 110);
+            }, 500);
         }
 
         // ── WATERMARK NAMA SISWA ──────────────────────────────
@@ -9665,7 +9685,7 @@ Terima kasih 🙏</textarea>
                 btnReview.style.display = 'flex'; 
             }
             
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         }
 
         window.updateDashboardTable = function(data) {
@@ -9777,7 +9797,7 @@ Terima kasih 🙏</textarea>
                 </td></tr>`;
                 const pw = document.getElementById('pager-monitoring-wrap');
                 if (pw) pw.innerHTML = '';
-                if(typeof lucide !== 'undefined') lucide.createIcons();
+                if(typeof lucide !== 'undefined') window._createIconsSafe();
                 return;
             }
 
@@ -9864,7 +9884,7 @@ Terima kasih 🙏</textarea>
             const pw = document.getElementById('pager-monitoring-wrap');
             if (pw) pw.innerHTML = renderPagerHTML('monitoring', totalM, pgM.page, pgM.perPage);
 
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
         }
 
         function updateStatCards(data) {
@@ -10316,7 +10336,7 @@ Terima kasih 🙏</textarea>
                 document.getElementById('chart-viol-per-class').innerHTML = '<div class="flex flex-col items-center justify-center py-10 gap-2 text-gray-300"><i data-lucide="users" class="w-10 h-10"></i><p class="text-sm font-semibold text-gray-400">Menunggu data ujian...</p><p class="text-xs text-gray-300">Terisi otomatis setelah siswa menyelesaikan ujian</p></div>';
                 document.getElementById('integrity-table-body').innerHTML = '<tr><td colspan="9" class="text-center py-14"><div class="flex flex-col items-center gap-2 text-gray-300"><i data-lucide="clipboard-list" class="w-12 h-12"></i><p class="font-bold text-gray-400 text-base">Belum ada data integritas</p><p class="text-sm text-gray-300 max-w-xs">Tabel terisi otomatis setelah siswa menyelesaikan ujian. Tidak perlu refresh halaman.</p></div></td></tr>';
                 const pager = document.getElementById('analitik-pager'); if (pager) pager.innerHTML = '';
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                if (typeof lucide !== 'undefined') window._createIconsSafe();
                 return;
             }
             if (emptyBanner) emptyBanner.style.display = 'none';
@@ -10477,7 +10497,7 @@ Terima kasih 🙏</textarea>
             const pagerEl = document.getElementById('analitik-pager');
             if (pagerEl) pagerEl.innerHTML = renderPagerHTML('analitik', sorted.length, pgA.page, pgA.perPage);
 
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         // Reset filter analitik
@@ -10799,7 +10819,7 @@ Terima kasih 🙏</textarea>
             document.getElementById('note-auto-text').textContent = '💬 Catatan otomatis: ' + autoNote.note.slice(0, 100) + '...';
             document.getElementById('note-custom-input').value = window._studentNotes[studentId] || '';
             document.getElementById('modal-note').classList.remove('hidden');
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof lucide !== 'undefined') window._createIconsSafe();
         };
 
         window.saveStudentNote = function() {
@@ -11521,71 +11541,122 @@ Terima kasih 🙏</textarea>
         // ---------- DOWNLOAD TEMPLATE EXCEL ----------
         window.downloadExcelTemplate = function() {
             if (typeof XLSX === 'undefined') { alert("Library XLSX belum siap, coba refresh halaman."); return; }
-
             const wb = XLSX.utils.book_new();
 
-            // Sheet 1: Template kosong
-            const header = [['packet','question','question_image','option_a','image_a','option_b','image_b','option_c','image_c','option_d','image_d','option_e','image_e','correct']];
-            const contoh = [
-                ['A','Apa kepanjangan dari TKJ?','','Teknik Komputer dan Jaringan','','Teknologi Komunikasi Jaringan','','Teknik Komunikasi dan Jaringan','','Teknologi Komputer dan Jaringan','','','','A'],
-                ['A','Protokol untuk mengirim email adalah...','','SMTP','','HTTP','','FTP','','SSH','','DNS','','A'],
-                ['B','Perhatikan topologi jaringan berikut!','https://drive.google.com/file/d/GANTI_ID_GAMBAR_SOAL/view','Star','','Bus','','Ring','','Mesh','','','','A'],
-                ['C','Pilih gambar yang menunjukkan kabel UTP!','','','https://drive.google.com/file/d/GANTI_ID_GAMBAR_A/view','','https://drive.google.com/file/d/GANTI_ID_GAMBAR_B/view','','','','','','','','A'],
-            ];
-            const wsData = [...header, ...contoh];
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            // ── Sheet 1: Pilihan Tunggal (single) ──
+            const ws1 = XLSX.utils.aoa_to_sheet([
+                ['packet','tipe','question','question_image','option_a','image_a','option_b','image_b','option_c','image_c','option_d','image_d','option_e','image_e','correct'],
+                ['A','single','Apa kepanjangan dari TKJ?','','Teknik Komputer dan Jaringan','','Teknologi Komunikasi Jaringan','','Teknik Komunikasi dan Jaringan','','Teknologi Komputer dan Jaringan','','','','A'],
+                ['A','single','Protokol untuk mengirim email adalah...','','SMTP','','HTTP','','FTP','','SSH','','DNS','','A'],
+                ['B','single','Perhatikan topologi jaringan berikut!','https://drive.google.com/file/d/GANTI_ID/view','Star','','Bus','','Ring','','Mesh','','','','A'],
+                ['C','single','Pilih gambar yang menunjukkan kabel UTP!','','','https://drive.google.com/file/d/ID_A/view','','https://drive.google.com/file/d/ID_B/view','','https://drive.google.com/file/d/ID_C/view','','https://drive.google.com/file/d/ID_D/view','','','A'],
+            ]);
+            ws1['!cols'] = [{wch:8},{wch:12},{wch:45},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:26},{wch:38},{wch:10}];
+            XLSX.utils.book_append_sheet(wb, ws1, '1.Pilihan_Tunggal');
 
-            // Set lebar kolom
-            ws['!cols'] = [
-                {wch:8},{wch:50},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:10}
-            ];
+            // ── Sheet 2: Jawaban Ganda (multiple) ──
+            const ws2 = XLSX.utils.aoa_to_sheet([
+                ['packet','tipe','question','question_image','option_a','option_b','option_c','option_d','option_e','correct_multiple'],
+                ['A','multiple','Manakah yang termasuk perangkat jaringan? (pilih semua)','','Switch','Router','Monitor','Keyboard','Hub','A,B,E'],
+                ['B','multiple','Protokol yang bekerja di Layer 7 OSI adalah...','','HTTP','FTP','IP','TCP','SMTP','A,B,E'],
+            ]);
+            ws2['!cols'] = [{wch:8},{wch:12},{wch:52},{wch:38},{wch:22},{wch:22},{wch:22},{wch:22},{wch:22},{wch:20}];
+            XLSX.utils.book_append_sheet(wb, ws2, '2.Jawaban_Ganda');
 
-            XLSX.utils.book_append_sheet(wb, ws, 'Template Soal');
+            // ── Sheet 3: Benar/Salah (truefalse) ──
+            const ws3 = XLSX.utils.aoa_to_sheet([
+                ['packet','tipe','question','question_image','correct_tf'],
+                ['A','truefalse','Switch adalah perangkat Layer 2 dalam model OSI.','','TRUE'],
+                ['B','truefalse','IP address kelas C memiliki range 192.168.0.0 - 255.255.','','FALSE'],
+                ['A','truefalse','Kabel UTP cat6 mendukung kecepatan hingga 10 Gbps.','','TRUE'],
+            ]);
+            ws3['!cols'] = [{wch:8},{wch:12},{wch:62},{wch:38},{wch:12}];
+            XLSX.utils.book_append_sheet(wb, ws3, '3.Benar_Salah');
 
-            // Sheet 2: Petunjuk
-            const petunjuk = [
-                ['PETUNJUK PENGISIAN TEMPLATE SOAL (dengan dukungan gambar)'],
+            // ── Sheet 4: Esai/Uraian (essay) ──
+            const ws4 = XLSX.utils.aoa_to_sheet([
+                ['packet','tipe','question','question_image','essay_rubrik','essay_skor_maks'],
+                ['A','essay','Jelaskan perbedaan hub dan switch dalam jaringan komputer!','','Jawaban harus mencakup: (1) Hub bekerja di Layer 1 dan meneruskan ke semua port; (2) Switch bekerja di Layer 2 menggunakan MAC address; (3) Switch lebih efisien karena mengirim ke port tujuan saja.','10'],
+                ['B','essay','Sebutkan dan jelaskan minimal 3 topologi jaringan beserta kelebihan dan kekurangannya!','','Sebutkan min 3 dari: Star/Bus/Ring/Mesh/Tree. Tiap topologi: +1 nama, +1 kelebihan, +1 kekurangan.','10'],
+            ]);
+            ws4['!cols'] = [{wch:8},{wch:8},{wch:55},{wch:38},{wch:72},{wch:16}];
+            XLSX.utils.book_append_sheet(wb, ws4, '4.Esai_Uraian');
+
+            // ── Sheet 5: Menjodohkan (menjodohkan) ──
+            const ws5 = XLSX.utils.aoa_to_sheet([
+                ['packet','tipe','question','question_image','pair_1_kiri','pair_1_kanan','pair_2_kiri','pair_2_kanan','pair_3_kiri','pair_3_kanan','pair_4_kiri','pair_4_kanan','pair_5_kiri','pair_5_kanan'],
+                ['A','menjodohkan','Jodohkan perangkat berikut dengan fungsinya!','','Switch','Mengelola MAC address LAN','Router','Routing antar jaringan berbeda','Hub','Broadcast ke semua port','Modem','Konversi sinyal digital ke analog','',''],
+                ['B','menjodohkan','Pasangkan lapisan OSI dengan fungsinya!','','Physical Layer','Transmisi bit via media fisik','Data Link Layer','Frame antar node langsung','Network Layer','Pengalamatan dan routing','Transport Layer','Menjamin pengiriman end-to-end','',''],
+            ]);
+            ws5['!cols'] = [{wch:8},{wch:14},{wch:48},{wch:35},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45},{wch:28},{wch:45}];
+            XLSX.utils.book_append_sheet(wb, ws5, '5.Menjodohkan');
+
+            // ── Sheet 6: Gabungan semua tipe dalam 1 sheet ──
+            const ws6 = XLSX.utils.aoa_to_sheet([
+                ['packet','tipe','question','question_image','option_a','image_a','option_b','image_b','option_c','image_c','option_d','image_d','option_e','image_e','correct','correct_multiple','correct_tf','essay_rubrik','essay_skor_maks','pair_1_kiri','pair_1_kanan','pair_2_kiri','pair_2_kanan','pair_3_kiri','pair_3_kanan','pair_4_kiri','pair_4_kanan','pair_5_kiri','pair_5_kanan'],
+                ['A','single','Soal pilihan tunggal contoh','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','','','A','','','','','','','','','','','','','',''],
+                ['A','multiple','Soal jawaban ganda contoh','','Opsi A','','Opsi B','','Opsi C','','Opsi D','','Opsi E','','','A,C,E','','','','','','','','','','','','',''],
+                ['B','truefalse','Pernyataan benar/salah contoh','','','','','','','','','','','','','','TRUE','','','','','','','','','','','',''],
+                ['B','essay','Pertanyaan esai contoh','','','','','','','','','','','','','','','Rubrik penilaian di sini','10','','','','','','','','','',''],
+                ['A','menjodohkan','Soal menjodohkan contoh','','','','','','','','','','','','','','','','','Item kiri 1','Item kanan 1','Item kiri 2','Item kanan 2','Item kiri 3','Item kanan 3','','','',''],
+            ]);
+            ws6['!cols'] = Array(29).fill(null).map((_,i) => ({wch: i < 4 ? 12 : 18}));
+            XLSX.utils.book_append_sheet(wb, ws6, '6.Gabungan_Semua_Tipe');
+
+            // ── Sheet 7: Petunjuk Lengkap ──
+            const ws7 = XLSX.utils.aoa_to_sheet([
+                ['PETUNJUK TEMPLATE SOAL INTEGRITEST — SEMUA TIPE'],
                 [''],
-                ['Kolom','Keterangan','Contoh'],
-                ['packet','Paket soal: A, B, atau C','A'],
-                ['question','Teks pertanyaan (boleh kosong jika soal hanya berupa gambar)','Perhatikan gambar topologi berikut!'],
-                ['question_image','[OPSIONAL] URL gambar soal dari Google Drive atau URL langsung','https://drive.google.com/file/d/ID_FILE/view'],
-                ['option_a','Teks pilihan jawaban A (boleh kosong jika pilihan berupa gambar)','Star Topology'],
-                ['image_a','[OPSIONAL] URL gambar untuk pilihan A','https://drive.google.com/file/d/ID_FILE_A/view'],
-                ['option_b','Teks pilihan jawaban B','Bus Topology'],
-                ['image_b','[OPSIONAL] URL gambar untuk pilihan B',''],
-                ['option_c','Teks pilihan jawaban C','Ring Topology'],
-                ['image_c','[OPSIONAL] URL gambar untuk pilihan C',''],
-                ['option_d','Teks pilihan jawaban D','Mesh Topology'],
-                ['image_d','[OPSIONAL] URL gambar untuk pilihan D',''],
-                ['option_e','Teks pilihan jawaban E (opsional)',''],
-                ['image_e','[OPSIONAL] URL gambar untuk pilihan E',''],
-                ['correct','Huruf jawaban benar: A, B, C, D, atau E (WAJIB huruf kapital)','A'],
+                ['KOLOM WAJIB (berlaku semua tipe):'],
+                ['Kolom','Keterangan','Contoh Isi'],
+                ['packet','Paket soal: A, B, atau C (huruf kapital)','A'],
+                ['tipe','Tipe soal: single / multiple / truefalse / essay / menjodohkan  (jika kosong = single)','single'],
+                ['question','Teks pertanyaan/pernyataan. Boleh kosong jika ada question_image','Apa kepanjangan TKJ?'],
+                ['question_image','URL gambar soal Google Drive (opsional)','https://drive.google.com/file/d/ID/view'],
                 [''],
-                ['CARA MENDAPATKAN LINK GOOGLE DRIVE:'],
-                ['1. Upload gambar ke Google Drive'],
-                ['2. Klik kanan file gambar → pilih "Bagikan" atau "Share"'],
-                ['3. Ubah akses menjadi "Siapa pun yang memiliki link"'],
-                ['4. Salin link dan paste di kolom question_image atau image_a/b/c/d/e'],
-                ['5. Sistem akan otomatis mengkonversi link ke format yang bisa ditampilkan'],
+                ['TIPE: single — Pilihan Tunggal (sheet 1.Pilihan_Tunggal)'],
+                ['  option_a s/d option_d','Teks pilihan A–D. Minimal 4 wajib diisi','Teknik Komputer dan Jaringan'],
+                ['  option_e','Pilihan ke-5 (opsional)',''],
+                ['  image_a s/d image_e','URL gambar tiap pilihan (opsional)','https://drive.google.com/file/d/ID/view'],
+                ['  correct','Huruf jawaban benar: A / B / C / D / E (kapital)','A'],
                 [''],
-                ['CATATAN PENTING:'],
-                ['- Kolom gambar semuanya OPSIONAL, boleh dikosongkan'],
-                ['- question + question_image tidak boleh keduanya kosong'],
-                ['- Minimal 4 pilihan jawaban (A-D) harus ada, option_e opsional'],
-                ['- correct HARUS huruf kapital: A, B, C, D, atau E'],
-                ['- Paket harus huruf kapital: A, B, atau C'],
-            ];
-            const wsPetunjuk = XLSX.utils.aoa_to_sheet(petunjuk);
-            wsPetunjuk['!cols'] = [{wch:12},{wch:50},{wch:40}];
-            XLSX.utils.book_append_sheet(wb, wsPetunjuk, 'Petunjuk');
+                ['TIPE: multiple — Jawaban Ganda (sheet 2.Jawaban_Ganda)'],
+                ['  option_a s/d option_e','Teks pilihan (min 4 diisi)','Switch'],
+                ['  correct_multiple','Huruf-huruf benar dipisah koma','A,B,E'],
+                [''],
+                ['TIPE: truefalse — Benar/Salah (sheet 3.Benar_Salah)'],
+                ['  correct_tf','Kunci jawaban: TRUE atau FALSE (kapital)','TRUE'],
+                [''],
+                ['TIPE: essay — Esai/Uraian (sheet 4.Esai_Uraian)'],
+                ['  essay_rubrik','Rubrik/kunci jawaban untuk koreksi AI atau guru (WAJIB)','Sebutkan min 3 poin: ...'],
+                ['  essay_skor_maks','Skor maksimum (angka, default 10)','10'],
+                [''],
+                ['TIPE: menjodohkan — Pasangkan (sheet 5.Menjodohkan)'],
+                ['  pair_N_kiri','Teks item kolom kiri pasangan ke-N  (N = 1 hingga 5)','Switch'],
+                ['  pair_N_kanan','Teks item kolom kanan pasangan ke-N','Mengelola MAC address'],
+                ['  ','Minimal 2 pasang, maksimal 5 pasang',''],
+                [''],
+                ['TIPS GOOGLE DRIVE:'],
+                ['  1. Upload gambar ke Google Drive','',''],
+                ['  2. Klik kanan → Bagikan → ubah ke "Siapa pun yang memiliki link"','',''],
+                ['  3. Salin link → paste di kolom gambar yang sesuai','',''],
+                ['  4. Sistem otomatis konversi URL Drive ke format yang bisa ditampilkan','',''],
+                [''],
+                ['CATATAN:'],
+                ['  - Semua tipe bisa dicampur dalam 1 sheet (lihat sheet 6.Gabungan_Semua_Tipe)'],
+                ['  - Baris dengan packet tidak valid (bukan A/B/C) otomatis dilewati'],
+                ['  - Baris dengan tipe tidak valid otomatis dilewati'],
+                ['  - Kolom yang tidak relevan dengan tipe soal diabaikan oleh sistem'],
+            ]);
+            ws7['!cols'] = [{wch:32},{wch:62},{wch:40}];
+            XLSX.utils.book_append_sheet(wb, ws7, 'Petunjuk');
 
             XLSX.writeFile(wb, 'Template_Soal_INTEGRITEST.xlsx');
         };
 
-        // ---------- DOWNLOAD TEMPLATE WORD (sebagai HTML yang dibuka Word) ----------
+        // ---------- DOWNLOAD TEMPLATE WORD ----------
         window.downloadWordTemplate = function() {
-            const html = `
+            const html = `<!DOCTYPE html>
 <html xmlns:o='urn:schemas-microsoft-com:office:office'
       xmlns:w='urn:schemas-microsoft-com:office:word'
       xmlns='http://www.w3.org/TR/REC-html40'>
@@ -11593,86 +11664,314 @@ Terima kasih 🙏</textarea>
 <meta charset='utf-8'>
 <title>Template Soal INTEGRITEST</title>
 <style>
-body { font-family: Arial, sans-serif; font-size: 11pt; }
-h1 { font-size: 14pt; color: #1d4ed8; }
-h2 { font-size: 12pt; color: #374151; }
-table { border-collapse: collapse; width: 100%; }
-th { background: #1d4ed8; color: white; padding: 8px; border: 1px solid #93c5fd; font-size: 10pt; }
-td { padding: 8px; border: 1px solid #d1d5db; font-size: 10pt; vertical-align: top; }
-tr:nth-child(even) { background: #eff6ff; }
-.note { background: #fef3c7; border: 1px solid #f59e0b; padding: 10px; margin: 10px 0; border-radius: 4px; }
-.correct { color: #16a34a; font-weight: bold; }
+@page {
+  size: A4 landscape;
+  mso-page-orientation: landscape;
+  margin: 1.5cm 1.8cm 1.5cm 1.8cm;
+}
+@page Section1 { size: 29.7cm 21cm; mso-page-orientation: landscape; }
+div.Section1 { page: Section1; }
+
+body {
+  font-family: Arial, sans-serif;
+  font-size: 9.5pt;
+  margin: 0;
+}
+h1 {
+  font-size: 14pt;
+  color: #1d4ed8;
+  margin: 0 0 6px 0;
+  border-bottom: 3px solid #2563eb;
+  padding-bottom: 6px;
+}
+h2 {
+  font-size: 10.5pt;
+  color: #1e3a8a;
+  margin: 16px 0 4px 0;
+  padding: 5px 10px;
+  background: #eff6ff;
+  border-left: 5px solid #2563eb;
+  page-break-after: avoid;
+}
+p.sub {
+  font-size: 8.5pt;
+  color: #6b7280;
+  margin: 0 0 5px 4px;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 8px;
+  font-size: 8.5pt;
+  table-layout: fixed;
+  word-wrap: break-word;
+}
+th {
+  background: #1d4ed8;
+  color: #fff;
+  padding: 5px 6px;
+  border: 1px solid #93c5fd;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 8pt;
+  word-break: break-word;
+}
+td {
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  vertical-align: top;
+  word-break: break-word;
+}
+tr:nth-child(even) td { background: #f8fafc; }
+.k  { color: #15803d; font-weight: bold; }
+.kf { color: #dc2626; font-weight: bold; }
+.note {
+  background: #fef9c3;
+  border: 1px solid #fbbf24;
+  padding: 8px 12px;
+  margin: 0 0 12px 0;
+  font-size: 8.5pt;
+}
+.tip {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  padding: 8px 12px;
+  margin: 14px 0 0 0;
+  font-size: 8.5pt;
+}
+.add-row { color: #9ca3af; font-style: italic; }
+
+/* Lebar kolom per tipe — disesuaikan agar muat di A4 landscape */
+/* SINGLE: 15 kolom → sembunyikan kolom gambar, tampilkan catatan */
+.t-single col.c-pkt  { width: 4%; }
+.t-single col.c-tipe { width: 6%; }
+.t-single col.c-q    { width: 28%; }
+.t-single col.c-oa   { width: 15%; }
+.t-single col.c-ob   { width: 15%; }
+.t-single col.c-oc   { width: 12%; }
+.t-single col.c-od   { width: 12%; }
+.t-single col.c-oe   { width: 4%; }
+.t-single col.c-cor  { width: 4%; }
+
+/* MULTIPLE: 10 kolom */
+.t-multi col.c-pkt  { width: 4%; }
+.t-multi col.c-tipe { width: 7%; }
+.t-multi col.c-q    { width: 35%; }
+.t-multi col.c-oa   { width: 11%; }
+.t-multi col.c-ob   { width: 11%; }
+.t-multi col.c-oc   { width: 11%; }
+.t-multi col.c-od   { width: 11%; }
+.t-multi col.c-oe   { width: 5%; }
+.t-multi col.c-cor  { width: 5%; }
+
+/* TRUEFALSE: 5 kolom */
+.t-tf col.c-pkt  { width: 5%; }
+.t-tf col.c-tipe { width: 10%; }
+.t-tf col.c-q    { width: 75%; }
+.t-tf col.c-img  { width: 5%; }
+.t-tf col.c-cor  { width: 5%; }
+
+/* ESSAY: 6 kolom */
+.t-essay col.c-pkt   { width: 4%; }
+.t-essay col.c-tipe  { width: 5%; }
+.t-essay col.c-q     { width: 30%; }
+.t-essay col.c-img   { width: 4%; }
+.t-essay col.c-rubrik{ width: 52%; }
+.t-essay col.c-skor  { width: 5%; }
+
+/* MENJODOHKAN: 13 kolom (packet + tipe + question + 5×2 pair) */
+.t-jodoh col.c-pkt  { width: 4%; }
+.t-jodoh col.c-tipe { width: 7%; }
+.t-jodoh col.c-q    { width: 22%; }
+.t-jodoh col.c-p1l  { width: 10%; }
+.t-jodoh col.c-p1r  { width: 10%; }
+.t-jodoh col.c-p2l  { width: 10%; }
+.t-jodoh col.c-p2r  { width: 10%; }
+.t-jodoh col.c-p3l  { width: 9%; }
+.t-jodoh col.c-p3r  { width: 9%; }
+.t-jodoh col.c-p4l  { width: 4.5%; }
+.t-jodoh col.c-p4r  { width: 4.5%; }
 </style>
 </head>
 <body>
-<h1>Template Soal - INTEGRITEST</h1>
+<div class="Section1">
+
+<h1>&#128196; Template Soal INTEGRITEST &mdash; Semua Tipe Soal</h1>
 <div class="note">
-<strong>&#9888; PETUNJUK PENTING:</strong><br>
-&bull; Jangan ubah nama kolom pada baris pertama tabel<br>
-&bull; Kolom <b>packet</b>: isi dengan A, B, atau C (huruf kapital)<br>
-&bull; Kolom <b>correct</b>: isi dengan huruf kapital A, B, C, D, atau E<br>
-&bull; Kolom gambar (<b>question_image, image_a, image_b</b> dst): isi URL Google Drive &mdash; klik kanan file di Drive &rarr; Bagikan &rarr; Salin link<br>
-&bull; Kolom gambar boleh dikosongkan (opsional)<br>
-&bull; Soal boleh hanya berupa gambar tanpa teks, atau gambar + teks<br>
-&bull; Simpan file dalam format .docx sebelum diimport
+<b>&#9888; PETUNJUK:</b> &nbsp;
+Kolom <b>packet</b>: A / B / C &nbsp;|&nbsp;
+Kolom <b>tipe</b>: single / multiple / truefalse / essay / menjodohkan (kosong = single) &nbsp;|&nbsp;
+Kolom gambar (question_image, image_a dst): URL Google Drive &mdash; klik kanan &rarr; Bagikan &rarr; Salin link &nbsp;|&nbsp;
+Simpan sebagai <b>.docx</b> sebelum diimport &nbsp;|&nbsp; Hapus baris contoh sebelum diimport
 </div>
 
-<h2>Tabel Soal (isi di bawah baris header)</h2>
-<table>
-<tr>
-<th>packet</th>
-<th>question</th>
-<th>question_image</th>
-<th>option_a</th>
-<th>image_a</th>
-<th>option_b</th>
-<th>image_b</th>
-<th>option_c</th>
-<th>image_c</th>
-<th>option_d</th>
-<th>image_d</th>
-<th>option_e</th>
-<th>image_e</th>
-<th>correct</th>
-</tr>
-<tr>
-<td>A</td>
-<td>Apa kepanjangan dari TKJ?</td>
-<td></td>
-<td>Teknik Komputer dan Jaringan</td><td></td>
-<td>Teknologi Komunikasi Jaringan</td><td></td>
-<td>Teknik Komunikasi dan Jaringan</td><td></td>
-<td>Teknologi Komputer dan Jaringan</td><td></td>
-<td>Teknik Komputer dan Jasa</td><td></td>
-<td class="correct">A</td>
-</tr>
-<tr>
-<td>B</td>
-<td>Perhatikan topologi jaringan berikut ini!</td>
-<td>https://drive.google.com/file/d/GANTI_ID_GAMBAR_SOAL/view</td>
-<td>Star Topology</td><td></td>
-<td>Bus Topology</td><td></td>
-<td>Ring Topology</td><td></td>
-<td>Mesh Topology</td><td></td>
-<td></td><td></td>
-<td class="correct">A</td>
-</tr>
-<tr>
-<td>C</td>
-<td>Pilih gambar yang menunjukkan kabel UTP!</td>
-<td></td>
-<td></td><td>https://drive.google.com/file/d/ID_GAMBAR_A/view</td>
-<td></td><td>https://drive.google.com/file/d/ID_GAMBAR_B/view</td>
-<td></td><td>https://drive.google.com/file/d/ID_GAMBAR_C/view</td>
-<td></td><td>https://drive.google.com/file/d/ID_GAMBAR_D/view</td>
-<td></td><td></td>
-<td class="correct">A</td>
-</tr>
-</table>
-<br>
-<p><i>Tambahkan soal baru dengan menambah baris di bawah contoh di atas. Hapus baris contoh sebelum diimport jika tidak diperlukan.</i></p>
-</body></html>`;
 
+<!-- ═══════════════════════════════════════════════ -->
+<!-- 1. PILIHAN TUNGGAL                             -->
+<!-- ═══════════════════════════════════════════════ -->
+<h2>&#9312; Pilihan Tunggal &nbsp;&#10098;tipe: single&#10099;</h2>
+<p class="sub">Satu jawaban benar. Kolom <b>correct</b>: huruf A/B/C/D/E. Kolom gambar (question_image, image_a–e) opsional, isi URL Google Drive jika ada.</p>
+<table class="t-single">
+  <colgroup>
+    <col class="c-pkt"><col class="c-tipe"><col class="c-q">
+    <col class="c-oa"><col class="c-ob"><col class="c-oc"><col class="c-od"><col class="c-oe"><col class="c-cor">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>packet</th><th>tipe</th><th>question</th>
+      <th>option_a</th><th>option_b</th><th>option_c</th><th>option_d</th><th>option_e</th><th>correct</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>A</td><td>single</td><td>Apa kepanjangan dari TKJ?</td>
+      <td>Teknik Komputer dan Jaringan</td><td>Teknologi Komunikasi Jaringan</td>
+      <td>Teknik Komunikasi dan Jaringan</td><td>Teknologi Komputer dan Jaringan</td>
+      <td></td><td class="k">A</td>
+    </tr>
+    <tr>
+      <td>B</td><td>single</td><td>Protokol untuk mengirim email adalah...</td>
+      <td>SMTP</td><td>HTTP</td><td>FTP</td><td>SSH</td><td>DNS</td><td class="k">A</td>
+    </tr>
+    <tr>
+      <td>C</td><td>single</td><td>Perangkat yang menghubungkan dua jaringan berbeda adalah...</td>
+      <td>Switch</td><td>Hub</td><td>Router</td><td>Repeater</td><td></td><td class="k">C</td>
+    </tr>
+    <tr><td colspan="9" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini. Untuk soal bergambar, tambahkan kolom question_image / image_a / image_b / image_c / image_d setelah kolom masing-masing.</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- 2. JAWABAN GANDA                               -->
+<!-- ═══════════════════════════════════════════════ -->
+<h2>&#9313; Jawaban Ganda &nbsp;&#10098;tipe: multiple&#10099;</h2>
+<p class="sub">Lebih dari satu jawaban benar. Kolom <b>correct_multiple</b>: huruf-huruf dipisah koma, contoh: <b>A,B,E</b></p>
+<table class="t-multi">
+  <colgroup>
+    <col class="c-pkt"><col class="c-tipe"><col class="c-q">
+    <col class="c-oa"><col class="c-ob"><col class="c-oc"><col class="c-od"><col class="c-oe"><col class="c-cor">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>packet</th><th>tipe</th><th>question</th>
+      <th>option_a</th><th>option_b</th><th>option_c</th><th>option_d</th><th>option_e</th><th>correct_multiple</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>A</td><td>multiple</td><td>Manakah yang termasuk perangkat jaringan? (pilih semua yang benar)</td>
+      <td>Switch</td><td>Router</td><td>Monitor</td><td>Keyboard</td><td>Hub</td><td class="k">A,B,E</td>
+    </tr>
+    <tr>
+      <td>B</td><td>multiple</td><td>Protokol yang bekerja di Layer 7 OSI adalah...</td>
+      <td>HTTP</td><td>FTP</td><td>IP</td><td>TCP</td><td>SMTP</td><td class="k">A,B,E</td>
+    </tr>
+    <tr><td colspan="9" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini.</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- 3. BENAR / SALAH                               -->
+<!-- ═══════════════════════════════════════════════ -->
+<h2>&#9314; Benar / Salah &nbsp;&#10098;tipe: truefalse&#10099;</h2>
+<p class="sub">Pernyataan benar atau salah. Kolom <b>correct_tf</b>: tulis <b>TRUE</b> atau <b>FALSE</b> (kapital).</p>
+<table class="t-tf">
+  <colgroup>
+    <col class="c-pkt"><col class="c-tipe"><col class="c-q"><col class="c-img"><col class="c-cor">
+  </colgroup>
+  <thead>
+    <tr><th>packet</th><th>tipe</th><th>question</th><th>question_image</th><th>correct_tf</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>A</td><td>truefalse</td><td>Switch adalah perangkat Layer 2 dalam model OSI.</td><td></td><td class="k">TRUE</td></tr>
+    <tr><td>B</td><td>truefalse</td><td>IP address kelas C memiliki range 192.168.0.0 &ndash; 192.168.255.255.</td><td></td><td class="kf">FALSE</td></tr>
+    <tr><td>A</td><td>truefalse</td><td>Kabel UTP kategori 6 mendukung kecepatan hingga 10 Gbps.</td><td></td><td class="k">TRUE</td></tr>
+    <tr><td colspan="5" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini.</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- 4. ESAI / URAIAN                               -->
+<!-- ═══════════════════════════════════════════════ -->
+<h2>&#9315; Esai / Uraian &nbsp;&#10098;tipe: essay&#10099;</h2>
+<p class="sub">Siswa menjawab uraian bebas. Kolom <b>essay_rubrik</b> WAJIB diisi. Kolom <b>essay_skor_maks</b>: angka (default 10).</p>
+<table class="t-essay">
+  <colgroup>
+    <col class="c-pkt"><col class="c-tipe"><col class="c-q"><col class="c-img"><col class="c-rubrik"><col class="c-skor">
+  </colgroup>
+  <thead>
+    <tr><th>packet</th><th>tipe</th><th>question</th><th>question_image</th><th>essay_rubrik</th><th>essay_skor_maks</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>A</td><td>essay</td><td>Jelaskan perbedaan hub dan switch dalam jaringan komputer!</td><td></td>
+      <td>Jawaban harus mencakup: (1) Hub Layer 1 meneruskan ke semua port; (2) Switch Layer 2 menggunakan MAC address; (3) Switch lebih efisien karena kirim ke port tujuan saja.</td>
+      <td>10</td>
+    </tr>
+    <tr>
+      <td>B</td><td>essay</td><td>Sebutkan minimal 3 topologi jaringan beserta kelebihan dan kekurangannya!</td><td></td>
+      <td>Min 3 dari: Star / Bus / Ring / Mesh / Tree. Tiap topologi: +1 nama, +1 kelebihan, +1 kekurangan.</td>
+      <td>10</td>
+    </tr>
+    <tr><td colspan="6" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini.</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- 5. MENJODOHKAN                                 -->
+<!-- ═══════════════════════════════════════════════ -->
+<h2>&#9316; Menjodohkan / Pasangkan &nbsp;&#10098;tipe: menjodohkan&#10099;</h2>
+<p class="sub">Siswa memasangkan kolom kiri dengan kanan. Isi <b>pair_N_kiri</b> &amp; <b>pair_N_kanan</b> (N = 1&ndash;5). Minimal 2 pasang, maksimal 5 pasang.</p>
+<table class="t-jodoh">
+  <colgroup>
+    <col class="c-pkt"><col class="c-tipe"><col class="c-q">
+    <col class="c-p1l"><col class="c-p1r">
+    <col class="c-p2l"><col class="c-p2r">
+    <col class="c-p3l"><col class="c-p3r">
+    <col class="c-p4l"><col class="c-p4r">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>packet</th><th>tipe</th><th>question</th>
+      <th>pair_1_kiri</th><th>pair_1_kanan</th>
+      <th>pair_2_kiri</th><th>pair_2_kanan</th>
+      <th>pair_3_kiri</th><th>pair_3_kanan</th>
+      <th>pair_4_kiri</th><th>pair_4_kanan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>A</td><td>menjodohkan</td><td>Jodohkan perangkat dengan fungsinya!</td>
+      <td>Switch</td><td>Mengelola MAC</td>
+      <td>Router</td><td>Routing jaringan</td>
+      <td>Hub</td><td>Broadcast semua port</td>
+      <td>Modem</td><td>Konversi sinyal</td>
+    </tr>
+    <tr>
+      <td>B</td><td>menjodohkan</td><td>Pasangkan lapisan OSI dengan fungsinya!</td>
+      <td>Physical Layer</td><td>Transmisi bit</td>
+      <td>Data Link</td><td>Frame antar node</td>
+      <td>Network Layer</td><td>Routing paket</td>
+      <td>Transport</td><td>Pengiriman end-to-end</td>
+    </tr>
+    <tr><td colspan="11" class="add-row">&#10133; Tambahkan soal baru di bawah baris ini. Untuk 5 pasang tambahkan kolom pair_5_kiri dan pair_5_kanan.</td></tr>
+  </tbody>
+</table>
+
+
+<div class="tip">
+<b>&#128161; TIPS IMPORT:</b>&nbsp;
+Semua tipe soal bisa <b>dicampur dalam 1 tabel</b> &mdash; gabungkan header dan isi kolom yang relevan per baris. &nbsp;|&nbsp;
+Hapus baris contoh sebelum diimport. &nbsp;|&nbsp;
+Download <b>Template Excel</b> untuk versi multi-sheet dengan petunjuk lengkap.
+</div>
+
+</div>
+</body></html>`;
             const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -11687,74 +11986,155 @@ tr:nth-child(even) { background: #eff6ff; }
         // ---------- HELPER: Build preview table HTML ----------
         function buildPreviewTable(questions) {
             if (!questions || questions.length === 0) return '<p class="p-4 text-gray-400">Tidak ada soal valid yang terdeteksi.</p>';
-            const rows = questions.slice(0, 10).map((q, i) => {
-                const hasQImg  = q.image ? '🖼️' : '';
-                const hasOptImg = (q.optionImages || []).some(x => x) ? '🖼️' : '';
+            const labels = ['A','B','C','D','E'];
+            const rows = questions.slice(0, 15).map((q, i) => {
+                const hasQImg = q.image ? ' 🖼️' : '';
                 const pktColor = q.packet==='A'?'bg-blue-100 text-blue-700':q.packet==='B'?'bg-purple-100 text-purple-700':'bg-orange-100 text-orange-700';
+                const tipe = q.tipe || 'single';
+                const tipeBadge = {
+                    single:      '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">Tunggal</span>',
+                    multiple:    '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Ganda</span>',
+                    truefalse:   '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">B/S</span>',
+                    essay:       '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Esai</span>',
+                    menjodohkan: '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-700">Jodoh</span>',
+                }[tipe] || `<span class="text-xs text-gray-400">${tipe}</span>`;
+
+                let kunciCell;
+                if (tipe === 'essay') {
+                    kunciCell = '<span class="text-purple-500 text-[10px] italic">Rubrik</span>';
+                } else if (tipe === 'truefalse') {
+                    const tf = q.correct === true || q.correct === 'true';
+                    kunciCell = `<span class="${tf?'bg-green-100 text-green-700':'bg-red-100 text-red-700'} px-2 py-0.5 rounded text-xs font-bold">${tf?'BENAR':'SALAH'}</span>`;
+                } else if (tipe === 'multiple' && Array.isArray(q.correct)) {
+                    kunciCell = `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-bold">${q.correct.map(c=>labels[c]||c).join(',')}</span>`;
+                } else if (tipe === 'menjodohkan') {
+                    kunciCell = `<span class="text-teal-600 text-[10px]">${(q.pasangan||[]).length} pasang</span>`;
+                } else {
+                    kunciCell = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">${labels[q.correct]??'-'}</span>`;
+                }
+                const opsiInfo = tipe==='menjodohkan' ? `${(q.pasangan||[]).length}🔗` : tipe==='truefalse' ? 'B/S' : tipe==='essay' ? '—' : `${(q.options||[]).length}`;
+
                 return `<tr class="${i%2===0?'bg-white':'bg-gray-50'}">
-                    <td class="px-3 py-2 text-center font-bold text-xs">${i+1}</td>
+                    <td class="px-3 py-2 text-center font-bold text-xs text-gray-400">${i+1}</td>
                     <td class="px-3 py-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-bold ${pktColor}">${q.packet}</span></td>
-                    <td class="px-3 py-2 text-xs text-gray-700 max-w-xs truncate">${hasQImg} ${q.text || '<em class="text-gray-400">hanya gambar</em>'}</td>
-                    <td class="px-3 py-2 text-xs text-gray-500 text-center">${q.options.length} ${hasOptImg}</td>
-                    <td class="px-3 py-2 text-center"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">${['A','B','C','D','E'][q.correct]}</span></td>
+                    <td class="px-3 py-2">${tipeBadge}</td>
+                    <td class="px-3 py-2 text-xs text-gray-700 max-w-xs truncate">${hasQImg}${q.text || '<em class="text-gray-400">hanya gambar</em>'}</td>
+                    <td class="px-3 py-2 text-xs text-gray-500 text-center">${opsiInfo}</td>
+                    <td class="px-3 py-2 text-center">${kunciCell}</td>
                 </tr>`;
             }).join('');
-            const extra = questions.length > 10 ? `<tr><td colspan="5" class="px-3 py-2 text-center text-gray-400 text-xs">... dan ${questions.length-10} soal lainnya</td></tr>` : '';
+            const extra = questions.length > 15 ? `<tr><td colspan="6" class="px-3 py-2 text-center text-gray-400 text-xs italic">... dan ${questions.length-15} soal lainnya</td></tr>` : '';
             return `<table class="w-full text-sm">
                 <thead class="bg-gray-100 text-gray-700 text-xs font-bold">
-                    <tr><th class="px-3 py-2">#</th><th class="px-3 py-2">Paket</th><th class="px-3 py-2 text-left">Pertanyaan</th><th class="px-3 py-2 text-center">Opsi</th><th class="px-3 py-2">Kunci</th></tr>
+                    <tr><th class="px-3 py-2">#</th><th class="px-3 py-2">Paket</th><th class="px-3 py-2">Tipe</th><th class="px-3 py-2 text-left">Pertanyaan</th><th class="px-3 py-2 text-center">Opsi</th><th class="px-3 py-2">Kunci</th></tr>
                 </thead>
                 <tbody>${rows}${extra}</tbody>
             </table>`;
         }
 
-        // ---------- HELPER: Parse rows jadi format soal (dengan dukungan gambar) ----------
+        // ---------- HELPER: Parse rows → format soal (SEMUA TIPE) ----------
         function parseRows(rows) {
             const questions  = [];
             const correctMap = { A:0, B:1, C:2, D:3, E:4 };
+            const VALID_TIPE = ['single','multiple','truefalse','essay','menjodohkan'];
+
             rows.forEach((row) => {
-                const g = (keys) => { for(const k of keys) { const v = row[k]; if(v !== undefined && v !== null) return v.toString().trim(); } return ''; };
+                // Helper: ambil nilai pertama yang ada dari array key candidates
+                const g = (keys) => {
+                    for (const k of keys) {
+                        const v = row[k];
+                        if (v !== undefined && v !== null && v.toString().trim() !== '') return v.toString().trim();
+                    }
+                    return '';
+                };
 
-                const packet  = g(['packet','Packet','PACKET']).toUpperCase();
-                const text    = g(['question','Question','QUESTION','pertanyaan','soal']);
-                const optA    = g(['option_a','Option_A','option_A','a','A','pilihan_a']);
-                const optB    = g(['option_b','Option_B','option_B','b','B','pilihan_b']);
-                const optC    = g(['option_c','Option_C','option_C','c','C','pilihan_c']);
-                const optD    = g(['option_d','Option_D','option_D','d','D','pilihan_d']);
-                const optE    = g(['option_e','Option_E','option_E','e','E','pilihan_e']);
-                const correct = g(['correct','Correct','CORRECT','kunci','jawaban']).toUpperCase();
-
-                // Gambar soal & gambar tiap opsi (URL Google Drive atau URL biasa)
-                const qImg  = g(['question_image','image','gambar_soal','img']);
-                const imgA  = g(['image_a','img_a','gambar_a']);
-                const imgB  = g(['image_b','img_b','gambar_b']);
-                const imgC  = g(['image_c','img_c','gambar_c']);
-                const imgD  = g(['image_d','img_d','gambar_d']);
-                const imgE  = g(['image_e','img_e','gambar_e']);
+                const packet = g(['packet','Packet','PACKET']).toUpperCase();
+                const text   = g(['question','Question','QUESTION','pertanyaan','soal']);
+                const qImg   = g(['question_image','image','gambar_soal','img']);
+                const tipe   = g(['tipe','Tipe','TIPE','type','Type']).toLowerCase() || 'single';
 
                 if (!packet || !['A','B','C'].includes(packet)) return;
-                if (!text && !qImg) return;  // Boleh hanya gambar tanpa teks
+                if (!text && !qImg) return;
+                if (!VALID_TIPE.includes(tipe)) return;
+
+                const base = {
+                    packet, text, tipe, aktif: true,
+                    image: window.convertGDriveUrl(qImg),
+                    createdAt: Date.now()
+                };
+
+                // ── menjodohkan ──
+                if (tipe === 'menjodohkan') {
+                    const pasangan = [];
+                    for (let n = 1; n <= 5; n++) {
+                        const kiri  = g([`pair_${n}_kiri`,  `pair${n}_kiri`,  `kiri_${n}`]);
+                        const kanan = g([`pair_${n}_kanan`, `pair${n}_kanan`, `kanan_${n}`]);
+                        if (kiri && kanan) pasangan.push({ kiri, kanan });
+                    }
+                    if (pasangan.length < 2) return;
+                    questions.push({ ...base, pasangan, options: [], optionImages: [], correct: null });
+                    return;
+                }
+
+                // ── essay ──
+                if (tipe === 'essay') {
+                    const rubrik = g(['essay_rubrik','rubrik','rubric','kunci_essay']);
+                    if (!rubrik) return;
+                    const skorMaks = parseInt(g(['essay_skor_maks','skor_maks','skor','score_max'])) || 10;
+                    questions.push({ ...base, essayRubrik: rubrik, essaySkorMaks: skorMaks, options: [], optionImages: [], correct: null });
+                    return;
+                }
+
+                // ── truefalse ──
+                if (tipe === 'truefalse') {
+                    const tfRaw = g(['correct_tf','correct','kunci_tf','jawaban_tf']).toUpperCase();
+                    if (!['TRUE','FALSE'].includes(tfRaw)) return;
+                    questions.push({ ...base, correct: tfRaw === 'TRUE', options: [], optionImages: [] });
+                    return;
+                }
+
+                // ── multiple ──
+                if (tipe === 'multiple') {
+                    const optA = g(['option_a','Option_A','a','A','pilihan_a']);
+                    const optB = g(['option_b','Option_B','b','B','pilihan_b']);
+                    const optC = g(['option_c','Option_C','c','C','pilihan_c']);
+                    const optD = g(['option_d','Option_D','d','D','pilihan_d']);
+                    const optE = g(['option_e','Option_E','e','E','pilihan_e']);
+                    if (!optA || !optB || !optC || !optD) return;
+                    const rawMulti = g(['correct_multiple','correct','kunci_multiple']).toUpperCase();
+                    const correctArr = rawMulti.split(/[,;\s\/]+/).map(l => correctMap[l.trim()]).filter(v => v !== undefined);
+                    if (correctArr.length === 0) return;
+                    const options = [optA, optB, optC, optD];
+                    const optionImages = ['','','',''];
+                    if (optE) { options.push(optE); optionImages.push(''); }
+                    questions.push({ ...base, options, optionImages, correct: [...new Set(correctArr)].sort() });
+                    return;
+                }
+
+                // ── single (default) ──
+                const optA = g(['option_a','Option_A','option_A','a','A','pilihan_a']);
+                const optB = g(['option_b','Option_B','option_B','b','B','pilihan_b']);
+                const optC = g(['option_c','Option_C','option_C','c','C','pilihan_c']);
+                const optD = g(['option_d','Option_D','option_D','d','D','pilihan_d']);
+                const optE = g(['option_e','Option_E','option_E','e','E','pilihan_e']);
+                const correct = g(['correct','Correct','CORRECT','kunci','jawaban']).toUpperCase();
+
                 if (!optA || !optB || !optC || !optD) return;
                 if (!(correct in correctMap)) return;
 
-                const options      = [optA, optB, optC, optD];
+                const imgA = g(['image_a','img_a','gambar_a']);
+                const imgB = g(['image_b','img_b','gambar_b']);
+                const imgC = g(['image_c','img_c','gambar_c']);
+                const imgD = g(['image_d','img_d','gambar_d']);
+                const imgE = g(['image_e','img_e','gambar_e']);
+
+                const options = [optA, optB, optC, optD];
                 const optionImages = [
-                    window.convertGDriveUrl(imgA),
-                    window.convertGDriveUrl(imgB),
-                    window.convertGDriveUrl(imgC),
-                    window.convertGDriveUrl(imgD),
+                    window.convertGDriveUrl(imgA), window.convertGDriveUrl(imgB),
+                    window.convertGDriveUrl(imgC), window.convertGDriveUrl(imgD),
                 ];
                 if (optE) { options.push(optE); optionImages.push(window.convertGDriveUrl(imgE)); }
-
-                questions.push({
-                    packet,
-                    text,
-                    image: window.convertGDriveUrl(qImg),
-                    options,
-                    optionImages,
-                    correct: correctMap[correct],
-                    createdAt: Date.now()
-                });
+                questions.push({ ...base, options, optionImages, correct: correctMap[correct] });
             });
             return questions;
         }
@@ -11775,20 +12155,29 @@ tr:nth-child(even) { background: #eff6ff; }
             reader.onload = function(e) {
                 try {
                     const wb = XLSX.read(e.target.result, { type: 'array' });
-                    const ws = wb.Sheets[wb.SheetNames[0]];
-                    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-                    const questions = parseRows(rows);
+                    // Baca SEMUA sheet (kecuali sheet Petunjuk) agar template multi-sheet bisa diimport
+                    const SKIP_SHEETS = ['petunjuk','petunjuk lengkap','instructions','panduan','readme'];
+                    let allRows = [];
+                    wb.SheetNames.forEach(sheetName => {
+                        if (SKIP_SHEETS.includes(sheetName.toLowerCase().trim())) return;
+                        const ws = wb.Sheets[sheetName];
+                        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+                        allRows = allRows.concat(rows);
+                    });
+
+                    const questions = parseRows(allRows);
                     window.parsedExcelQuestions = questions;
 
+                    const sheetInfo = wb.SheetNames.filter(n => !SKIP_SHEETS.includes(n.toLowerCase().trim())).length;
                     document.getElementById('excel-count').innerText = questions.length;
                     document.getElementById('excel-preview-table').innerHTML = buildPreviewTable(questions);
                     document.getElementById('excel-preview').classList.remove('hidden');
 
                     if (questions.length === 0) {
-                        document.getElementById('excel-preview-table').innerHTML = `<div class="p-4 text-red-600 text-sm"><strong>Tidak ada soal valid ditemukan.</strong> Pastikan format kolom sesuai template dan minimal ada 4 pilihan jawaban (A-D).</div>`;
+                        document.getElementById('excel-preview-table').innerHTML = `<div class="p-4 text-red-600 text-sm"><strong>Tidak ada soal valid ditemukan.</strong> Pastikan kolom <b>packet</b> (A/B/C), <b>tipe</b> (single/multiple/truefalse/essay/menjodohkan), dan kolom kunci sudah benar sesuai template.</div>`;
                     }
-                    if(typeof lucide !== 'undefined') lucide.createIcons();
+                    if(typeof lucide !== 'undefined') window._createIconsSafe();
                 } catch(err) {
                     alert("Gagal membaca file Excel: " + err.message);
                 }
@@ -11804,7 +12193,7 @@ tr:nth-child(even) { background: #eff6ff; }
             const btn = document.getElementById('btn-upload-excel');
             btn.disabled = true;
             btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Mengupload...`;
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
 
             showImportStatus('info', `Mengupload ${questions.length} soal ke database...`);
             let uploaded = 0, skipped = 0;
@@ -11828,7 +12217,7 @@ tr:nth-child(even) { background: #eff6ff; }
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload ke Database`;
-                if(typeof lucide !== 'undefined') lucide.createIcons();
+                if(typeof lucide !== 'undefined') window._createIconsSafe();
             }
         };
 
@@ -11891,12 +12280,12 @@ tr:nth-child(even) { background: #eff6ff; }
                         document.getElementById('word-preview').classList.remove('hidden');
 
                         if (questions.length === 0) {
-                            document.getElementById('word-preview-table').innerHTML = `<div class="p-4 text-red-600 text-sm"><strong>Tidak ada soal valid.</strong> Pastikan tabel di Word sesuai format template (ada header: packet, question, option_a, ..., correct)</div>`;
+                            document.getElementById('word-preview-table').innerHTML = `<div class="p-4 text-red-600 text-sm"><strong>Tidak ada soal valid.</strong> Pastikan tabel di Word sesuai template: header <b>packet</b> (A/B/C), <b>tipe</b> (single/multiple/truefalse/essay/menjodohkan), dan kolom kunci sesuai tipe.</div>`;
                             logEl.innerText = `⚠️ ${allRows.length} baris ditemukan tapi tidak ada yang valid. Cek format kolom.`;
                         } else {
                             logEl.classList.add('hidden');
                         }
-                        if(typeof lucide !== 'undefined') lucide.createIcons();
+                        if(typeof lucide !== 'undefined') window._createIconsSafe();
                     })
                     .catch(err => {
                         logEl.innerText = '❌ Gagal membaca Word: ' + err.message;
@@ -11913,7 +12302,7 @@ tr:nth-child(even) { background: #eff6ff; }
             const btn = document.getElementById('btn-upload-word');
             btn.disabled = true;
             btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Mengupload...`;
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if(typeof lucide !== 'undefined') window._createIconsSafe();
 
             showImportStatus('info', `Mengupload ${questions.length} soal ke database...`);
             let uploaded = 0, skipped = 0;
@@ -11938,7 +12327,7 @@ tr:nth-child(even) { background: #eff6ff; }
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload ke Database`;
-                if(typeof lucide !== 'undefined') lucide.createIcons();
+                if(typeof lucide !== 'undefined') window._createIconsSafe();
             }
         };
 
@@ -11958,7 +12347,7 @@ tr:nth-child(even) { background: #eff6ff; }
         }
 
         if(typeof lucide !== 'undefined') {
-            lucide.createIcons();
+            window._createIconsSafe();
         }
 
         // Tampilkan badge perf-mode di panel tampilan jika HP kentang
@@ -11975,8 +12364,14 @@ tr:nth-child(even) { background: #eff6ff; }
     <script>
         function waitFirebase(cb, tries=0) {
             if (window.isFirebaseReady && window.db && window.collection && window.onSnapshot) { cb(); return; }
-            if (tries > 60) { console.warn('[Siswa] Firebase tidak siap.'); return; }
-            setTimeout(() => waitFirebase(cb, tries+1), 300);
+            if (tries > 30) {
+                console.warn('[Siswa] Firebase timeout - retry in 5s');
+                setTimeout(() => waitFirebase(cb, 0), 5000); // reset & coba lagi
+                return;
+            }
+            // Exponential backoff: 200ms, 400ms, 600ms... max 2s
+            const delay = Math.min(200 * (tries + 1), 2000);
+            setTimeout(() => waitFirebase(cb, tries+1), delay);
         }
 
         const COLL_SISWA   = () => window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'data_siswa');
@@ -12519,7 +12914,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
 
         function _listenForSiswa() {
             if (!window.isFirebaseReady || !window.db) return;
-            window.onSnapshot(window.query(COLL_SISWA()), (snap) => {
+            if (window._unsub_listenForSiswa) return; // ★ guard duplikat
+            window._unsub_listenForSiswa = window.onSnapshot(window.query(COLL_SISWA()), (snap) => {
                 window.allSiswaDB = [];
                 snap.forEach(d => window.allSiswaDB.push({ id: d.id, ...d.data() }));
                 _updateSiswaStats();
@@ -12573,7 +12969,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             if (data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-10 text-center text-gray-400"><i data-lucide="search-x" class="w-8 h-8 mx-auto mb-2 text-gray-300"></i><p>' + (window.allSiswaDB.length===0?'Belum ada data siswa. Import dari Excel terlebih dahulu.':'Tidak ada data yang cocok.') + '</p></td></tr>';
                 const pw2 = document.getElementById('pager-siswa-wrap'); if(pw2) pw2.innerHTML='';
-                if(typeof lucide!=='undefined') lucide.createIcons(); return;
+                if(typeof lucide!=='undefined') window._createIconsSafe(); return;
             }
             // ★ PAGING
             const pgSiswa = window._pg.siswa;
@@ -12609,7 +13005,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             // Render pager siswa
             const pwSiswa = document.getElementById('pager-siswa-wrap');
             if (pwSiswa) pwSiswa.innerHTML = renderPagerHTML('siswa', total, pgSiswa.page, pgSiswa.perPage);
-            if(typeof lucide!=='undefined') lucide.createIcons();
+            if(typeof lucide!=='undefined') window._createIconsSafe();
         };
 
         window.filterSiswaTable = function() {
@@ -12766,7 +13162,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
                         '<tr class="border-b hover:bg-gray-50"><td class="px-4 py-2 font-mono text-xs">'+s.nisn+'</td><td class="px-4 py-2 text-sm">'+s.nama+'</td><td class="px-4 py-2 text-sm">'+s.kelas+'</td><td class="px-4 py-2 font-mono text-xs '+(s.waOrtu?'text-green-700':'text-amber-500')+'">'+(s.waOrtu||'—')+'</td></tr>'
                     ).join('');
                     document.getElementById('siswa-import-preview').classList.remove('hidden');
-                    if(typeof lucide!=='undefined') lucide.createIcons();
+                    if(typeof lucide!=='undefined') window._createIconsSafe();
                 } catch(err) { showSiswaStatus('error', '❌ Gagal membaca: ' + err.message); }
                 input.value = '';
             };
@@ -12799,7 +13195,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             finally {
                 btn.disabled = false;
                 btn.innerHTML = 'Simpan ke Database';
-                if(typeof lucide!=='undefined') lucide.createIcons();
+                if(typeof lucide!=='undefined') window._createIconsSafe();
             }
         };
 
@@ -12942,7 +13338,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
             if (!allHasil.length) {
                 allHasil = await _getHasilUjianDariFirestore();
             }
-            if (btnKirim) { btnKirim.disabled = false; btnKirim.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Kirim Semua (Yang Sudah Ujian)'; if(typeof lucide!=='undefined') lucide.createIcons(); }
+            if (btnKirim) { btnKirim.disabled = false; btnKirim.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Kirim Semua (Yang Sudah Ujian)'; if(typeof lucide!=='undefined') window._createIconsSafe(); }
 
             // Hitung yang punya nilai vs yang belum
             const punyaHasil = siswaAdaWA.filter(s =>
