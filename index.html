@@ -7361,77 +7361,59 @@ Terima kasih 🙏</textarea>
                 window._examFinished = false;
                 window._dqShown = false;
 
-                // Simpan/resume sesi Firebase
-                // FIX DUPLIKAT: Cek dengan NISN *atau* nama+kelas jika NISN kosong
-                // dan hapus/update semua dokumen "ghost" (SEDANG MENGERJAKAN yang basi)
+                // Simpan ke Firestore LANGSUNG dulu — agar monitoring menampilkan siswa segera.
+                // Cek dokumen lama (resume) dilakukan setelah save, di background.
                 let existingActiveDocId = null;
-                let ghostDocsToDelete = [];
                 if (window.isFirebaseReady && window.db) {
-                    try {
-                        const fp = (window.getDeviceFingerprint || getDeviceFingerprint)();
-                        const qSnap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
-                        qSnap.forEach(ds => {
-                            const d = ds.data();
-                            // Cek apakah ini dokumen milik siswa yang sama
-                            const nisnMatch = d.studentNisn && studentNisn && 
-                                              d.studentNisn.toString().trim() === studentNisn.toString().trim();
-                            const nameMatch = !nisnMatch && 
-                                              d.studentName && d.studentName.toLowerCase() === name.toLowerCase() &&
-                                              d.className === cls;
-                            const isMine = nisnMatch || nameMatch;
-                            
-                            if (isMine && !d.status.includes('SELESAI') && !d.status.includes('DISKUALIFIKASI')) {
-                                if (!existingActiveDocId) {
-                                    // Ambil dokumen pertama sebagai yang akan dilanjutkan
-                                    existingActiveDocId = ds.id;
-                                    window.examStartTime = d.timestamp;
-                                } else {
-                                    // Duplikat "SEDANG MENGERJAKAN" — tandai untuk dihapus
-                                    ghostDocsToDelete.push(ds.id);
-                                }
-                            }
-                        });
+                    // Langsung buat dokumen baru — siswa langsung muncul di monitoring
+                    const startData = {
+                        timestamp: Date.now(), studentName: name, studentNisn,
+                        className: cls, ruangUjian: room || '-', packetType: pkt, paketId,
+                        sesiId:   window.currentSesiId   || 'default',
+                        sesiName: window.currentSesiName || 'Sesi Default',
+                        jadwalId: (window.allJadwalDB || []).find(j => j.isActive && j.paketId === paketId)?.id || window.currentSesiId || 'default',
+                        score: '-', status: "SEDANG MENGERJAKAN",
+                        violations: 0, violationLogs: [],
+                        deviceFingerprint: (window.getDeviceFingerprint || getDeviceFingerprint)()
+                    };
+                    window.examStartTime = startData.timestamp;
+                    await window.saveExamStart(startData);
 
-                        // Hapus dokumen ghost (duplikat SEDANG MENGERJAKAN)
-                        if (ghostDocsToDelete.length > 0) {
-                            console.log(`[FIX] Menghapus ${ghostDocsToDelete.length} dokumen ghost duplikat.`);
-                            await Promise.all(ghostDocsToDelete.map(gId =>
-                                deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', gId))
-                            ));
-                        }
-                    } catch(_) {}
-
-                    if (existingActiveDocId) {
-                        window.currentExamDocId = existingActiveDocId;
-                        // Simpan ke sessionStorage agar tidak hilang saat refresh
+                    // Background: cek apakah ada dokumen lama milik siswa ini (re-login/resume)
+                    // Jika ada, hapus dokumen baru yang baru dibuat dan pakai yang lama
+                    setTimeout(async () => {
                         try {
-                            sessionStorage.setItem('ukktkj_current_exam_doc_id', existingActiveDocId);
-                            sessionStorage.setItem('ukktkj_student_data', JSON.stringify({
-                                name: name,
-                                nisn: studentNisn,
-                                cls: cls
-                            }));
-                        } catch(e) {}
-                        await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', existingActiveDocId), {
-                            status: "MELANJUTKAN (Re-Login)", packetType: pkt, paketId,
-                            ruangUjian: room || '-',
-                            deviceFingerprint: (window.getDeviceFingerprint || getDeviceFingerprint)()
-                        });
-                    } else {
-                        const startData = {
-                            timestamp: Date.now(), studentName: name, studentNisn,
-                            className: cls, ruangUjian: room || '-', packetType: pkt, paketId,
-                            sesiId:   window.currentSesiId   || 'default',
-                            sesiName: window.currentSesiName || 'Sesi Default',
-                            jadwalId: (window.allJadwalDB || []).find(j => j.isActive && j.paketId === paketId)?.id || window.currentSesiId || 'default',
-                            score: '-', status: "SEDANG MENGERJAKAN",
-                            violations: 0, violationLogs: [],
-                            deviceFingerprint: (window.getDeviceFingerprint || getDeviceFingerprint)()
-                        };
-                        window.examStartTime = startData.timestamp;
-                        await window.saveExamStart(startData);
-                    }
+                            const sesiNow = window.currentSesiId || 'default';
+                            const qSnap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results'));
+                            let oldDocId = null;
+                            qSnap.forEach(ds => {
+                                if (ds.id === window.currentExamDocId) return; // skip dokumen baru
+                                const d = ds.data();
+                                const nisnOk  = studentNisn && d.studentNisn &&
+                                                d.studentNisn.toString().trim() === studentNisn.toString().trim();
+                                const paketOk = d.paketId === paketId;
+                                const sesiOk  = (d.sesiId || 'default') === sesiNow;
+                                const masihAktif = !d.status.includes('SELESAI') && !d.status.includes('DISKUALIFIKASI');
+                                if (nisnOk && paketOk && sesiOk && masihAktif && !oldDocId) {
+                                    oldDocId = ds.id;
+                                }
+                            });
+                            if (oldDocId) {
+                                // Ada dokumen lama — hapus dokumen baru, pakai yang lama (resume)
+                                await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', window.currentExamDocId));
+                                window.currentExamDocId = oldDocId;
+                                try { sessionStorage.setItem('ukktkj_current_exam_doc_id', oldDocId); } catch(e) {}
+                                await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', oldDocId), {
+                                    status: "MELANJUTKAN (Re-Login)", packetType: pkt, paketId,
+                                    ruangUjian: room || '-',
+                                    deviceFingerprint: (window.getDeviceFingerprint || getDeviceFingerprint)()
+                                });
+                            }
+                        } catch(e) { console.warn('[Resume check]', e); }
+                    }, 2000);
+
                 } else {
+                    // Offline — tetap lanjut ujian tanpa simpan ke Firebase
                     window.examStartTime = Date.now();
                 }
 
@@ -9178,15 +9160,13 @@ Terima kasih 🙏</textarea>
             const tbody = document.getElementById('dashboard-table-body');
             tbody.innerHTML = '';
 
-            // ── DEDUPLICATION: 1 siswa = 1 entri di monitoring ──
-            // Key: prioritaskan NISN jika ada dan tidak kosong/nol.
-            // Fallback ke nama+kelas HANYA jika benar-benar tidak ada NISN.
+            // ── DEDUPLICATION: 1 siswa per paket per sesi = 1 entri ──
+            // Key: NISN + paketId + sesiId — agar siswa beda mapel/sesi tidak saling menimpa
             const dedupMap = new Map();
             dashboardData.forEach(item => {
-                const nisn = (item.studentNisn || '').toString().trim();
-                const key = (nisn && nisn !== '0' && nisn !== '-')
-                    ? `nisn_${nisn}`
-                    : `name_${(item.studentName||'').toLowerCase().trim()}__${(item.className||'').trim()}`;
+                const nisn   = (item.studentNisn || '').toString().trim();
+                const nisnKey = (nisn && nisn !== '0' && nisn !== '-') ? `nisn_${nisn}` : `name_${(item.studentName||'').toLowerCase().trim()}__${(item.className||'').trim()}`;
+                const key = `${nisnKey}__pkt_${item.paketId||''}__sesi_${item.sesiId||'default'}`;
                 
                 if (!dedupMap.has(key)) {
                     dedupMap.set(key, item);
@@ -9194,6 +9174,7 @@ Terima kasih 🙏</textarea>
                     const existing = dedupMap.get(key);
                     const existFinished = existing.status.includes('SELESAI') || existing.status.includes('DISKUALIFIKASI');
                     const newFinished   = item.status.includes('SELESAI') || item.status.includes('DISKUALIFIKASI');
+                    // Prioritas: SELESAI/DQ > SEDANG MENGERJAKAN; jika sama, ambil terbaru
                     if (!existFinished && newFinished) {
                         dedupMap.set(key, item);
                     } else if (existFinished === newFinished && item.timestamp > existing.timestamp) {
@@ -9204,34 +9185,26 @@ Terima kasih 🙏</textarea>
             const dedupedData = Array.from(dedupMap.values());
 
             window.currentFilteredData = dedupedData.filter(item => {
-                // ── FIX: Siswa yang SEDANG MENGERJAKAN selalu tampil di monitoring
-                // agar guru/pengawas bisa memantau real-time.
-                // Filter sesi, paket, tanggal hanya berlaku untuk data yang sudah selesai.
+                // Siswa SEDANG MENGERJAKAN / MELANJUTKAN → selalu tampil, bypass semua filter
                 const isLive = item.status === 'SEDANG MENGERJAKAN' || item.status.includes('MELANJUTKAN');
+                if (isLive) return true;
 
-                // ── Filter Sesi ──
+                // ── Filter Sesi (hanya untuk data yang sudah selesai) ──
                 let matchSesi = true;
-                if (!isLive) { // live siswa selalu lolos filter sesi
-                    if (filterSesi === 'active') {
-                        const jadwalAktifIds = (window.allJadwalDB || [])
-                            .filter(j => j.isActive === true)
-                            .map(j => j.id);
-                        
-                        // Selalu tampilkan siswa yang ujian HARI INI — termasuk yang pakai token manual
-                        const today = new Date().toISOString().slice(0,10);
-                        const itemDate = item.timestamp ? new Date(item.timestamp).toISOString().slice(0,10) : '';
-                        const isToday = itemDate === today;
-
-                        if (jadwalAktifIds.length > 0) {
-                            // Ada jadwal aktif: tampilkan yang sesiId cocok ATAU ujian hari ini
-                            matchSesi = jadwalAktifIds.includes(item.sesiId) || isToday;
-                        } else {
-                            // Tidak ada jadwal aktif: tampilkan semua yang hari ini atau sesiId default
-                            matchSesi = isToday || item.sesiId === (window.currentSesiId || 'default') || !item.sesiId || item.sesiId === 'default';
-                        }
-                    } else if (filterSesi !== 'all') {
-                        matchSesi = item.sesiId === filterSesi;
+                if (filterSesi === 'active') {
+                    const jadwalAktifIds = (window.allJadwalDB || [])
+                        .filter(j => j.isActive === true)
+                        .map(j => j.id);
+                    const today = new Date().toISOString().slice(0,10);
+                    const itemDate = item.timestamp ? new Date(item.timestamp).toISOString().slice(0,10) : '';
+                    const isToday = itemDate === today;
+                    if (jadwalAktifIds.length > 0) {
+                        matchSesi = jadwalAktifIds.includes(item.sesiId) || isToday;
+                    } else {
+                        matchSesi = isToday || item.sesiId === (window.currentSesiId || 'default') || !item.sesiId || item.sesiId === 'default';
                     }
+                } else if (filterSesi !== 'all') {
+                    matchSesi = item.sesiId === filterSesi;
                 }
 
                 const matchPkt   = filterPkt === 'all' || item.packetType === filterPkt;
