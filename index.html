@@ -7932,31 +7932,22 @@
             const btn = document.getElementById('btn-review');
             const statusDiv = document.getElementById('discussion-status');
 
-            if (!window.showDiscussionAfterExam) {
-                // Pembahasan dinonaktifkan sama sekali
-                btn.disabled = true;
-                btn.classList.add('opacity-50', 'cursor-not-allowed');
-                statusDiv.classList.remove('hidden');
-                statusDiv.innerHTML = '🔒 Admin telah menonaktifkan pembahasan untuk ujian ini.';
+            // Jika dinonaktifkan atau 'never' — sembunyikan tombol sepenuhnya
+            if (!window.showDiscussionAfterExam || window.discussionVisibility === 'never') {
+                btn.style.display = 'none';
+                statusDiv.classList.add('hidden');
                 return;
             }
 
-            if (window.discussionVisibility === 'never') {
-                btn.disabled = true;
-                btn.classList.add('opacity-50', 'cursor-not-allowed');
-                statusDiv.classList.remove('hidden');
-                statusDiv.innerHTML = '🔒 Pembahasan tidak tersedia.';
-                return;
-            }
-
+            // Mode manual — sembunyikan tombol sambil menunggu admin buka
             if (window.discussionVisibility === 'manual') {
                 if (!window.manualDiscussionOpen) {
-                    btn.disabled = true;
-                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    btn.style.display = 'none';
                     statusDiv.classList.remove('hidden');
                     statusDiv.innerHTML = '⏳ Pembahasan belum dibuka. Tunggu pengumuman dari admin.';
                     return;
                 } else {
+                    btn.style.display = '';
                     btn.disabled = false;
                     btn.classList.remove('opacity-50', 'cursor-not-allowed');
                     statusDiv.classList.add('hidden');
@@ -7964,7 +7955,8 @@
                 }
             }
 
-            // Mode 'after-exam' dan 'after-deadline' - pembahasan tersedia
+            // Mode 'after-exam' / 'after-deadline' — tampilkan tombol
+            btn.style.display = '';
             btn.disabled = false;
             btn.classList.remove('opacity-50', 'cursor-not-allowed');
             statusDiv.classList.add('hidden');
