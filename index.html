@@ -2854,10 +2854,20 @@
                         <p id="admin-exam-judul" class="text-sm font-black text-white leading-tight"></p>
                         <p id="admin-exam-sub" class="text-[11px] text-blue-300 font-semibold leading-tight"></p>
                     </div>
+                    <!-- Badge Admin Tamu -->
+                    <div id="guest-admin-badge" class="hidden items-center gap-2 bg-amber-500/20 border border-amber-400/40 px-3 py-1.5 rounded-full">
+                        <i data-lucide="eye" class="w-4 h-4 text-amber-300"></i>
+                        <span class="text-xs font-bold text-amber-200">Mode Tamu — View Only</span>
+                    </div>
                     <button onclick="window.logout()" class="text-slate-300 hover:text-white flex items-center gap-2 text-sm"><i data-lucide="log-out" class="w-4 h-4"></i> Keluar</button>
                 </div>
             </div>
         </header>
+        <!-- Banner Admin Tamu -->
+        <div id="guest-admin-banner" class="hidden bg-amber-400 text-amber-900 text-center text-xs font-bold py-2 px-4 flex items-center justify-center gap-2 sticky top-0 z-20">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+            Mode Admin Tamu — Anda hanya bisa melihat data. Semua fitur edit, hapus, dan simpan dinonaktifkan.
+        </div>
         <main class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 pb-24 md:pb-6">
             
             <!-- TABS DASHBOARD — Desktop: horizontal pill tabs | Mobile: dihapus (pakai bottom nav) -->
@@ -4414,6 +4424,62 @@
                     </div>
                 </div>
 
+                <!-- Scatter Plot: Nilai vs Skor Integritas -->
+                <div class="bg-white rounded-2xl border shadow-sm p-6 mb-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-1">
+                        <h3 class="font-bold text-gray-700 flex items-center gap-2">
+                            <i data-lucide="target" class="w-4 h-4 text-indigo-500"></i>
+                            Scatter Plot — Nilai Ujian vs Skor Integritas
+                        </h3>
+                        <span class="text-xs text-gray-400">Setiap titik = 1 siswa. Hover untuk detail.</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">Titik kanan atas (nilai tinggi + integritas tinggi) = ideal. Titik kanan bawah (nilai tinggi + integritas rendah) = perlu diperiksa.</p>
+
+                    <!-- Info Box -->
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 mb-4 text-xs text-indigo-800 leading-relaxed">
+                        <p class="font-bold text-indigo-700 mb-2 flex items-center gap-1.5"><i data-lucide="info" class="w-3.5 h-3.5"></i> Cara Membaca Scatter Plot Ini</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div class="flex items-start gap-2 bg-white rounded-lg p-2 border border-indigo-100">
+                                <span class="text-lg leading-none">↗️</span>
+                                <div>
+                                    <p class="font-semibold text-green-700">Kanan Atas — IDEAL</p>
+                                    <p class="text-gray-500">Nilai tinggi + integritas tinggi. Siswa berprestasi dan jujur.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-2 bg-white rounded-lg p-2 border border-indigo-100">
+                                <span class="text-lg leading-none">↘️</span>
+                                <div>
+                                    <p class="font-semibold text-red-600">Kanan Bawah — PERLU DICERMATI</p>
+                                    <p class="text-gray-500">Nilai tinggi tapi integritas rendah. Indikasi potensi kecurangan.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-2 bg-white rounded-lg p-2 border border-indigo-100">
+                                <span class="text-lg leading-none">↖️</span>
+                                <div>
+                                    <p class="font-semibold text-blue-600">Kiri Atas — PERLU BIMBINGAN</p>
+                                    <p class="text-gray-500">Nilai rendah tapi jujur. Siswa butuh dukungan belajar lebih.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-2 bg-white rounded-lg p-2 border border-indigo-100">
+                                <span class="text-lg leading-none">↙️</span>
+                                <div>
+                                    <p class="font-semibold text-gray-600">Kiri Bawah — EVALUASI MENYELURUH</p>
+                                    <p class="text-gray-500">Nilai rendah + integritas rendah. Perlu perhatian ekstra dari guru.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="mt-2 text-indigo-600 font-medium">💡 Semakin banyak titik di kanan atas, semakin baik kualitas ujian di kelas/sekolah kamu.</p>
+                    </div>
+                    <div id="scatter-plot-container" class="relative w-full select-none" style="height:320px;">
+                        <div class="flex flex-col items-center justify-center h-full gap-2 text-gray-300">
+                            <i data-lucide="scatter-chart" class="w-10 h-10"></i>
+                            <p class="text-sm font-semibold text-gray-400">Menunggu data ujian...</p>
+                        </div>
+                    </div>
+                    <div id="scatter-tooltip" class="hidden fixed z-[999] bg-gray-900 text-white text-xs rounded-xl shadow-xl px-3 py-2 pointer-events-none leading-relaxed" style="max-width:210px;"></div>
+                    <div class="flex flex-wrap gap-4 mt-3 justify-center text-xs font-semibold" id="scatter-legend"></div>
+                </div>
+
                 <!-- Tabel Ranking -->
                 <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
                     <div class="p-5 border-b bg-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-2">
@@ -5083,6 +5149,58 @@ Terima kasih 🙏</textarea>
                     </div>
                 </div>
 
+                </div>
+
+                <!-- KARTU: Admin Tamu (untuk Juri/Demo) -->
+                <div id="kartu-admin-tamu" class="mt-6 bg-white rounded-xl shadow-sm border border-amber-200 p-6" style="display:none">
+                    <h2 class="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
+                        <i data-lucide="user-check" class="w-5 h-5 text-amber-500"></i> Admin Tamu <span class="ml-2 text-xs font-normal bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Khusus Demo / Juri</span>
+                    </h2>
+                    <p class="text-sm text-gray-400 mb-5">Buat akun admin sementara agar juri/penguji bisa masuk dan melihat semua fitur seperti admin — tapi <strong class="text-gray-600">tidak bisa mengedit, menghapus, atau mengubah data apapun</strong>. Akun ini bisa dihapus kapanpun.</p>
+
+                    <!-- Form buat akun tamu -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600 mb-1 block">Username Tamu</label>
+                            <input type="text" id="guest-admin-user" placeholder="cth: juri2025" autocomplete="off"
+                                class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50 focus:bg-white">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600 mb-1 block">Password Tamu</label>
+                            <input type="text" id="guest-admin-pass" placeholder="min. 6 karakter" autocomplete="off"
+                                class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50 focus:bg-white font-mono">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600 mb-1 block">Nama Tampilan</label>
+                            <input type="text" id="guest-admin-display" placeholder="cth: Juri Lomba LKS" autocomplete="off"
+                                class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50 focus:bg-white">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 mb-5">
+                        <button onclick="window.createGuestAdmin()"
+                            class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm transition active:scale-95">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i> Buat Akun Admin Tamu
+                        </button>
+                        <button onclick="window.loadGuestAdmins()"
+                            class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-semibold text-sm flex items-center gap-2 transition active:scale-95">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+                        </button>
+                    </div>
+
+                    <!-- Daftar akun tamu -->
+                    <div>
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Akun Tamu Aktif</p>
+                        <div id="guest-admin-list" class="space-y-2 min-h-[48px]">
+                            <p class="text-xs text-gray-400 py-3 text-center">Memuat...</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
+                        <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5 text-amber-500"></i>
+                        <span>Admin tamu dapat melihat semua data, grafik, hasil ujian, dan pengaturan — tetapi semua tombol <strong>Simpan, Hapus, Edit, dan Tambah</strong> dikunci. Data kamu aman.</span>
+                    </div>
+                </div>
+
                 <!-- Tombol simpan -->
                 <div class="mt-6 flex items-center justify-between gap-4">
                     <!-- Info Perf Mode -->
@@ -5546,6 +5664,7 @@ Terima kasih 🙏</textarea>
             setVal('setting-nomor-id-mode', s.nomorIdMode || 'nisn');
             window.updateTampilanPreview();
             if (window.loadAdminCredentialFields) window.loadAdminCredentialFields();
+            if (window.loadGuestAdmins) window.loadGuestAdmins();
         };
 
         // Live preview saat mengetik
@@ -6780,6 +6899,9 @@ Terima kasih 🙏</textarea>
             if (tab === 'kelasruang') { window.renderKelasList(); window.switchKelasRuangTab('kelas'); }
             if (tab === 'siswa') { window.renderSiswaTable(); window.switchSiswaSubTab('data'); }
             if (tab === 'tampilan') window.loadTampilanFields();
+            // Kartu Admin Tamu hanya tampil di tab Setting (tampilan)
+            const kartuTamu = document.getElementById('kartu-admin-tamu');
+            if (kartuTamu) kartuTamu.style.display = (tab === 'tampilan') ? '' : 'none';
             if (tab === 'jadwal') { window.renderJadwalList(); window.initJadwalForm(); }
             if(typeof lucide !== 'undefined') window._createIconsSafe();
         };
@@ -7965,6 +8087,7 @@ Terima kasih 🙏</textarea>
                 // ── Cek credentials ke Firebase ──
                 if (window.isFirebaseReady && window.db) {
                     try {
+                        // Cek admin utama dulu
                         const snap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials'));
                         snap.forEach(ds => {
                             const d = ds.data();
@@ -7974,6 +8097,19 @@ Terima kasih 🙏</textarea>
                                 adminDisplayName = d.displayName || u;
                             }
                         });
+
+                        // Cek admin tamu jika belum berhasil
+                        if (!loginOk) {
+                            const gSnap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'guest_admins'));
+                            gSnap.forEach(ds => {
+                                const d = ds.data();
+                                if (d.username && d.username.toLowerCase() === u.toLowerCase() && d.password === p) {
+                                    loginOk = true;
+                                    adminDisplayName = d.displayName || u;
+                                    window._loginAsGuest = true;
+                                }
+                            });
+                        }
                     } catch(dbErr) {
                         console.warn("Firebase credentials check error:", dbErr);
                         // Fallback ke hardcoded jika Firebase error
@@ -7994,12 +8130,14 @@ Terima kasih 🙏</textarea>
                 }
 
                 // ── Login berhasil ──
-                window.currentUserRole = 'admin';
+                const isGuest = window._loginAsGuest === true;
+                window._loginAsGuest = false;
+                window.currentUserRole = isGuest ? 'admin_guest' : 'admin';
                 window.currentPengawasRuang = null;
 
                 // ★ Simpan session ke sessionStorage agar bertahan saat refresh
                 sessionStorage.setItem('integritest_staff_session', JSON.stringify({
-                    role: 'admin',
+                    role: window.currentUserRole,
                     displayName: adminDisplayName,
                     savedAt: Date.now()
                 }));
@@ -8066,6 +8204,8 @@ Terima kasih 🙏</textarea>
                 // Delay cukup panjang agar Firestore sempat mengembalikan data
                 setTimeout(() => {
                     if (window.renderIntegrityDashboard) window.renderIntegrityDashboard();
+                    if (isGuest) window._activateGuestMode(adminDisplayName);
+                    if (isGuest) window.loadGuestAdmins(); // muat list di panel tampilan
                 }, 1500);
 
             } finally {
@@ -8272,6 +8412,146 @@ Terima kasih 🙏</textarea>
             location.reload();
         };
 
+        // ══════════════════════════════════════════════════════════════
+        // ★ SISTEM ADMIN TAMU (Guest Admin) — View Only
+        // ══════════════════════════════════════════════════════════════
+        const GUEST_COLL = () => collection(window.db, 'artifacts', window.appId, 'public', 'data', 'guest_admins');
+
+        window.isGuestAdmin = () => window.currentUserRole === 'admin_guest';
+
+        // Aktifkan mode tamu: tampilkan banner & kunci semua tombol aksi
+        window._activateGuestMode = function(displayName) {
+            // Banner
+            const banner = document.getElementById('guest-admin-banner');
+            if (banner) { banner.classList.remove('hidden'); banner.style.display = 'flex'; }
+            const badge = document.getElementById('guest-admin-badge');
+            if (badge) { badge.classList.remove('hidden'); badge.style.display = 'flex'; }
+
+            // Header
+            document.getElementById('dash-header-title').textContent = 'Panel Admin — Mode Tamu';
+            document.getElementById('dash-header-subtitle').textContent = `View Only — Login sebagai: ${displayName}`;
+            document.getElementById('dash-header-icon').className = 'bg-amber-500 p-2 rounded-lg';
+
+            // Kunci semua tombol aksi (bukan tombol navigasi/filter/tab)
+            // Dijalankan setelah DOM siap
+            setTimeout(() => {
+                const LOCK_PATTERNS = [
+                    'Simpan','Perbarui','Tambah','Hapus','Import','Export','Buat','Reset',
+                    'Aktifkan','Nonaktifkan','Mulai','Selesai','Kirim','Buka','Tutup','Salin',
+                    'saveAdminCredentials','saveDiscussionSettings','toggleDiscussionManually',
+                    'createGuestAdmin','deleteGuestAdmin','saveAppearanceOnly','saveExamSettings',
+                    'saveKelas','deleteKelas','saveRuang','deleteRuang','importSiswa','deleteSiswa',
+                    'savePaket','deletePaket','saveJadwal','deleteJadwal','kirimNotifikasi',
+                    'resetDevice','confirmDQ','undoDQ'
+                ];
+                document.querySelectorAll('button, input[type="submit"]').forEach(btn => {
+                    const txt = (btn.textContent || btn.value || btn.getAttribute('onclick') || '').trim();
+                    const isNav = btn.closest('nav') || btn.id?.startsWith('tab-') || btn.id?.startsWith('mob-tab-') || btn.classList.contains('tab-btn');
+                    const isLogout = btn.getAttribute('onclick')?.includes('logout');
+                    const isMatch = LOCK_PATTERNS.some(p => txt.includes(p) || (btn.getAttribute('onclick') || '').includes(p));
+                    if (!isNav && !isLogout && isMatch) {
+                        btn.disabled = true;
+                        btn.style.opacity = '0.4';
+                        btn.style.cursor = 'not-allowed';
+                        btn.title = '⛔ Fitur ini dikunci pada Mode Admin Tamu';
+                        btn.setAttribute('data-guest-locked', '1');
+                    }
+                });
+                // Kunci semua input/textarea agar tidak bisa diketik
+                document.querySelectorAll('input:not([type="search"]):not([type="text"][id*="filter"]):not([id*="search"]), textarea, select').forEach(el => {
+                    const isFilter = el.id?.includes('filter') || el.id?.includes('search') || el.id?.includes('cari');
+                    if (!isFilter && !el.closest('nav')) {
+                        el.setAttribute('data-orig-readonly', el.readOnly ? '1' : '0');
+                        el.readOnly = true;
+                        el.style.background = '#f3f4f6';
+                        el.title = '⛔ Tidak bisa diedit pada Mode Admin Tamu';
+                    }
+                });
+                if (typeof lucide !== 'undefined') window._createIconsSafe();
+            }, 800);
+        };
+
+        // Buat akun admin tamu baru
+        window.createGuestAdmin = async function() {
+            if (!window.isFirebaseReady || !window.db) { alert('Perlu koneksi Firebase.'); return; }
+            const u = (document.getElementById('guest-admin-user')?.value || '').trim();
+            const p = (document.getElementById('guest-admin-pass')?.value || '').trim();
+            const d = (document.getElementById('guest-admin-display')?.value || '').trim();
+            if (!u || u.length < 3) { alert('Username minimal 3 karakter!'); return; }
+            if (!p || p.length < 6) { alert('Password minimal 6 karakter!'); return; }
+            // Cek konflik dengan admin utama
+            try {
+                const mainSnap = await getDocs(collection(window.db, 'artifacts', window.appId, 'public', 'data', 'admin_credentials'));
+                let conflict = false;
+                mainSnap.forEach(ds => { if ((ds.data().username||'').toLowerCase() === u.toLowerCase()) conflict = true; });
+                if (conflict) { alert('❌ Username sudah dipakai oleh admin utama!'); return; }
+            } catch(e) {}
+            try {
+                await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'guest_admins', u.toLowerCase()), {
+                    username: u, password: p, displayName: d || u,
+                    createdAt: Date.now(), createdBy: window.currentUserRole
+                });
+                document.getElementById('guest-admin-user').value = '';
+                document.getElementById('guest-admin-pass').value = '';
+                document.getElementById('guest-admin-display').value = '';
+                alert('✅ Akun admin tamu "' + u + '" berhasil dibuat!\n\nUsername: ' + u + '\nPassword: ' + p + '\n\nBerikan info ini ke juri.');
+                window.loadGuestAdmins();
+            } catch(e) { alert('Gagal membuat akun: ' + e.message); }
+        };
+
+        // Hapus akun admin tamu
+        window.deleteGuestAdmin = async function(docId, uname) {
+            if (!confirm('Hapus akun admin tamu "' + uname + '"?\nAkun ini tidak akan bisa login lagi.')) return;
+            try {
+                await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'guest_admins', docId));
+                alert('✅ Akun tamu "' + uname + '" dihapus.');
+                window.loadGuestAdmins();
+            } catch(e) { alert('Gagal hapus: ' + e.message); }
+        };
+
+        // Muat daftar akun tamu ke UI
+        window.loadGuestAdmins = async function() {
+            const listEl = document.getElementById('guest-admin-list');
+            if (!listEl) return;
+            if (!window.isFirebaseReady || !window.db) {
+                listEl.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">Perlu koneksi Firebase.</p>';
+                return;
+            }
+            listEl.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">Memuat...</p>';
+            try {
+                const snap = await getDocs(GUEST_COLL());
+                if (snap.empty) {
+                    listEl.innerHTML = '<p class="text-xs text-gray-400 text-center py-3">Belum ada akun tamu. Buat sekarang untuk keperluan demo / juri.</p>';
+                    return;
+                }
+                listEl.innerHTML = '';
+                snap.forEach(ds => {
+                    const d = ds.data();
+                    const tgl = d.createdAt ? new Date(d.createdAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+                    listEl.innerHTML += `
+                        <div class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="bg-amber-200 rounded-full p-1.5 shrink-0"><i data-lucide="user" class="w-3.5 h-3.5 text-amber-700"></i></div>
+                                <div class="min-w-0">
+                                    <p class="font-bold text-gray-800 text-sm truncate">${d.displayName || d.username}</p>
+                                    <p class="text-xs text-gray-500 font-mono">user: <b>${d.username}</b> &nbsp;|&nbsp; pass: <b>${d.password}</b></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="text-[10px] text-gray-400 hidden md:block">${tgl}</span>
+                                <button onclick="window.deleteGuestAdmin('${ds.id}','${d.username}')"
+                                    class="flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold transition active:scale-95">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus
+                                </button>
+                            </div>
+                        </div>`;
+                });
+                if (typeof lucide !== 'undefined') window._createIconsSafe();
+            } catch(e) {
+                listEl.innerHTML = '<p class="text-xs text-red-400 text-center py-2">Gagal memuat: ' + e.message + '</p>';
+            }
+        };
+
         // ★ RESTORE SESSION setelah refresh halaman
         // Membaca sessionStorage dan mengembalikan state login admin/pengawas
         // tanpa perlu login ulang, selama tab browser masih terbuka.
@@ -8334,9 +8614,45 @@ Terima kasih 🙏</textarea>
                 const teacherInput = document.getElementById('teacher-token-input');
                 if (teacherInput) teacherInput.value = window.currentExamToken;
                 if (typeof lucide !== 'undefined') window._createIconsSafe();
-                setTimeout(() => { if (window.renderIntegrityDashboard) window.renderIntegrityDashboard(); }, 800);
+                setTimeout(() => {
+                    if (window.renderIntegrityDashboard) window.renderIntegrityDashboard();
+                }, 800);
 
                 console.log('[Session] Admin session restored, tab:', _tabToRestoreR);
+
+            } else if (session.role === 'admin_guest') {
+                // ── Restore admin tamu session ──
+                window.currentUserRole = 'admin_guest';
+                window.currentPengawasRuang = null;
+                const adminDisplayName = session.displayName || 'Admin Tamu';
+
+                if(window.setupRealtimeListener) window.setupRealtimeListener();
+                if(window.listenForKelas) window.listenForKelas();
+                if(window.listenForPaket) window.listenForPaket();
+                if(window.listenForRuang) window.listenForRuang();
+                if(window.listenForActiveSesi) window.listenForActiveSesi();
+
+                document.getElementById('pengawas-room-badge').classList.add('hidden');
+                document.getElementById('pengawas-exam-info').classList.add('hidden');
+                const _tkCardGuest = document.getElementById('pengawas-token-card');
+                if (_tkCardGuest) _tkCardGuest.classList.add('hidden');
+                document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.remove('hidden'));
+                const mobileNavG = document.getElementById('mobile-bottom-nav');
+                if (mobileNavG) mobileNavG.style.display = '';
+
+                document.getElementById('section-login').classList.add('hidden-section');
+                document.getElementById('section-dashboard').classList.remove('hidden-section');
+                const _lastTabG = (() => { try { return sessionStorage.getItem('integritest_active_tab') || 'nilai'; } catch(e) { return 'nilai'; } })();
+                const _validTabsG = ['welcome','nilai','kelasruang','soal','siswa','analitik','jadwal','tampilan'];
+                requestAnimationFrame(() => { window.switchDashTab(_validTabsG.includes(_lastTabG) ? _lastTabG : 'nilai'); });
+
+                if (typeof lucide !== 'undefined') window._createIconsSafe();
+                setTimeout(() => {
+                    if (window.renderIntegrityDashboard) window.renderIntegrityDashboard();
+                    window._activateGuestMode(adminDisplayName);
+                }, 1000);
+
+                console.log('[Session] Admin Tamu session restored');
 
             } else if (session.role === 'pengawas' && session.ruang) {
                 // ── Restore pengawas session ──
@@ -10439,8 +10755,150 @@ Terima kasih 🙏</textarea>
                 });
             }
 
+            // ── Scatter Plot: Nilai vs Integritas ──
+            (function renderScatterPlot() {
+                const container = document.getElementById('scatter-plot-container');
+                const legendEl  = document.getElementById('scatter-legend');
+                const tooltip   = document.getElementById('scatter-tooltip');
+                if (!container) return;
+
+                // Data: hanya yang punya score (nilai ujian)
+                const plotData = withScores.filter(d => d.score != null && !isNaN(Number(d.score)));
+                if (plotData.length === 0) {
+                    container.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-2 text-gray-300"><p class="text-sm font-semibold text-gray-400">Belum ada data nilai ujian.</p></div>';
+                    legendEl.innerHTML = '';
+                    return;
+                }
+
+                // Kategori warna titik
+                const DOT_CATS = [
+                    { key:'teladan', label:'Teladan (100)',  color:'#10b981', test: s => s === 100 },
+                    { key:'baik',    label:'Baik (80–99)',   color:'#3b82f6', test: s => s >= 80 && s < 100 },
+                    { key:'cukup',   label:'Cukup (60–79)',  color:'#f59e0b', test: s => s >= 60 && s < 80 },
+                    { key:'eval',    label:'Evaluasi (<60)', color:'#ef4444', test: s => s > 0 && s < 60 },
+                    { key:'dq',      label:'Diskualifikasi', color:'#7f1d1d', test: s => s === 0 },
+                ];
+
+                // Ukuran area plot
+                const W = container.offsetWidth || 600;
+                const H = 320;
+                const PAD = { top: 20, right: 24, bottom: 48, left: 52 };
+                const PW = W - PAD.left - PAD.right;
+                const PH = H - PAD.top  - PAD.bottom;
+
+                // Skala
+                const toX = v => PAD.left + (Number(v) / 100) * PW;
+                const toY = v => PAD.top  + PH - (Number(v) / 100) * PH;
+
+                // SVG builder
+                let svg = `<svg width="${W}" height="${H}" style="font-family:inherit;overflow:visible" xmlns="http://www.w3.org/2000/svg">`;
+
+                // Background grid
+                [0,25,50,75,100].forEach(tick => {
+                    const x = toX(tick);
+                    const y = toY(tick);
+                    svg += `<line x1="${x}" y1="${PAD.top}" x2="${x}" y2="${PAD.top+PH}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4,3"/>`;
+                    svg += `<line x1="${PAD.left}" y1="${y}" x2="${PAD.left+PW}" y2="${y}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4,3"/>`;
+                    svg += `<text x="${x}" y="${PAD.top+PH+14}" text-anchor="middle" font-size="10" fill="#9ca3af">${tick}</text>`;
+                    svg += `<text x="${PAD.left-8}" y="${y+4}" text-anchor="end" font-size="10" fill="#9ca3af">${tick}</text>`;
+                });
+
+                // Axis labels
+                svg += `<text x="${PAD.left + PW/2}" y="${H-4}" text-anchor="middle" font-size="11" font-weight="600" fill="#6b7280">Nilai Ujian →</text>`;
+                svg += `<text transform="rotate(-90)" x="${-(PAD.top+PH/2)}" y="13" text-anchor="middle" font-size="11" font-weight="600" fill="#6b7280">Skor Integritas →</text>`;
+
+                // Axis border
+                svg += `<rect x="${PAD.left}" y="${PAD.top}" width="${PW}" height="${PH}" fill="none" stroke="#d1d5db" stroke-width="1" rx="2"/>`;
+
+                // Quadrant labels (subtle)
+                svg += `<text x="${PAD.left+PW*0.75}" y="${PAD.top+14}" text-anchor="middle" font-size="9" fill="#bbf7d0" font-weight="700">✓ IDEAL</text>`;
+                svg += `<text x="${PAD.left+PW*0.75}" y="${PAD.top+PH-6}" text-anchor="middle" font-size="9" fill="#fecaca" font-weight="700">⚠ PERLU CERMATI</text>`;
+                svg += `<text x="${PAD.left+PW*0.25}" y="${PAD.top+14}" text-anchor="middle" font-size="9" fill="#bfdbfe" font-weight="700">📚 PERLU BIMBINGAN</text>`;
+
+                // Dots
+                // Group by exact position to handle overlap (jitter)
+                const posMap = {};
+                plotData.forEach(d => {
+                    const px = Math.round(Number(d.score));
+                    const py = Math.round(d.integrityScore);
+                    const key = `${px}_${py}`;
+                    if (!posMap[key]) posMap[key] = [];
+                    posMap[key].push(d);
+                });
+
+                const dotsHTML = [];
+                Object.entries(posMap).forEach(([key, group]) => {
+                    group.forEach((d, idx) => {
+                        const px = Math.round(Number(d.score));
+                        const py = Math.round(d.integrityScore);
+                        // Jitter jika overlap
+                        const jx = group.length > 1 ? (idx - (group.length-1)/2) * 5 : 0;
+                        const jy = 0;
+                        const cx = toX(px) + jx;
+                        const cy = toY(py) + jy;
+                        const cat = DOT_CATS.find(c => c.test(d.integrityScore)) || DOT_CATS[4];
+                        const r = 7;
+                        // Encode nama untuk data attribute
+                        const safeName = (d.studentName||'').replace(/"/g,'&quot;');
+                        const safeKelas = (d.className||'-').replace(/"/g,'&quot;');
+                        dotsHTML.push(`<circle
+                            cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}"
+                            fill="${cat.color}" fill-opacity="0.85"
+                            stroke="white" stroke-width="1.5"
+                            style="cursor:pointer;transition:r 0.15s"
+                            data-name="${safeName}" data-kelas="${safeKelas}"
+                            data-nilai="${px}" data-integ="${py}" data-cat="${cat.label}"
+                            onmouseenter="window._scatterHover(event,this)"
+                            onmouseleave="window._scatterOut()"
+                        />`);
+                    });
+                });
+                svg += dotsHTML.join('');
+                svg += '</svg>';
+
+                container.innerHTML = svg;
+
+                // Legend
+                legendEl.innerHTML = DOT_CATS.map(c => {
+                    const cnt = plotData.filter(d => c.test(d.integrityScore)).length;
+                    if (cnt === 0) return '';
+                    return `<span class="flex items-center gap-1.5">
+                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c.color}"></span>
+                        <span class="text-gray-600">${c.label}</span>
+                        <span class="text-gray-400">(${cnt})</span>
+                    </span>`;
+                }).join('');
+
+                // Tooltip handlers
+                window._scatterHover = function(e, el) {
+                    tooltip.classList.remove('hidden');
+                    tooltip.innerHTML = `
+                        <div class="font-bold mb-0.5">${el.dataset.name}</div>
+                        <div class="text-gray-300">Kelas: ${el.dataset.kelas}</div>
+                        <div>Nilai Ujian: <b class="text-yellow-300">${el.dataset.nilai}</b></div>
+                        <div>Skor Integritas: <b class="text-emerald-300">${el.dataset.integ}</b></div>
+                        <div class="mt-1 text-gray-400 text-[10px]">${el.dataset.cat}</div>`;
+                };
+                window._scatterOut = function() { tooltip.classList.add('hidden'); };
+                document.addEventListener('mousemove', function(e) {
+                    if (!tooltip.classList.contains('hidden')) {
+                        tooltip.style.left = (e.clientX + 14) + 'px';
+                        tooltip.style.top  = (e.clientY - 10) + 'px';
+                    }
+                }, { passive: true });
+            })();
+
             // ── Tabel dengan Pagination ──
-            const sorted = [...withScores].sort((a,b) => b.integrityScore - a.integrityScore);
+            const sorted = [...withScores].sort((a,b) => {
+                // 1. Skor integritas tertinggi dulu
+                if (b.integrityScore !== a.integrityScore) return b.integrityScore - a.integrityScore;
+                // 2. Jika integritas sama → nilai ujian tertinggi dulu
+                const scoreA = Number(a.score ?? -1);
+                const scoreB = Number(b.score ?? -1);
+                if (scoreB !== scoreA) return scoreB - scoreA;
+                // 3. Jika masih sama → nama secara alfabetis
+                return (a.studentName || '').localeCompare(b.studentName || '');
+            });
             const pgA = window._pg.analitik;
             pgA.page = Math.max(1, Math.min(pgA.page, Math.ceil(sorted.length / pgA.perPage)));
             const sliceStart = (pgA.page - 1) * pgA.perPage;
