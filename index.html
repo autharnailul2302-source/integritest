@@ -813,7 +813,6 @@
         window.forceFinishStudent = async (id) => {
             if(!window.isFirebaseReady) return alert("Mode Offline.");
             
-            // Cari data siswa
             const studentData = dashboardData.find(item => item.id === id);
             if (!studentData) return alert("Data siswa tidak ditemukan.");
             
@@ -827,38 +826,32 @@
                 `Lanjutkan?`;
             
             if(!confirm(confirmMsg)) return;
-            
-            // Tanya nilai yang akan diberikan
+
+            // Input nilai manual karena jawaban tidak tersimpan real-time
             const scoreInput = prompt(
-                `Masukkan nilai untuk ${studentData.studentName}:\n\n` +
-                `Ketik angka 0-100, atau ketik "0" jika siswa tidak mengerjakan sama sekali.\n` +
-                `Tekan Cancel untuk membatalkan.`,
+                `Masukkan nilai untuk ${studentData.studentName}:\n(0–100, atau kosongkan/Cancel untuk nilai 0)`,
                 "0"
             );
-            
-            if (scoreInput === null) return; // User cancel
-            
-            const score = parseInt(scoreInput);
+            if (scoreInput === null) return; // Cancel
+            const score = scoreInput.trim() === '' ? 0 : parseInt(scoreInput);
             if (isNaN(score) || score < 0 || score > 100) {
-                return alert("❌ Nilai tidak valid!\n\nNilai harus berupa angka antara 0-100.");
+                return alert("❌ Nilai tidak valid! Masukkan angka antara 0–100.");
             }
-            
+
             try {
                 const updateData = {
                     status: "SELESAI (Paksa oleh Pengawas)",
                     score: score,
                     scoreNonEssay: score,
-                    timestamp: Date.now(), // Update timestamp ke waktu sekarang
+                    timestamp: Date.now(),
                     forcedFinishBy: window.currentPengawasName || window.currentStaffName || 'Admin',
                     forcedFinishAt: Date.now(),
                     note: (studentData.note || '') + `\n[${new Date().toLocaleString('id-ID')}] Ujian dipaksa selesai oleh ${window.currentPengawasName || window.currentStaffName || 'Admin'}. Nilai diberikan manual: ${score}.`
                 };
-                
                 await updateDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'exam_results', id), updateData);
-                
-                alert(`✅ Ujian ${studentData.studentName} telah dipaksa selesai.\n\nStatus: SELESAI (Paksa oleh Pengawas)\nNilai: ${score}`);
+                alert(`✅ Ujian ${studentData.studentName} dipaksa selesai.\nNilai: ${score}`);
             } catch(e) {
-                alert("Gagal memaksa selesai ujian: " + e.message);
+                alert("Gagal memaksa selesai: " + e.message);
             }
         };
 
@@ -3057,7 +3050,7 @@
                                 <tr class="border-b border-gray-50 bg-gray-50/50">
                                     <td class="px-4 py-3 text-gray-700 font-medium text-xs">Skor integritas siswa</td>
                                     <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
-                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Jarang</td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
                                 </tr>
                                 <tr class="border-b border-gray-50">
                                     <td class="px-4 py-3 text-gray-700 font-medium text-xs">Monitoring real-time multi-ruang</td>
@@ -3067,12 +3060,12 @@
                                 <tr class="border-b border-gray-50 bg-gray-50/50">
                                     <td class="px-4 py-3 text-gray-700 font-medium text-xs">Jadwal ujian otomatis</td>
                                     <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
-                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Jarang</td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
                                 </tr>
                                 <tr class="border-b border-gray-50">
                                     <td class="px-4 py-3 text-gray-700 font-medium text-xs">Laporan integritas PDF</td>
                                     <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Otomatis</span></td>
-                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Jarang</td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
                                 </tr>
                                 <tr class="border-b border-gray-50 bg-gray-50/50">
                                     <td class="px-4 py-3 text-gray-700 font-medium text-xs">Nilai maksimal fleksibel per paket</td>
@@ -3092,22 +3085,22 @@
                                 <tr class="border-b border-gray-50">
                                     <td class="px-4 py-3 text-gray-700 font-medium text-xs flex items-center gap-1.5">Kartu peserta otomatis <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600">BARU</span></td>
                                     <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
-                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Jarang</td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
                                 </tr>
                                 <tr class="border-b border-gray-50 bg-gray-50/50">
                                     <td class="px-4 py-3 text-gray-700 font-medium text-xs">Notifikasi WA orang tua otomatis <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 ml-1">BARU</span></td>
                                     <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
-                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Jarang</td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
                                 </tr>
                                 <tr class="border-b border-gray-50">
                                     <td class="px-4 py-3 text-gray-700 font-medium text-xs">Pembahasan soal terkontrol admin <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 ml-1">BARU</span></td>
                                     <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
-                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Jarang</td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
                                 </tr>
                                 <tr class="border-b border-gray-50 bg-gray-50/50">
                                     <td class="px-4 py-3 text-gray-700 font-medium text-xs">Device fingerprinting (1 siswa 1 HP) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-600 ml-1">BARU</span></td>
                                     <td class="px-4 py-3 text-center"><span class="text-emerald-600 font-bold">✓ Ada</span></td>
-                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Jarang</td>
+                                    <td class="px-4 py-3 text-center text-gray-400 text-xs">Tidak ada</td>
                                 </tr>
                                 <tr class="bg-gray-50/50">
                                     <td class="px-4 py-3 text-gray-700 font-medium text-xs rounded-bl-xl">Soal bergambar (Word/URL) <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-600 ml-1">BARU</span></td>
@@ -5149,8 +5142,6 @@ Terima kasih 🙏</textarea>
                     </div>
                 </div>
 
-                </div>
-
                 <!-- KARTU: Admin Tamu (untuk Juri/Demo) -->
                 <div id="kartu-admin-tamu" class="mt-6 bg-white rounded-xl shadow-sm border border-amber-200 p-6" style="display:none">
                     <h2 class="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
@@ -5230,7 +5221,7 @@ Terima kasih 🙏</textarea>
         </footer>
 
         <!-- MOBILE BOTTOM NAV — hanya tampil di HP (md ke atas disembunyikan) -->
-        <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-2xl shadow-black/10" style="display:none">
+        <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-2xl shadow-black/10">
             <!-- Safe area untuk iPhone dengan home indicator -->
             <div class="flex items-stretch h-16 px-1 overflow-x-auto scrollbar-hide" style="padding-bottom: env(safe-area-inset-bottom, 0px); -webkit-overflow-scrolling: touch; scrollbar-width: none;">
                 <button onclick="window.switchDashTab('welcome')" id="mob-tab-welcome"
@@ -10162,8 +10153,8 @@ Terima kasih 🙏</textarea>
                         <td class="px-6 py-4 text-gray-600 text-sm">${item.className || '-'}</td>
                         <td class="px-6 py-4"><span class="${ruangColor}">${ruangLabel}</span></td>
                         <td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs font-bold ${pktColor}">${item.paketNama || ('Paket ' + item.packetType)}</span></td>
-                        <td class="px-6 py-4 text-center text-lg font-bold ${(item.score??-1)>=80?'text-emerald-600':(item.score??-1)>=60?'text-amber-500':'text-red-500'}">
-                            ${item.essayPending ? `<span class="inline-flex flex-col items-center gap-0.5"><span class="text-base">${item.score ?? '-'}</span><span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-bold leading-none">+esai⏳</span></span>` : (item.score ?? '-')}
+                        <td class="px-6 py-4 text-center text-lg font-bold ${typeof item.score==='number'?(item.score>=80?'text-emerald-600':item.score>=60?'text-amber-500':'text-red-500'):'text-gray-400'}">
+                            ${item.essayPending ? `<span class="inline-flex flex-col items-center gap-0.5"><span class="text-base">${typeof item.score==='number'?item.score:'-'}</span><span class="text-[9px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-bold leading-none">+esai⏳</span></span>` : (typeof item.score==='number'?item.score:'-')}
                         </td>
                         <td class="px-6 py-4"><span class="${statusColor}">${statusIcon} ${item.status}</span></td>
                         <td class="px-6 py-4 text-center">${violationDisplay}</td>
